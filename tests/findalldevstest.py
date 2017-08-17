@@ -8,7 +8,36 @@ import ctypes as ct
 
 import libpcap as pcap
 
-#https://github.com/sqlmapproject/sqlmap/blob/master/thirdparty/wininetpton/win_inet_pton.py
+# IPv4 AF_INET sockets:
+
+class in_addr(ct.Union):
+    _fields_ = [
+    ("s_addr", ct.c_uint32),  # ct.c_ulong
+]
+
+class sockaddr_in(ct.Structure):
+    _fields_ = [
+    ("sin_family", ct.c_short),       # e.g. AF_INET, AF_INET6   
+    ("sin_port",   ct.c_ushort),      # e.g. htons(3490)         
+    ("sin_addr",   in_addr),          # see struct in_addr, below
+    ("sin_zero",   (ct.c_char * 8)),  # padding, zero this if you want to
+]
+
+# IPv6 AF_INET6 sockets:
+
+class in6_addr(ct.Union):
+    _fields_ = [
+    ("s6_addr",   (ct.c_ubyte * 16)),
+]
+
+class sockaddr_in6(ct.Structure):
+    _fields_ = [
+    ('sin6_family',   ct.c_short),   # address family, AF_INET6      
+    ('sin6_port',     ct.c_ushort),  # port number, Network Byte Order
+    ('sin6_flowinfo', ct.c_ulong),   # IPv6 flow information         
+    ('sin6_addr',     in6_addr),     # IPv6 address                  
+    ('sin6_scope_id', ct.c_ulong),   # Scope ID                      
+]
 
 
 def main():
@@ -58,29 +87,25 @@ def ifprint(d): # pcap_if_t*
         dstaddr   = a.dstaddr
         if addr.contents.sa_family == socket.AF_INET:
             print("\tAddress Family: AF_INET")
-            """
             if addr:
-                print("\t\tAddress: {!s}".format(socket.inet_ntoa(((struct sockaddr_in *)addr)->sin_addr)))
+                print("\t\tAddress: {!s}".format(socket.inet_ntoa(ct.cast(addr, ct.POINTER(sockaddr_in)).contents.sin_addr)))
             if netmask:
-                print("\t\tNetmask: {!s}".format(socket.inet_ntoa(((struct sockaddr_in *)netmask)->sin_addr)))
+                print("\t\tNetmask: {!s}".format(socket.inet_ntoa(ct.cast(netmask, ct.POINTER(sockaddr_in)).contents.sin_addr)))
             if broadaddr:
-                print("\t\tBroadcast Address: {!s}".format(socket.inet_ntoa(((struct sockaddr_in *)broadaddr)->sin_addr)))
+                print("\t\tBroadcast Address: {!s}".format(socket.inet_ntoa(ct.cast(broadaddr, ct.POINTER(sockaddr_in)).contents.sin_addr)))
             if dstaddr:
-                print("\t\tDestination Address: {!s}".format(socket.inet_ntoa(((struct sockaddr_in *)dstaddr)->sin_addr)))
-            """
+                print("\t\tDestination Address: {!s}".format(socket.inet_ntoa(ct.cast(dstaddr, ct.POINTER(sockaddr_in)).contents.sin_addr)))
         #ifdef INET6
         elif addr.contents.sa_family == socket.AF_INET6:
             print("\tAddress Family: AF_INET6")
-            """
             if addr:
-                print("\t\tAddress: {!s}".format(socket.inet_ntop(socket.AF_INET6, ((struct sockaddr_in6 *)addr)->sin6_addr.s6_addr)))
+                print("\t\tAddress: {!s}".format(socket.inet_ntop(socket.AF_INET6, ct.cast(addr, ct.POINTER(sockaddr_in6)).contents.sin6_addr.s6_addr)))
             if netmask:
-                print("\t\tNetmask: {!s}".format(socket.inet_ntop(socket.AF_INET6, ((struct sockaddr_in6 *)netmask)->sin6_addr.s6_addr)))
+                print("\t\tNetmask: {!s}".format(socket.inet_ntop(socket.AF_INET6, ct.cast(netmask, ct.POINTER(sockaddr_in6)).contents.sin6_addr.s6_addr)))
             if broadaddr:
-                print("\t\tBroadcast Address: {!s}".format(socket.inet_ntop(socket.AF_INET6, ((struct sockaddr_in6 *)broadaddr)->sin6_addr.s6_addr)))
+                print("\t\tBroadcast Address: {!s}".format(socket.inet_ntop(socket.AF_INET6, ct.cast(broadaddr, ct.POINTER(sockaddr_in6)).contents.sin6_addr.s6_addr)))
             if dstaddr:
-                print("\t\tDestination Address: {!s}".format(socket.inet_ntop(socket.AF_INET6, ((struct sockaddr_in6 *)dstaddr)->sin6_addr.s6_addr)))
-            """
+                print("\t\tDestination Address: {!s}".format(socket.inet_ntop(socket.AF_INET6, ct.cast(dstaddr, ct.POINTER(sockaddr_in6)).contents.sin6_addr.s6_addr)))
         #endif
         else:
             print("\tAddress Family: Unknown ({:d})".format(addr.contents.sa_family))

@@ -36,6 +36,8 @@
 from __future__ import absolute_import
 
 import ctypes as ct
+intptr_t = (ct.c_int32 if ct.sizeof(ct.c_void_p) == ct.sizeof(ct.c_int32)
+            else ct.c_int64)
 new_array = lambda type, size: (type * size)()
 
 HAVE_REMOTE = True #!!!
@@ -47,7 +49,6 @@ from ._dll      import dll
 
 from ._bpf import *
 
-intptr_t =  ct.c_long # !!!
 
 class FILE(ct.Structure): pass
 class sockaddr(ct.Structure): pass

@@ -51,7 +51,15 @@ from ._bpf import *
 
 
 class FILE(ct.Structure): pass
-class sockaddr(ct.Structure): pass
+
+class sockaddr(ct.Structure):
+    _fields_ = [
+    ("sa_family", ct.c_short),
+    ("__pad1",    ct.c_ushort),
+    ("ipv4_addr", ct.c_byte * 4),
+    ("ipv6_addr", ct.c_byte * 16),
+    ("__pad2",    ct.c_ulong),
+]
 
 PCAP_VERSION_MAJOR = 2
 PCAP_VERSION_MINOR = 4
@@ -371,9 +379,9 @@ if is_windows:
                       (1, "osfd"),
                       (1, "errbuf"),))
 
-    @CFUNC(ct.POINTER(pcap_t), ct.POINTER(FILE), ct.c_char_p)
-    def fopen_offline(fp, errbuf):
-        return pcap_hopen_offline(_get_osfhandle(_fileno(fp)), errbuf)
+    #@CFUNC(ct.POINTER(pcap_t), ct.POINTER(FILE), ct.c_char_p)
+    def fopen_offline(fp, errbuf, libc=ct.cdll.msvcrt):
+        return hopen_offline(libc._get_osfhandle(libc._fileno(fp)), errbuf)
 else:
     fopen_offline = CFUNC(ct.POINTER(pcap_t),
                       ct.POINTER(FILE),

@@ -65,19 +65,19 @@ static char * read_infile(char *fname):
 
     fd = open(fname, O_RDONLY | O_BINARY);
     if fd < 0:
-        error("can't open %s: %s", fname, pcap.strerror(errno))
+        error("can't open {!s}: {!s}", fname, pcap.strerror(errno))
 
     if fstat(fd, &buf) < 0:
-        error("can't stat %s: %s", fname, pcap.strerror(errno))
+        error("can't stat {!s}: {!s}", fname, pcap.strerror(errno))
 
     cp = malloc((u_int)buf.st_size + 1);
     if cp == None: #!!! NULL
-        error("malloc(%d) for %s: %s", (u_int)buf.st_size + 1, fname, pcap.strerror(errno));
+        error("malloc(%d) for {!s}: {!s}", (u_int)buf.st_size + 1, fname, pcap.strerror(errno));
     cc = read(fd, cp, (u_int)buf.st_size);
     if cc < 0:
-        error("read %s: %s", fname, pcap.strerror(errno))
+        error("read {!s}: {!s}", fname, pcap.strerror(errno))
     if cc != buf.st_size:
-        error("short read %s (%d != %d)", fname, cc, (int)buf.st_size);
+        error("short read {!s} (%d != %d)", fname, cc, (int)buf.st_size);
 
     close(fd);
 
@@ -93,10 +93,10 @@ static char * read_infile(char *fname):
 
 def error(fmt, *args):
 
-    fprintf(stderr, "{!s}: ".format(program_name))
-    vfprintf(stderr, fmt.format(*args)
+    print("{!s}: ".format(program_name), end="", file=sys.stderr)
+    print(fmt.format(*args), end="", file=sys.stderr)
     if fmt and fmt[-1] != '\n':
-        fputc('\n', stderr)
+        print(file=sys.stderr)
     sys.exit(1)
 
 
@@ -133,7 +133,7 @@ static char * copy_argv(register char **argv):
 
 def usage():
 
-    fprintf(stderr, "%s, with %s\n", program_name, pcap_lib_version())
+    fprintf(stderr, "%s, with %s\n", program_name, pcap.lib_version())
     fprintf(stderr, "Usage: %s [-dO] [ -F file ] [ -s snaplen ] dlt [ expression ]\n", program_name)
     sys.exit(1)
 
@@ -149,24 +149,25 @@ def main(int argc, char **argv):
     int dlt;
     char *cmdbuf;
     pcap_t *pd;
-    struct bpf_program fcode;
 
 #ifdef WIN32
     if(wsockinit() != 0) return 1;
 #endif /* WIN32 */
 
-    dflag = 1;
-    infile = NULL;
-    Oflag = 1;
+    dflag   = 1;
+    infile  = NULL;
+    Oflag   = 1;
     snaplen = 68;
+
+    program_name = os.path.basename(sys.executable)
   
-    if ((cp = strrchr(argv[0], '/')) != NULL):
+    if ((cp = strrchr(sys.argv[0], '/')) != NULL):
         program_name = cp + 1;
     else
-        program_name = argv[0];
+        program_name = sys.argv[0];
 
     opterr = 0;
-    while ((op = getopt(argc, argv, "dF:Os:")) != -1)
+    while ((op = getopt(argc, sys.argv, "dF:Os:")) != -1)
     {
         switch (op) {
 
@@ -188,7 +189,7 @@ def main(int argc, char **argv):
             snaplen = strtol(optarg, &end, 0);
             if (optarg == end || *end != '\0'
                 || snaplen < 0 || snaplen > 65535)
-                error("invalid snaplen %s", optarg);
+                error("invalid snaplen {!s}", optarg)
             else if (snaplen == 0)
                 snaplen = 65535;
             break;
@@ -205,21 +206,22 @@ def main(int argc, char **argv):
         /* NOTREACHED */
     }
 
-    dlt = pcap.datalink_name_to_val(argv[optind])
+    dlt = pcap.datalink_name_to_val(sys.argv[optind])
     if dlt < 0:
-        error("invalid data link type %s", argv[optind])
+        error("invalid data link type {!s}", sys.argv[optind])
     
     if infile:
         cmdbuf = read_infile(infile)
     else:
-        cmdbuf = copy_argv(&argv[optind + 1])
+        cmdbuf = copy_argv(&sys.argv[optind + 1])
 
     pd = pcap.open_dead(dlt, snaplen)
     if pd is None:
         error("Can't open fake pcap_t")
 
+    fcode = pcap.bpf_program()
     if pcap.compile(pd, ct.byref(fcode), cmdbuf, Oflag, 0) < 0:
-        error("%s", pcap_geterr(pd))
+        error("{!s}", pcap.geterr(pd))
     pcap.bpf_dump(ct.byref(fcode), dflag)
     pcap.close(pd)
 

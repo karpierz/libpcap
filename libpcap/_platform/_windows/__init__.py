@@ -26,4 +26,13 @@ class timeval(ct.Structure):
     ("tv_usec", ct.c_long),  # microseconds
 ]
 
+class sockaddr(ct.Structure): 
+    _fields_ = [
+    ("sa_family", ct.c_short), 
+    ("__pad1",    ct.c_ushort), 
+    ("ipv4_addr", ct.c_byte * 4), 
+    ("ipv6_addr", ct.c_byte * 16), 
+    ("__pad2",    ct.c_ulong),
+] 
+
 # eof

@@ -21,11 +21,11 @@ del sys, os, platform
 defined = lambda varname: varname in locals() or varname in globals()
 
 if is_windows:
-    from ._windows import DLL_PATH, DLL, CFUNC, dlclose, timeval
+    from ._windows import DLL_PATH, DLL, CFUNC, dlclose, timeval, sockaddr
 elif is_linux:
-    from ._linux   import DLL_PATH, DLL, CFUNC, dlclose, timeval
+    from ._linux   import DLL_PATH, DLL, CFUNC, dlclose, timeval, sockaddr
 elif is_osx:
-    from ._osx     import DLL_PATH, DLL, CFUNC, dlclose, timeval
+    from ._osx     import DLL_PATH, DLL, CFUNC, dlclose, timeval, sockaddr
 else:
     raise ImportError("unsupported platform")
 

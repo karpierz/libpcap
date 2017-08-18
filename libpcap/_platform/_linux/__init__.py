@@ -8,6 +8,7 @@ is_py32bit = sys.maxsize <= 2**32
 
 DLL_PATH = os.path.join(this_dir, "win32" if is_py32bit else "x64", "libpcap-1.0.so")
 
+import ctypes as ct
 from ctypes  import CDLL      as DLL
 from ctypes  import CFUNCTYPE as CFUNC
 from _ctypes import dlclose
@@ -25,3 +26,14 @@ class timeval(ct.Structure):
     ("tv_sec",  time_t),       # seconds
     ("tv_usec", suseconds_t),  # microseconds
 ]
+
+class sockaddr(ct.Structure): 
+    _fields_ = [
+    ("sa_family", ct.c_short), 
+    ("__pad1",    ct.c_ushort), 
+    ("ipv4_addr", ct.c_byte * 4), 
+    ("ipv6_addr", ct.c_byte * 16), 
+    ("__pad2",    ct.c_ulong),
+] 
+
+# eof

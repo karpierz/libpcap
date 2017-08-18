@@ -44,22 +44,13 @@ HAVE_REMOTE = True #!!!
 
 from ._platform import is_windows, defined 
 from ._platform import CFUNC
-from ._platform import timeval
+from ._platform import timeval, sockaddr
 from ._dll      import dll
 
 from ._bpf import *
 
 
 class FILE(ct.Structure): pass
-
-class sockaddr(ct.Structure): 
-    _fields_ = [
-    ("sa_family", ct.c_short), 
-    ("__pad1",    ct.c_ushort), 
-    ("ipv4_addr", ct.c_byte * 4), 
-    ("ipv6_addr", ct.c_byte * 16), 
-    ("__pad2",    ct.c_ulong),
-] 
 
 PCAP_VERSION_MAJOR = 2
 PCAP_VERSION_MINOR = 4

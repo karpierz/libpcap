@@ -122,7 +122,7 @@ IPTOSBUFFERS = 12
 output = [None] * IPTOSBUFFERS
 which  = 0
 
-def iptos(inp): # pcap.bpf_u_int32 in
+def iptos(inp): # pcap.bpf_u_int32 inp
 
     global output
     global which

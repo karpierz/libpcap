@@ -37,6 +37,7 @@
 from __future__ import absolute_import
 
 import ctypes as ct
+import ctypes.wintypes
 
 from ._platform import CFUNC
 from ._dll      import dll

@@ -35,6 +35,7 @@
 
 from __future__ import absolute_import
 
+import os
 import ctypes as ct
 intptr_t = (ct.c_int32 if ct.sizeof(ct.c_void_p) == ct.sizeof(ct.c_int32)
             else ct.c_int64)
@@ -44,18 +45,14 @@ from ._platform import CFUNC
 from ._platform import timeval, sockaddr
 from ._dll      import dll
 
+if is_windows and os.path.basename(dll._name) == "wpcap.dll":
+    WPCAP = True
+
 try:
     ct.c_void_p.in_dll(dll, "pcap_remoteact_accept")
     HAVE_REMOTE = True
 except ValueError:
     pass
-
-if is_windows:
-    try:
-        ct.c_void_p.in_dll(dll, "pcap_sendqueue_alloc")
-        WPCAP = True
-    except ValueError:
-        pass
 
 from ._bpf import *
 

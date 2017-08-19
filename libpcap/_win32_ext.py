@@ -164,12 +164,14 @@ offline_filter     = CFUNC(ct.c_int,
                            (1, "pkt_header"),
                            (1, "pkt_data"),))
 
-start_oem          = CFUNC(ct.c_int,
+try:
+    start_oem      = CFUNC(ct.c_int,
                            ct.c_char_p,
                            ct.c_int)(
                            ("pcap_start_oem", dll), (
                            (1, "err_str"),
                            (1, "flags"),))
+except: pass
 
 get_airpcap_handle = CFUNC(PAirpcapHandle,
                            ct.POINTER(pcap_t))(

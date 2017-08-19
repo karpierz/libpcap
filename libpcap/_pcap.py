@@ -38,14 +38,24 @@ from __future__ import absolute_import
 import ctypes as ct
 intptr_t = (ct.c_int32 if ct.sizeof(ct.c_void_p) == ct.sizeof(ct.c_int32)
             else ct.c_int64)
-new_array = lambda type, size: (type * size)()
-
-HAVE_REMOTE = True #!!!
 
 from ._platform import is_windows, defined 
 from ._platform import CFUNC
 from ._platform import timeval, sockaddr
 from ._dll      import dll
+
+try:
+    ct.c_void_p.in_dll(dll, "pcap_remoteact_accept")
+    HAVE_REMOTE = True
+except ValueError:
+    pass
+
+if is_windows:
+    try:
+        ct.c_void_p.in_dll(dll, "pcap_sendqueue_alloc")
+        WPCAP = True
+    except ValueError:
+        pass
 
 from ._bpf import *
 
@@ -714,6 +724,10 @@ if is_windows:
                       (1, "pcap"),
                       (1, "size"),))
 
+    if defined("WPCAP"):
+        # Include file with the wpcap-specific extensions
+        from ._win32_ext import *
+
     MODE_CAPT = 0
     MODE_STAT = 1
     MODE_MON  = 2
@@ -751,5 +765,9 @@ else: # UN*X
                               (1, "pcap"),))
 
 #endif # WIN32/MSDOS/UN*X
+
+if defined("HAVE_REMOTE"):
+    # Includes most of the public stuff that is needed for the remote capture
+    from ._remote_ext import *
 
 # eof

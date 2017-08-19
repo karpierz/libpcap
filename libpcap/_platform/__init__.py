@@ -16,9 +16,11 @@ is_osx     = (sys.platform == "darwin")
 is_android = False
 is_posix   = (os.name == "posix")
 
-del sys, os, platform
+def defined(varname, _getframe=sys._getframe):
+    frame = _getframe(1)
+    return varname in frame.f_locals or varname in frame.f_globals
 
-defined = lambda varname: varname in locals() or varname in globals()
+del sys, os, platform
 
 if is_windows:
     from ._windows import DLL_PATH, DLL, CFUNC, dlclose, timeval, sockaddr

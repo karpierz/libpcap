@@ -6,7 +6,16 @@ Python wrapper for the libpcap library.
 Overview
 ========
 
-TBD
+  | Python *libpcap* module is a bridge between Python and *libpcap* C library.
+  | It is an effort to allow python programs full access to the API provided by
+    the well known *libpcap* Unix C library and by its extended implementation
+    available under Windows as part of the `WinPcap <https://www.winpcap.org>`_
+    packet capture system.
+
+  | libpcap is a lightweight Python package, based on the *ctypes* library.
+  | It is an almost fully compliant implementation of the original *LIBPCAP*
+    (see below) by implementing whole its functionality in a clean Python
+    instead of C.
 
 About original LIBPCAP:
 -----------------------
@@ -129,10 +138,6 @@ Requirements
 Installation
 ============
 
-::
-
-    python -m pip install --upgrade libpcap
-
 Prerequisites:
 
 + Python 2.7 or higher or 3.3 or higher
@@ -144,6 +149,10 @@ Prerequisites:
 
   * http://pypi.python.org/pypi/pip
   * http://pypi.python.org/pypi/setuptools
+
+To install run::
+
+    python -m pip install --upgrade libpcap
 
 License
 =======

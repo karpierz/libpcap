@@ -6,16 +6,16 @@ Python wrapper for the libpcap library.
 Overview
 ========
 
-  | Python *libpcap* module is a bridge between Python and *libpcap* C library.
-  | It is an effort to allow python programs full access to the API provided by
-    the well known *libpcap* Unix C library and by its extended implementation
-    available under Windows as part of the `WinPcap <https://www.winpcap.org>`_
-    packet capture system.
+  | Python *libpcap* module is a low-level binding for *libpcap* C library.
+  | It is an effort to allow python programs full access to the API provided
+    by the well known *libpcap* Unix C library and by its implementation
+    (plus some extensions) available under Win32 systems as part of the
+    `WinPcap <http://www.winpcap.org>`__ packet capture system.
 
-  | libpcap is a lightweight Python package, based on the *ctypes* library.
-  | It is an almost fully compliant implementation of the original *LIBPCAP*
-    (see below) by implementing whole its functionality in a clean Python
-    instead of C.
+  | *libpcap* is a lightweight Python package, based on the *ctypes* library.
+  | It is fully compliant implementation of the original C *libpcap* 1.0.0 API
+    and the *WinPcap*'s 4.1.3 libpcap (1.0rel0b) API by implementing whole its
+    functionality in a clean Python instead of C.
 
 About original LIBPCAP:
 -----------------------
@@ -24,28 +24,30 @@ About original LIBPCAP:
 
 LIBPCAP 1.0.0
 
-www.tcpdump.org
+http://www.tcpdump.org
 
 Please send inquiries/comments/reports to:
+
     tcpdump-workers@lists.tcpdump.org
 
 Anonymous CVS is available via:
 
-    cvs -d :pserver:tcpdump@cvs.tcpdump.org:/tcpdump/master login
-    (password "anoncvs")
+  | cvs -d :pserver:tcpdump@cvs.tcpdump.org:/tcpdump/master login
+  | (password "anoncvs")
 
-    cvs -d :pserver:tcpdump@cvs.tcpdump.org:/tcpdump/master checkout libpcap
+  | cvs -d :pserver:tcpdump@cvs.tcpdump.org:/tcpdump/master checkout libpcap
 
 Version 1.0.0 of LIBPCAP can be retrieved with the CVS tag "libpcap_1_0":
 
-    cvs -d :pserver:tcpdump@cvs.tcpdump.org:/tcpdump/master checkout -r libpcap_1_0 libpcap
+  | cvs -d :pserver:tcpdump@cvs.tcpdump.org:/tcpdump/master checkout -r libpcap_1_0 libpcap
 
 Please submit patches against the master copy to the libpcap project on
 sourceforge.net.
 
-formerly from  Lawrence Berkeley National Laboratory
-               Network Research Group <libpcap@ee.lbl.gov>
-               ftp://ftp.ee.lbl.gov/libpcap.tar.Z (0.4)
+formerly from:
+  | Lawrence Berkeley National Laboratory
+  | Network Research Group <libpcap@ee.lbl.gov>
+  | ftp://ftp.ee.lbl.gov/libpcap.tar.Z (0.4)
 
 This directory contains source code for libpcap, a system-independent
 interface for user-level packet capture.  libpcap provides a portable
@@ -68,19 +70,19 @@ Winter Usenix paper "The BSD Packet Filter: A New Architecture for
 User-level Packet Capture".  A compressed PostScript version can be
 found at
 
-	ftp://ftp.ee.lbl.gov/papers/bpf-usenix93.ps.Z
+    ftp://ftp.ee.lbl.gov/papers/bpf-usenix93.ps.Z
 
 or
 
-	http://www.tcpdump.org/papers/bpf-usenix93.ps.Z
+    http://www.tcpdump.org/papers/bpf-usenix93.ps.Z
 
 and a gzipped version can be found at
 
-	http://www.tcpdump.org/papers/bpf-usenix93.ps.gz
+    http://www.tcpdump.org/papers/bpf-usenix93.ps.gz
 
 A PDF version can be found at
 
-	http://www.tcpdump.org/papers/bpf-usenix93.pdf
+    http://www.tcpdump.org/papers/bpf-usenix93.pdf
 
 Although most packet capture interfaces support in-kernel filtering,
 libpcap utilizes in-kernel filtering only for the BPF interface.
@@ -96,7 +98,7 @@ been extended to accept BPF filters (which libpcap utilizes).  Also, you
 can add BPF filter support to Ultrix using the kernel source and/or
 object patches available in:
 
-	ftp://gatekeeper.dec.com/pub/DEC/net/bpfext42.tar.Z
+    ftp://gatekeeper.dec.com/pub/DEC/net/bpfext42.tar.Z
 
 Linux, in the 2.2 kernel and later kernels, has a "Socket Filter"
 mechanism that accepts BPF filters; see the README.linux file for
@@ -120,7 +122,7 @@ to the address "tcpdump-workers@lists.tcpdump.org".  Bugs, support
 requests, and feature requests may also be submitted on the SourceForge
 site for libpcap at
 
-	http://sourceforge.net/projects/libpcap/
+    http://sourceforge.net/projects/libpcap/
 
 Source code contributions, etc. should be sent to the email address
 submitted as patches on the SourceForge site for libpcap.

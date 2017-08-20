@@ -11,7 +11,7 @@ Overview
     by the well known *libpcap* Unix C library and by its implementation
     (plus some extensions) available under Win32 systems as part of the
     `WinPcap <http://www.winpcap.org>`__ packet capture system.
-
+  |
   | *libpcap* is a lightweight Python package, based on the *ctypes* library.
   | It is fully compliant implementation of the original C *libpcap* 1.0.0 API
     and the *WinPcap*'s 4.1.3 libpcap (1.0rel0b) API by implementing whole its
@@ -47,7 +47,8 @@ Version 1.0.0 of LIBPCAP can be retrieved with the CVS tag "libpcap_1_0":
 Please submit patches against the master copy to the libpcap project on
 sourceforge.net.
 
-formerly from:
+Formerly from:
+
   | Lawrence Berkeley National Laboratory
   | Network Research Group <libpcap@ee.lbl.gov>
   | ftp://ftp.ee.lbl.gov/libpcap.tar.Z (0.4)

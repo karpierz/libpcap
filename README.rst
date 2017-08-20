@@ -17,6 +17,9 @@ Overview
     and the *WinPcap*'s 4.1.3 libpcap (1.0rel0b) API by implementing whole its
     functionality in a clean Python instead of C.
 
+  Useful *libpcap* API 1.0.0 API documentation can be found at:
+  `WinPcap's libpcap API <https://www.winpcap.org/docs/docs_412/>`__
+
 About original LIBPCAP:
 -----------------------
 

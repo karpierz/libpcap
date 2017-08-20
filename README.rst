@@ -1,7 +1,7 @@
 libpcap
 =======
 
-Python wrapper for the libpcap library.
+Python wrapper for the *libpcap* C library.
 
 Overview
 ========
@@ -158,6 +158,21 @@ Prerequisites:
 To install run::
 
     python -m pip install --upgrade libpcap
+
+Installation from sources:
+
+Clone the `sources <https://github.com/karpierz/libpcap>`__ and run::
+
+    python -m pip install ./libpcap
+
+or on development mode:
+
+    python -m pip install --editable ./libpcap
+
+Development
+===========
+
+Visit: https://github.com/karpierz/libpcap
 
 License
 =======

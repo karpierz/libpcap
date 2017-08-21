@@ -5,7 +5,7 @@ __all__ = ('__title__', '__summary__', '__uri__', '__version_info__',
            '__license__')
 
 __title__        = "libpcap"
-__summary__      = "Python wrapper for the pcap library (ctypes/cffi-based pcap)"
+__summary__      = "Python wrapper for the libpcap C library (ctypes/cffi-based libpcap)"
 __uri__          = "http://pypi.python.org/pypi/libpcap/"
 __version_info__ = type("version_info", (), dict(serial=9,
                         major=1, minor=0, micro=0, releaselevel="alpha"))

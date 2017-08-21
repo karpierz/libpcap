@@ -35,4 +35,35 @@ class sockaddr(ct.Structure):
     ("__pad2",    ct.c_ulong),
 ] 
 
+# IPv4 AF_INET sockets:
+
+class in_addr(ct.Union):
+    _fields_ = [
+    ("s_addr", ct.c_uint32),  # ct.c_ulong
+]
+
+class sockaddr_in(ct.Structure):
+    _fields_ = [
+    ("sin_family", ct.c_short),       # e.g. AF_INET, AF_INET6   
+    ("sin_port",   ct.c_ushort),      # e.g. htons(3490)         
+    ("sin_addr",   in_addr),          # see struct in_addr, below
+    ("sin_zero",   (ct.c_char * 8)),  # padding, zero this if you want to
+]
+
+# IPv6 AF_INET6 sockets:
+
+class in6_addr(ct.Union):
+    _fields_ = [
+    ("s6_addr",   (ct.c_ubyte * 16)),
+]
+
+class sockaddr_in6(ct.Structure):
+    _fields_ = [
+    ('sin6_family',   ct.c_short),   # address family, AF_INET6      
+    ('sin6_port',     ct.c_ushort),  # port number, Network Byte Order
+    ('sin6_flowinfo', ct.c_ulong),   # IPv6 flow information         
+    ('sin6_addr',     in6_addr),     # IPv6 address                  
+    ('sin6_scope_id', ct.c_ulong),   # Scope ID                      
+]
+
 # eof

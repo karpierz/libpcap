@@ -140,7 +140,7 @@ Requirements
 ============
 
 - TBD...
-- *ATTENTION:* currentlly works and tested only for Windows
+- ATTENTION: currentlly works and tested only for Windows
 
 Installation
 ============

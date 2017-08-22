@@ -539,7 +539,7 @@ compile_nopcap = CFUNC(ct.c_int,
                       bpf_u_int32)(
                       ("pcap_compile_nopcap", dll), (
                       (1, "snaplen_arg"),
-                      (1, "linktype_arg"),
+                      (1, "linktype"),
                       (1, "prog"),
                       (1, "buffer"),
                       (1, "optimize"),

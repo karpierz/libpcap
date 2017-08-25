@@ -19,76 +19,53 @@
 # WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 # MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
+from __future__ import absolute_import, print_function
+
+import sys
+import os
+import argparse
+
 #ifndef lint
-copyright = """@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000\n\
-The Regents of the University of California.  All rights reserved.\n"""
+copyright = """@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000
+The Regents of the University of California.  All rights reserved.
+"""
 rcsid = "/tcpdump/master/libpcap/filtertest.c,v 1.2 2005/08/08 17:50:13 guy"
 #endif
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
 
-#include <pcap.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/stat.h>
+def read_infile(fname): # bytes
 
-static char* program_name;
+    try:
+        fd = open(fname, "rb")
+    except IOError as exc:
+        error("can't open {!s}: {!s}", fname, pcap.strerror(exc.errno))
 
-optind = 0  # int
-opterr = 0  # int
-extern char* optarg;
+    with fd:
+        try:
+            stat = os.fstat(fd.fileno())
+        except IOError as exc:
+            error("can't stat {!s}: {!s}", fname, pcap.strerror(exc.errno))
 
-/*
- * On Windows, we need to open the file in binary mode, so that
- * we get all the bytes specified by the size we get from "fstat()".
- * On UNIX, that's not necessary.  O_BINARY is defined on Windows;
- * we define it as 0 if it's not defined, so it does nothing.
- */
-#ifndef O_BINARY
-#define O_BINARY    0
-#endif
+        try:
+            cp = fd.read()
+        except IOError as exc:
+            error("read {!s}: {!s}", fname, pcap.strerror(exc.errno))
 
+    lcp = len(cp)
+    if lcp != stat.st_size:
+        error("short read {!s} ({:d} != {:d})", fname, lcp, stat.st_size)
 
-static char * read_infile(char *fname):
-
-    register int i, fd, cc;
-    register char *cp;
-    struct stat buf;
-
-    fd = open(fname, O_RDONLY | O_BINARY);
-    if fd < 0:
-        error("can't open {!s}: {!s}", fname, pcap.strerror(errno))
-
-    if fstat(fd, &buf) < 0:
-        error("can't stat {!s}: {!s}", fname, pcap.strerror(errno))
-
-    cp = malloc((u_int)buf.st_size + 1);
-    if cp == None: #!!! NULL
-        error("malloc(%d) for {!s}: {!s}", (u_int)buf.st_size + 1, fname, pcap.strerror(errno));
-    cc = read(fd, cp, (u_int)buf.st_size);
-    if cc < 0:
-        error("read {!s}: {!s}", fname, pcap.strerror(errno))
-    if cc != buf.st_size:
-        error("short read {!s} (%d != %d)", fname, cc, (int)buf.st_size);
-
-    close(fd);
-
+    cp = bytearray(cp)
     # replace "# comment" with spaces
-    for (i = 0; i < cc; i++):
-        if cp[i] == '#':
-            while (i < cc && cp[i] != '\n')
-                cp[i++] = ' ';
-    cp[cc] = '\0'
+    i = 0
+    while i < lcp:
+        if cp[i] == ord('#'):
+            while i < lcp and cp[i] != ord('\n'):
+                cp[i] = ord(' ')
+                i += 1
+        i += 1
 
-    return cp
+    return bytes(cp)
 
 
 def error(fmt, *args):
@@ -100,120 +77,69 @@ def error(fmt, *args):
     sys.exit(1)
 
 
-static char * copy_argv(register char **argv):
-
-    /*
-     * Copy arg vector into a new buffer, concatenating arguments with spaces.
-     */
-
-    register char **p;
-    register u_int len = 0;
-    char *buf;
-    char *src, *dst;
-
-    p = argv;
-    if *p == 0:
-        return 0
-
-    while (*p):
-        len += strlen(*p++) + 1
-
-    buf = (char *)malloc(len);
-    if buf == None: #!!! NULL
-        error("copy_argv: malloc");
-
-    p = argv;
-    dst = buf;
-    while ((src = *p++) != NULL):
-        while ((*dst++ = *src++) != '\0') ; dst[-1] = ' ';
-    dst[-1] = '\0';
-
-    return buf;
-
-
 def usage():
 
-    fprintf(stderr, "%s, with %s\n", program_name, pcap.lib_version())
-    fprintf(stderr, "Usage: %s [-dO] [ -F file ] [ -s snaplen ] dlt [ expression ]\n", program_name)
+    print("{!s}, with {!s}".format(program_name, pcap.lib_version()), file=sys.stderr)
+    print("Usage: {!s} [-dO] [ -F file ] [ -s snaplen ] dlt [ expression ]".format(program_name), file=sys.stderr)
     sys.exit(1)
 
 
-def main(int argc, char **argv):
+#extern optind = 0  # int
 
-    char *cp;
-    int op;
-    int dflag;
-    char *infile;
-    int Oflag;
-    long snaplen;
-    int dlt;
-    char *cmdbuf;
-    pcap_t *pd;
+def main():
 
-#ifdef WIN32
-    if(wsockinit() != 0) return 1;
-#endif /* WIN32 */
+    dflag   = 1
+    infile  = None
+    Oflag   = 1
+    snaplen = 68
 
-    dflag   = 1;
-    infile  = NULL;
-    Oflag   = 1;
-    snaplen = 68;
+    parser = argparse.ArgumentParser()
+    program_name = parser.prog
+    parser.add_argument("-d", action="store_true")
+    parser.add_argument("-F", type=str)
+    parser.add_argument("-O", action="store_true")
+    parser.add_argument("-s", type=int)
+    parser.add_argument("dlt", type=str)
+    args = parser.parse_args()
+    print(parser)
+    return
 
-    program_name = os.path.basename(sys.executable)
-  
-    if ((cp = strrchr(sys.argv[0], '/')) != NULL):
-        program_name = cp + 1;
-    else
-        program_name = sys.argv[0];
+    #while False: #!!!((op = getopt(sys.argv, "dF:Os:")) != -1):
 
-    opterr = 0;
-    while ((op = getopt(argc, sys.argv, "dF:Os:")) != -1)
-    {
-        switch (op) {
+    if args.d:
+        dflag += 1
 
-        case 'd':
-            ++dflag;
-            break;
+    if args.F is not None:
+        infile = args.F
 
-        case 'F':
-            infile = optarg;
-            break;
+    if args.O:
+        Oflag = 0
 
-        case 'O':
-            Oflag = 0;
-            break;
+    if args.s is not None:
+        snaplen = args.s
+        if not (0 <= snaplen <= 65535):
+            error("invalid snaplen {!s}", optarg)
+        elif snaplen == 0:
+            snaplen = 65535
 
-        case 's': {
-            char *end;
+    #else:
+    #    usage()
 
-            snaplen = strtol(optarg, &end, 0);
-            if (optarg == end || *end != '\0'
-                || snaplen < 0 || snaplen > 65535)
-                error("invalid snaplen {!s}", optarg)
-            else if (snaplen == 0)
-                snaplen = 65535;
-            break;
-        }
+    if optind >= len(sys.argv):
+        usage()
 
-        default:
-            usage();
-            /* NOTREACHED */
-        }
-    }
+    dlt_name = sys.argv[optind]
+    another_args = sys.argv[optind + 1:]
 
-    if (optind >= argc) {
-        usage();
-        /* NOTREACHED */
-    }
-
-    dlt = pcap.datalink_name_to_val(sys.argv[optind])
+    dlt = pcap.datalink_name_to_val(dlt_name)
     if dlt < 0:
-        error("invalid data link type {!s}", sys.argv[optind])
+        error("invalid data link type {!s}", dlt_name)
     
     if infile:
         cmdbuf = read_infile(infile)
     else:
-        cmdbuf = copy_argv(&sys.argv[optind + 1])
+        # concatenating arguments with spaces.
+        cmdbuf = " ".join(another_args)
 
     pd = pcap.open_dead(dlt, snaplen)
     if pd is None:
@@ -226,5 +152,9 @@ def main(int argc, char **argv):
     pcap.close(pd)
 
     sys.exit(0)
+
+
+main()
+
 
 # eof

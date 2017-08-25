@@ -36,7 +36,7 @@ def main():
         print("Error in pcap.lookupnet: {!s}".format(errbuf.value.decode("utf-8")), file=sys.stderr)
     else:
         print("Preferred device is on network: {}/{}".format(iptos(net), iptos(mask)))
-    
+
     sys.exit(0)
 
 

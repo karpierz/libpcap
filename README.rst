@@ -174,7 +174,7 @@ or on development mode:
 Development
 ===========
 
-Visit: https://github.com/karpierz/libpcap
+Visit `development page <https://github.com/karpierz/libpcap>`__
 
 License
 =======

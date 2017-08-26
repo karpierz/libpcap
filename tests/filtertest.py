@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # coding: utf-8
 
 # Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000
@@ -23,7 +25,7 @@ from __future__ import absolute_import, print_function
 
 import sys
 import os
-import argparse
+import getopt
 import ctypes as ct
 
 import libpcap as pcap
@@ -38,30 +40,42 @@ rcsid = "/tcpdump/master/libpcap/filtertest.c,v 1.2 2005/08/08 17:50:13 guy"
 
 def main():
 
-    parser = argparse.ArgumentParser(
-        usage="%(prog)s, with {!s}\n".format(pcap.lib_version().decode("utf-8")) +
-              "Usage: %(prog)s [-dO] [ -F file ] [ -s snaplen ] dlt [ expression ]\n")
-    parser.add_argument("-d", action="store_true")
-    parser.add_argument("-F", type=str, default=None)
-    parser.add_argument("-O", action="store_true")
-    parser.add_argument("-s", type=int, default=68)
-    parser.add_argument("dlt", type=str)
-    parser.add_argument("expr", nargs="*", default=[])
-    args = parser.parse_args()
-
     global program_name
-    program_name = parser.prog
+    program_name = os.path.basename(sys.argv[0])
 
-    dflag = 2 if args.d else 1
-    infile = args.F
-    Oflag = 0 if args.O else 1
-    snaplen = args.s
-    if not (0 <= snaplen <= 65535):
-        error("invalid snaplen {!s}", optarg)
-    elif snaplen == 0:
-        snaplen = 65535
-    dlt_name = args.dlt
-    expression = args.expr
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "dF:Os:")
+    except getopt.GetoptError:
+        usage()
+
+    dflag = 1
+    infile = None
+    Oflag = 1
+    snaplen = 68
+    for op, optarg in opts:
+        if op == '-d':
+            dflag += 1
+        elif op == '-F':
+            infile = optarg
+        elif op == '-O':
+            Oflag = 0
+        elif op == '-s':
+            try:
+                snaplen = int(optarg)
+            except:
+                error("invalid snaplen {}", optarg)
+            if not (0 <= snaplen <= 65535):
+                error("invalid snaplen {}", optarg)
+            elif snaplen == 0:
+                snaplen = 65535
+        else:
+            usage()
+
+    if not args:
+        usage()
+
+    dlt_name = args[0]
+    expression = args[1:]
 
     dlt = pcap.datalink_name_to_val(dlt_name.encode("utf-8"))
     if dlt < 0:
@@ -84,6 +98,17 @@ def main():
     pcap.close(pd)
 
     sys.exit(0)
+
+
+def usage():
+
+    global program_name
+    print("{}, with {!s}".format(program_name, pcap.lib_version().decode("utf-8")),
+          file=sys.stderr)
+    print("Usage: {} [-dO] [ -F file ] [ -s snaplen ] dlt [ expression ]".format(program_name),
+          file=sys.stderr)
+    print("e.g. ./{} EN10MB host 192.168.1.1".format(program_name), file=sys.stderr)
+    sys.exit(1)
 
 
 def read_infile(fname): # bytes

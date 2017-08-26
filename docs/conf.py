@@ -40,6 +40,7 @@ with open(os.path.join(top_dir, "libpcap", "__about__.py")) as f:
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.autosummary',
     'sphinx.ext.doctest',
     'sphinx.ext.ifconfig',
     'sphinx.ext.napoleon',

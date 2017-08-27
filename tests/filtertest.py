@@ -93,7 +93,7 @@ def main(argv):
 
     fcode = pcap.bpf_program()
     if pcap.compile(pd, ct.byref(fcode), cmdbuf, Oflag, 0) < 0:
-        error("{!s}", pcap.geterr(pd).decode("utf-8"))
+        error("{!s}", pcap.geterr(pd).decode("utf-8", "ignore"))
     pcap.bpf_dump(ct.byref(fcode), dflag)
     pcap.close(pd)
 
@@ -104,7 +104,7 @@ def usage():
 
     global program_name
     print("{}, with {!s}".format(program_name,
-          pcap.lib_version().decode("utf-8")), file=sys.stderr)
+          pcap.lib_version().decode("utf-8", "ignore")), file=sys.stderr)
     print("Usage: {} [-dO] [ -F file ] [ -s snaplen ] dlt "
           "[ expression ]".format(program_name), file=sys.stderr)
     print("e.g. ./{} EN10MB host 192.168.1.1".format(program_name),
@@ -118,20 +118,20 @@ def read_infile(fname): # bytes
         fd = open(fname, "rb")
     except IOError as exc:
         error("can't open {!s}: {!s}",
-              fname, pcap.strerror(exc.errno).decode("utf-8"))
+              fname, pcap.strerror(exc.errno).decode("utf-8", "ignore"))
 
     with fd:
         try:
             stat = os.fstat(fd.fileno())
         except IOError as exc:
             error("can't stat {!s}: {!s}",
-                  fname, pcap.strerror(exc.errno).decode("utf-8"))
+                  fname, pcap.strerror(exc.errno).decode("utf-8", "ignore"))
 
         try:
             cp = fd.read()
         except IOError as exc:
             error("read {!s}: {!s}",
-                  fname, pcap.strerror(exc.errno).decode("utf-8"))
+                  fname, pcap.strerror(exc.errno).decode("utf-8", "ignore"))
 
     lcp = len(cp)
     if lcp != stat.st_size:

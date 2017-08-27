@@ -38,13 +38,13 @@ rcsid = "/tcpdump/master/libpcap/filtertest.c,v 1.2 2005/08/08 17:50:13 guy"
 #endif
 
 
-def main():
+def main(argv):
 
     global program_name
-    program_name = os.path.basename(sys.argv[0])
+    program_name = os.path.basename(argv[0])
 
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "dF:Os:")
+        opts, args = getopt.getopt(argv[1:], "dF:Os:")
     except getopt.GetoptError:
         usage()
 
@@ -88,7 +88,7 @@ def main():
         cmdbuf = " ".join(expression).encode("utf-8")
 
     pd = pcap.open_dead(dlt, snaplen)
-    if pd is None:
+    if not pd:
         error("Can't open fake pcap_t")
 
     fcode = pcap.bpf_program()
@@ -97,17 +97,18 @@ def main():
     pcap.bpf_dump(ct.byref(fcode), dflag)
     pcap.close(pd)
 
-    sys.exit(0)
+    return 0
 
 
 def usage():
 
     global program_name
-    print("{}, with {!s}".format(program_name, pcap.lib_version().decode("utf-8")),
+    print("{}, with {!s}".format(program_name,
+          pcap.lib_version().decode("utf-8")), file=sys.stderr)
+    print("Usage: {} [-dO] [ -F file ] [ -s snaplen ] dlt "
+          "[ expression ]".format(program_name), file=sys.stderr)
+    print("e.g. ./{} EN10MB host 192.168.1.1".format(program_name),
           file=sys.stderr)
-    print("Usage: {} [-dO] [ -F file ] [ -s snaplen ] dlt [ expression ]".format(program_name),
-          file=sys.stderr)
-    print("e.g. ./{} EN10MB host 192.168.1.1".format(program_name), file=sys.stderr)
     sys.exit(1)
 
 
@@ -116,18 +117,21 @@ def read_infile(fname): # bytes
     try:
         fd = open(fname, "rb")
     except IOError as exc:
-        error("can't open {!s}: {!s}", fname, pcap.strerror(exc.errno).decode("utf-8"))
+        error("can't open {!s}: {!s}",
+              fname, pcap.strerror(exc.errno).decode("utf-8"))
 
     with fd:
         try:
             stat = os.fstat(fd.fileno())
         except IOError as exc:
-            error("can't stat {!s}: {!s}", fname, pcap.strerror(exc.errno).decode("utf-8"))
+            error("can't stat {!s}: {!s}",
+                  fname, pcap.strerror(exc.errno).decode("utf-8"))
 
         try:
             cp = fd.read()
         except IOError as exc:
-            error("read {!s}: {!s}", fname, pcap.strerror(exc.errno).decode("utf-8"))
+            error("read {!s}: {!s}",
+                  fname, pcap.strerror(exc.errno).decode("utf-8"))
 
     lcp = len(cp)
     if lcp != stat.st_size:
@@ -156,7 +160,7 @@ def error(fmt, *args):
     sys.exit(1)
 
 
-main()
+sys.exit(main(sys.argv) or 0)
 
 
 # eof

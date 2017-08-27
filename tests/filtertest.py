@@ -21,7 +21,7 @@
 # WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 # MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-from __future__ import absolute_import, print_function
+from __future__ import absolute_import, division, print_function
 
 import sys
 import os

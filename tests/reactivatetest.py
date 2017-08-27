@@ -30,9 +30,10 @@ import ctypes as ct
 import libpcap as pcap
 
 #ifndef lint
-copyright = """@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000
-The Regents of the University of California.  All rights reserved.
-"""
+copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
+            "1995, 1996, 1997, 2000\n"\
+            "The Regents of the University of California.  "\
+            "All rights reserved.\n"
 #endif
 
 
@@ -47,10 +48,9 @@ def main(argv):
         pd = pcap.open_live(b"lo", 65535, 0, 1000, ebuf)
         if not pd:
             error("Neither lo0 nor lo could be opened: {!s}",
-                  ebuf.value.decode("latin-1"))
+                  ebuf.value.decode("utf-8", "ignore"))
             return 2
 
-    print(bool(pd))
     status = pcap.activate(pd)
     if status != pcap.PCAP_ERROR_ACTIVATED:
         if status == 0:
@@ -58,11 +58,11 @@ def main(argv):
         elif status == pcap.PCAP_ERROR:
             error("pcap.activate() of opened pcap_t failed with {!s}, "
                   "not PCAP_ERROR_ACTIVATED",
-                  pcap.geterr(pd).decode("utf-8"))
+                  pcap.geterr(pd).decode("utf-8", "ignore"))
         else:
             error("pcap.activate() of opened pcap_t failed with {!s}, "
                   "not PCAP_ERROR_ACTIVATED",
-                  pcap.statustostr(status).decode("utf-8"))
+                  pcap.statustostr(status).decode("utf-8", "ignore"))
 
     return 0
 
@@ -70,7 +70,7 @@ def main(argv):
 def error(fmt, *args):
 
     global program_name
-    print("{!s}: ".format(program_name), end="", file=sys.stderr)
+    print("{}: ".format(program_name), end="", file=sys.stderr)
     print(fmt.format(*args), end="", file=sys.stderr)
     if fmt and fmt[-1] != '\n':
         print(file=sys.stderr)

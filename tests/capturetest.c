@@ -29,9 +29,10 @@ import ctypes as ct
 import libpcap as pcap
 
 #ifndef lint
-static const char copyright[] _U_ =
-    "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000\n\
-The Regents of the University of California.  All rights reserved.\n";
+copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
+            "1995, 1996, 1997, 2000\n\
+            "The Regents of the University of California.  "\
+            "All rights reserved.\n"
 #endif
 
 /* Forwards */
@@ -119,17 +120,17 @@ int main(char **argv):
     status = pcap_set_snaplen(pd, 65535);
     if (status != 0)
         error("%s: pcap_set_snaplen failed: %s",
-                device, pcap.statustostr(status).decode("utf-8"));
+                device, pcap.statustostr(status).decode("utf-8", "ignore"));
     if (immediate) {
         status = pcap_set_immediate_mode(pd, 1);
         if (status != 0)
             error("%s: pcap_set_immediate_mode failed: %s",
-                device, pcap.statustostr(status).decode("utf-8"));
+                device, pcap.statustostr(status).decode("utf-8", "ignore"));
     }
     status = pcap_set_timeout(pd, timeout);
     if (status != 0)
         error("%s: pcap_set_timeout failed: %s",
-            device, pcap.statustostr(status).decode("utf-8"));
+            device, pcap.statustostr(status).decode("utf-8", "ignore"));
     status = pcap.activate(pd)
     if status < 0:
     {
@@ -137,7 +138,7 @@ int main(char **argv):
          * pcap.activate() failed.
          */
         error("%s: %s\n(%s)", device,
-            pcap.statustostr(status).decode("utf-8"), pcap.geterr(pd).decode("utf-8"));
+            pcap.statustostr(status).decode("utf-8", "ignore"), pcap.geterr(pd).decode("utf-8", "ignore"));
     }
     else if (status > 0)
     {
@@ -146,7 +147,7 @@ int main(char **argv):
          * of a problem it had.
          */
         warning("%s: %s\n(%s)", device,
-            pcap.statustostr(status).decode("utf-8"), pcap.geterr(pd).decode("utf-8"));
+            pcap.statustostr(status).decode("utf-8", "ignore"), pcap.geterr(pd).decode("utf-8", "ignore"));
     }
     if (pcap_lookupnet(device, &localnet, &netmask, ebuf) < 0) {
         localnet = 0;
@@ -156,10 +157,10 @@ int main(char **argv):
     cmdbuf = copy_argv(&argv[optind]);
 
     if (pcap_compile(pd, &fcode, cmdbuf, 1, netmask) < 0)
-        error("%s", pcap.geterr(pd).decode("utf-8"));
+        error("%s", pcap.geterr(pd).decode("utf-8", "ignore"));
 
     if (pcap_setfilter(pd, &fcode) < 0)
-        error("%s", pcap.geterr(pd).decode("utf-8"));
+        error("%s", pcap.geterr(pd).decode("utf-8", "ignore"));
     if (pcap_setnonblock(pd, nonblock, ebuf) == -1)
         error("pcap_setnonblock failed: %s", ebuf);
 
@@ -196,10 +197,11 @@ int main(char **argv):
          * Error.  Report it.
          */
         fprintf(stderr, "%s: pcap_loop: %s\n",
-            program_name, pcap.geterr(pd).decode("utf-8"));
+            program_name, pcap.geterr(pd).decode("utf-8", "ignore"));
     }
 
-    pcap_close(pd);
+    pcap.close(pd)
+
     exit(status == -1 ? 1 : 0);
 }
 
@@ -221,7 +223,7 @@ def usage():
 def error(fmt, *args):
 
     global program_name
-    print("{!s}: ".format(program_name), end="", file=sys.stderr)
+    print("{}: ".format(program_name), end="", file=sys.stderr)
     print(fmt.format(*args), end="", file=sys.stderr)
     if fmt and fmt[-1] != '\n':
         print(file=sys.stderr)
@@ -231,7 +233,7 @@ def error(fmt, *args):
 def warning(fmt, *args):
 
     global program_name
-    print("{!s}: WARNING: ".format(program_name), end="", file=sys.stderr)
+    print("{}: WARNING: ".format(program_name), end="", file=sys.stderr)
     print(fmt.format(*args), end="", file=sys.stderr)
     if fmt and fmt[-1] != '\n':
         print(file=sys.stderr)

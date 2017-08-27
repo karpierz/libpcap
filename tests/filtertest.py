@@ -31,9 +31,10 @@ import ctypes as ct
 import libpcap as pcap
 
 #ifndef lint
-copyright = """@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000
-The Regents of the University of California.  All rights reserved.
-"""
+copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
+            "1995, 1996, 1997, 2000\n"\
+            "The Regents of the University of California.  "\
+            "All rights reserved.\n"
 rcsid = "/tcpdump/master/libpcap/filtertest.c,v 1.2 2005/08/08 17:50:13 guy"
 #endif
 
@@ -153,7 +154,7 @@ def read_infile(fname): # bytes
 def error(fmt, *args):
 
     global program_name
-    print("{!s}: ".format(program_name), end="", file=sys.stderr)
+    print("{}: ".format(program_name), end="", file=sys.stderr)
     print(fmt.format(*args), end="", file=sys.stderr)
     if fmt and fmt[-1] != '\n':
         print(file=sys.stderr)

@@ -29,9 +29,10 @@ import ctypes as ct
 import libpcap as pcap
 
 #ifndef lint
-static const char copyright[] _U_ =
-    "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000\n\
-The Regents of the University of California.  All rights reserved.\n";
+copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
+            "1995, 1996, 1997, 2000\n\
+            "The Regents of the University of California.  "\
+            "All rights reserved.\n"
 #endif
 
 /*
@@ -136,10 +137,10 @@ int main(char **argv):
     cmdbuf = copy_argv(&argv[optind]);
 
     if (pcap_compile(pd, &fcode, cmdbuf, 1, netmask) < 0)
-        error("%s", pcap.geterr(pd).decode("utf-8"));
+        error("%s", pcap.geterr(pd).decode("utf-8", "ignore"));
 
     if (pcap_setfilter(pd, &fcode) < 0)
-        error("%s", pcap.geterr(pd).decode("utf-8"));
+        error("%s", pcap.geterr(pd).decode("utf-8", "ignore"));
     if (pcap_get_selectable_fd(pd) == -1)
         error("pcap_get_selectable_fd() fails");
     if (dononblock) {
@@ -271,10 +272,11 @@ int main(char **argv):
         /*
          * Error.  Report it.
          */
-        fprintf(stderr, "%s: pcap_loop: %s\n",  program_name, pcap.geterr(pd).decode("utf-8"));
+        fprintf(stderr, "%s: pcap_loop: %s\n",  program_name, pcap.geterr(pd).decode("utf-8", "ignore"));
     }
 
-    pcap_close(pd);
+    pcap.close(pd)
+
     exit(status == -1 ? 1 : 0);
 }
 
@@ -296,7 +298,7 @@ def usage():
 def error(fmt, *args):
 
     global program_name
-    print("{!s}: ".format(program_name), end="", file=sys.stderr)
+    print("{}: ".format(program_name), end="", file=sys.stderr)
     print(fmt.format(*args), end="", file=sys.stderr)
     if fmt and fmt[-1] != '\n':
         print(file=sys.stderr)
@@ -306,7 +308,7 @@ def error(fmt, *args):
 def warning(fmt, *args):
 
     global program_name
-    print("{!s}: WARNING: ".format(program_name), end="", file=sys.stderr)
+    print("{}: WARNING: ".format(program_name), end="", file=sys.stderr)
     print(fmt.format(*args), end="", file=sys.stderr)
     if fmt and fmt[-1] != '\n':
         print(file=sys.stderr)

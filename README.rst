@@ -139,8 +139,9 @@ site for libpcap.
 Requirements
 ============
 
-- TBD...
-- ATTENTION: currently works and tested only for Windows
+- | It is fully independent package.
+  | All necessary things are installed during the normal installation process.
+- ATTENTION: currently works and tested only for Windows.
 
 Installation
 ============
@@ -167,7 +168,7 @@ Clone the `sources <https://github.com/karpierz/libpcap>`__ and run::
 
     python -m pip install ./libpcap
 
-or on development mode:
+or on development mode::
 
     python -m pip install --editable ./libpcap
 

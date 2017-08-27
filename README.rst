@@ -177,6 +177,12 @@ Development
 
 Visit `development page <https://github.com/karpierz/libpcap>`__
 
+Prerequisites:
+
++ Development is based strictly on *tox*. To install it run::
+
+    python -m pip install tox
+
 License
 =======
 

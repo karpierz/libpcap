@@ -10,5 +10,6 @@ graft examples
 
 graft tests
 
-global-exclude .build .build.*
+prune build
+prune dist
 global-exclude *.py[co] __pycache__

@@ -1,7 +1,7 @@
 libpcap
 =======
 
-Python wrapper for the *libpcap* C library.
+Python binding for the *libpcap* C library.
 
 Overview
 ========

@@ -50,7 +50,7 @@ def main(argv):
     ebuf = ct.create_string_buffer(pcap.PCAP_ERRBUF_SIZE)
     pd = pcap.create(device.encode("utf-8"), ebuf)
     if not pd:
-        error("{!s}", ebuf.value.decode("utf-8"))
+        error("{!s}", ebuf.value.decode("utf-8", "ignore"))
 
     try:
         status = pcap.can_set_rfmon(pd)
@@ -59,10 +59,10 @@ def main(argv):
     if status < 0:
         if status == pcap.PCAP_ERROR:
             error("{}: pcap.can_set_rfmon failed: {!s}",
-                  device, pcap.geterr(pd).decode("utf-8"))
+                  device, pcap.geterr(pd).decode("utf-8", "ignore"))
         else:
             error("{}: pcap.can_set_rfmon failed: {!s}",
-                  device, pcap.statustostr(status).decode("utf-8"))
+                  device, pcap.statustostr(status).decode("utf-8", "ignore"))
         return 1
 
     print("{}: Monitor mode {} be set".format(

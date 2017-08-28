@@ -1,23 +1,25 @@
-/*
- * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000
- *  The Regents of the University of California.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that: (1) source code distributions
- * retain the above copyright notice and this paragraph in its entirety, (2)
- * distributions including binary code include the above copyright notice and
- * this paragraph in its entirety in the documentation or other materials
- * provided with the distribution, and (3) all advertising materials mentioning
- * features or use of this software display the following acknowledgement:
- * ``This product includes software developed by the University of California,
- * Lawrence Berkeley Laboratory and its contributors.'' Neither the name of
- * the University nor the names of its contributors may be used to endorse
- * or promote products derived from this software without specific prior
- * written permission.
- * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- */
+#!/usr/bin/env python
+
+# coding: utf-8
+
+# Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000
+#  The Regents of the University of California.  All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that: (1) source code distributions
+# retain the above copyright notice and this paragraph in its entirety, (2)
+# distributions including binary code include the above copyright notice and
+# this paragraph in its entirety in the documentation or other materials
+# provided with the distribution, and (3) all advertising materials mentioning
+# features or use of this software display the following acknowledgement:
+# ``This product includes software developed by the University of California,
+# Lawrence Berkeley Laboratory and its contributors.'' Neither the name of
+# the University nor the names of its contributors may be used to endorse
+# or promote products derived from this software without specific prior
+# written permission.
+# THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+# WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 from __future__ import absolute_import, division, print_function
 
@@ -30,7 +32,7 @@ import libpcap as pcap
 
 #ifndef lint
 copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
-            "1995, 1996, 1997, 2000\n\
+            "1995, 1996, 1997, 2000\n"\
             "The Regents of the University of California.  "\
             "All rights reserved.\n"
 #endif
@@ -57,10 +59,15 @@ static char *copy_argv(char **);
 static pcap_t *pd;
 
 
-int main(char **argv):
-{
+def main(argv):
+
     global program_name
     program_name = os.path.basename(sys.argv[0])
+
+    try:
+        opts, args = getopt.getopt(argv[1:], "i:sptn")
+    except getopt.GetoptError:
+        usage()
 
     register int op;
     bpf_u_int32 localnet, netmask;
@@ -71,87 +78,72 @@ int main(char **argv):
     int status;
     int packet_count;
 
-    device = NULL;
-    doselect = 0;
-    dopoll = 0;
-    dotimeout = 0;
-    dononblock = 0;
+    device = None
+    doselect = False
+    dopoll = False
+    dotimeout = False
+    dononblock = False
+    for op, optarg in opts:
+        if op == '-i':
+            device = optarg.encode("utf-8")
+        elif op == '-s':
+            doselect = True
+        elif op == '-p':
+            dopoll = True
+        elif op == '-t':
+            dotimeout = True
+        elif op == '-n':
+            dononblock = True
+        elset:
+            usage()
 
-    opterr = 0;
-    while ((op = getopt(argv, "i:sptn")) != -1) {
-        switch (op) {
-
-        case 'i':
-            device = optarg;
-            break;
-
-        case 's':
-            doselect = 1;
-            break;
-
-        case 'p':
-            dopoll = 1;
-            break;
-
-        case 't':
-            dotimeout = 1;
-            break;
-
-        case 'n':
-            dononblock = 1;
-            break;
-
-        default:
-            usage();
-            /* NOTREACHED */
-        }
-    }
-
-    if (doselect && dopoll) {
+    if doselect && dopoll:
         fprintf(stderr, "selpolltest: choose select (-s) or poll (-p), but not both\n");
         return 1;
-    }
-    if (dotimeout && !doselect && !dopoll) {
+    if dotimeout && !doselect && not dopoll:
         fprintf(stderr, "selpolltest: timeout (-t) requires select (-s) or poll (-p)\n");
         return 1;
-    }
 
     ebuf = ct.create_string_buffer(pcap.PCAP_ERRBUF_SIZE)
 
-    if (device == NULL) {
-        device = pcap_lookupdev(ebuf);
-        if (device == NULL)
-            error("%s", ebuf);
-    }
-    *ebuf = '\0';
-    pd = pcap.open_live(device, 65535, 0, 1000, ebuf);
+    if device is None:
+        device = pcap.lookupdev(ebuf)
+        if device is None:
+            error("{!s}", ebuf.value.decode("utf-8", "ignore"))
+
+    ebuf.value = b""
+    pd = pcap.open_live(device, 65535, 0, 1000, ebuf)
     if not pd:
-        error("%s", ebuf);
-    else if (*ebuf)
-        warning("%s", ebuf);
-    if (pcap_lookupnet(device, &localnet, &netmask, ebuf) < 0) {
-        localnet = 0;
-        netmask = 0;
-        warning("%s", ebuf);
-    }
+        error("{!s}", ebuf.value.decode("utf-8", "ignore"))
+    elif ebuf.value:
+        warning("{!s}", ebuf.value.decode("utf-8", "ignore"))
+
+    if pcap.lookupnet(device, ct.byref(localnet), ct.byref(netmask), ebuf) < 0:
+        localnet = 0
+        netmask = 0
+        warning("{!s}", ebuf.value.decode("utf-8", "ignore"))
+
     cmdbuf = copy_argv(&argv[optind]);
 
-    if (pcap_compile(pd, &fcode, cmdbuf, 1, netmask) < 0)
-        error("%s", pcap.geterr(pd).decode("utf-8", "ignore"));
+    if pcap.compile(pd, ct.byref(fcode), cmdbuf, 1, netmask) < 0:
+        error("{!s}", pcap.geterr(pd).decode("utf-8", "ignore"))
 
-    if (pcap_setfilter(pd, &fcode) < 0)
-        error("%s", pcap.geterr(pd).decode("utf-8", "ignore"));
-    if (pcap_get_selectable_fd(pd) == -1)
-        error("pcap_get_selectable_fd() fails");
-    if (dononblock) {
-        if (pcap_setnonblock(pd, 1, ebuf) == -1)
-            error("pcap_setnonblock failed: %s", ebuf);
-    }
-    selectable_fd = pcap_get_selectable_fd(pd);
-    printf("Listening on %s\n", device);
-    if (doselect)
+    if pcap.setfilter(pd, ct.byref(fcode)) < 0:
+        error("{!s}", pcap.geterr(pd).decode("utf-8", "ignore"))
+    if pcap_get_selectable_fd(pd) == -1:
+        error("pcap_get_selectable_fd() fails")
+    if dononblock:
+        if pcap.setnonblock(pd, 1, ebuf) == -1:
+            error("pcap.setnonblock failed: {!s}",
+                  ebuf.value.decode("utf-8", "ignore"))
+
+    selectable_fd = pcap_get_selectable_fd(pd)
+
+    print("Listening on {!s}".format(device.decode("utf-8", "ignore")))
+
+    if doselect:
     {
-        for (;;)
+        while True:
         {
             fd_set setread, setexcept;
             struct timeval seltimeout;
@@ -186,7 +178,7 @@ int main(char **argv):
                 else
                     printf("no exceptional condition\n");
                 packet_count = 0
-                status = pcap_dispatch(pd, -1, countme, (u_char *)&packet_count)
+                status = pcap.dispatch(pd, -1, countme, (u_char *)&packet_count)
                 if status < 0:
                     break
                 printf("%d packets seen, %d packets counted after select returns\n",
@@ -194,9 +186,9 @@ int main(char **argv):
             }
         }
     }
-    else if (dopoll)
+    elif dopoll:
     {
-        for (;;)
+        while True:
         {
             struct pollfd fd;
             int polltimeout;
@@ -234,7 +226,7 @@ int main(char **argv):
                         printf("not invalid\n");
                 }
                 packet_count = 0
-                status = pcap_dispatch(pd, -1, countme, (u_char *)&packet_count)
+                status = pcap.dispatch(pd, -1, countme, (u_char *)&packet_count)
                 if status < 0:
                     break
                 printf("%d packets seen, %d packets counted after poll returns\n",
@@ -242,43 +234,32 @@ int main(char **argv):
             }
         }
     }
-    else
-    {
-        for (;;)
+    else:
+
+        while True:
         {
             packet_count = 0
-            status = pcap_dispatch(pd, -1, countme, (u_char *)&packet_count)
+            status = pcap.dispatch(pd, -1, countme, (u_char *)&packet_count)
             if status < 0:
                 break
-            printf("%d packets seen, %d packets counted after pcap_dispatch returns\n",
+            printf("%d packets seen, %d packets counted after pcap.dispatch returns\n",
                 status, packet_count);
         }
-    }
 
-    if (status == -2)
-    {
-        /*
-         * We got interrupted, so perhaps we didn't
-         * manage to finish a line we were printing.
-         * Print an extra newline, just in case.
-         */
-        putchar('\n');
-    }
-
-    (void)fflush(stdout);
-
-    if (status == -1)
-    {
-        /*
-         * Error.  Report it.
-         */
-        fprintf(stderr, "%s: pcap_loop: %s\n",  program_name, pcap.geterr(pd).decode("utf-8", "ignore"));
-    }
+    if status == -2:
+        # We got interrupted, so perhaps we didn't manage to finish a
+        # line we were printing. Print an extra newline, just in case.
+        print()
+    sys.stdout.flush()
+    if status == -1:
+        # Error. Report it.
+        print("{}: pcap_loop: {!s}".format(program_name,
+              pcap.geterr(pd).decode("utf-8", "ignore")), file=sys.stderr)
 
     pcap.close(pd)
 
     exit(status == -1 ? 1 : 0);
-}
+
 
 static void countme(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 {
@@ -314,42 +295,7 @@ def warning(fmt, *args):
         print(file=sys.stderr)
 
 
-/*
- * Copy arg vector into a new buffer, concatenating arguments with spaces.
- */
-static char *
-copy_argv(register char **argv)
-{
-    register char **p;
-    register u_int len = 0;
-    char *buf;
-    char *src, *dst;
-
-    p = argv;
-    if (*p == 0)
-        return 0;
-
-    while (*p)
-        len += strlen(*p++) + 1;
-
-    buf = (char *)malloc(len);
-    if (buf == NULL)
-        error("copy_argv: malloc");
-
-    p = argv;
-    dst = buf;
-    while ((src = *p++) != NULL) {
-        while ((*dst++ = *src++) != '\0')
-            ;
-        dst[-1] = ' ';
-    }
-    dst[-1] = '\0';
-
-    return buf;
-}
-
-
-sys.exit(main() or 0)
+sys.exit(main(sys.argv) or 0)
 
 
 # eof

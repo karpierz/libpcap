@@ -36,6 +36,11 @@ copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
             "All rights reserved.\n"
 #endif
 
+try:
+    statustostr = pcap.statustostr
+except AttributeError:
+    statustostr = lambda status: str(status).encode("utf-8")
+
 
 def main(argv):
 
@@ -62,7 +67,7 @@ def main(argv):
         else:
             error("pcap.activate() of opened pcap_t failed with {!s}, "
                   "not PCAP_ERROR_ACTIVATED",
-                  pcap.statustostr(status).decode("utf-8", "ignore"))
+                  statustostr(status).decode("utf-8", "ignore"))
 
     return 0
 

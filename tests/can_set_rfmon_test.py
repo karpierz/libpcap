@@ -36,6 +36,11 @@ copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
             "All rights reserved.\n"
 #endif
 
+try:
+    statustostr = pcap.statustostr
+except AttributeError:
+    statustostr = lambda status: str(status).encode("utf-8")
+
 
 def main(argv):
 
@@ -63,7 +68,7 @@ def main(argv):
                   device, pcap.geterr(pd).decode("utf-8", "ignore"))
         else:
             error("{}: pcap.can_set_rfmon failed: {!s}",
-                  device, pcap.statustostr(status).decode("utf-8", "ignore"))
+                  device, statustostr(status).decode("utf-8", "ignore"))
         return 1
 
     print("{}: Monitor mode {} be set".format(

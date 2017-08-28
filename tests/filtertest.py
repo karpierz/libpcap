@@ -38,6 +38,8 @@ copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
 rcsid = "/tcpdump/master/libpcap/filtertest.c,v 1.2 2005/08/08 17:50:13 guy"
 #endif
 
+MAXIMUM_SNAPLEN = 65535
+
 
 def main(argv):
 
@@ -65,10 +67,10 @@ def main(argv):
                 snaplen = int(optarg)
             except:
                 error("invalid snaplen {}", optarg)
-            if not (0 <= snaplen <= 65535):
+            if not (0 <= snaplen <= MAXIMUM_SNAPLEN):
                 error("invalid snaplen {}", optarg)
             elif snaplen == 0:
-                snaplen = 65535
+                snaplen = MAXIMUM_SNAPLEN
         else:
             usage()
 

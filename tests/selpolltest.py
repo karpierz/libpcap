@@ -26,6 +26,7 @@ from __future__ import absolute_import, division, print_function
 import sys
 import os
 import getopt
+import select
 import ctypes as ct
 
 import libpcap as pcap
@@ -37,26 +38,13 @@ copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
             "All rights reserved.\n"
 #endif
 
-/*
- * Tests how select() and poll() behave on the selectable file descriptor
- * for a pcap_t.
- *
- * This would be significantly different on Windows, as it'd test
- * how WaitForMultipleObjects() would work on the event handle for a
- * pcap_t.
- */
-#ifdef HAVE_SYS_SELECT_H
-#include <sys/select.h>
-#else
-#include <sys/time.h>   /* older UN*Xes */
-#endif
-#include <poll.h>
 
-/* Forwards */
-static void countme(u_char *, const struct pcap_pkthdr *, const u_char *);
-static char *copy_argv(char **);
-
-static pcap_t *pd;
+# Tests how select() and poll() behave on the selectable file descriptor
+# for a pcap_t.
+#
+# This would be significantly different on Windows, as it'd test
+# how WaitForMultipleObjects() would work on the event handle for a
+# pcap_t.
 
 
 def main(argv):
@@ -68,15 +56,6 @@ def main(argv):
         opts, args = getopt.getopt(argv[1:], "i:sptn")
     except getopt.GetoptError:
         usage()
-
-    register int op;
-    bpf_u_int32 localnet, netmask;
-    register char *cp, *cmdbuf, *device;
-    int doselect, dopoll, dotimeout, dononblock;
-    struct bpf_program fcode;
-    int selectable_fd;
-    int status;
-    int packet_count;
 
     device = None
     doselect = False
@@ -94,15 +73,19 @@ def main(argv):
             dotimeout = True
         elif op == '-n':
             dononblock = True
-        elset:
+        else:
             usage()
 
-    if doselect && dopoll:
-        fprintf(stderr, "selpolltest: choose select (-s) or poll (-p), but not both\n");
-        return 1;
-    if dotimeout && !doselect && not dopoll:
-        fprintf(stderr, "selpolltest: timeout (-t) requires select (-s) or poll (-p)\n");
-        return 1;
+    expression = args
+
+    if doselect and dopoll:
+        print("selpolltest: choose select (-s) or poll (-p), but not both",
+              file=sys.stderr)
+        return 1
+    if dotimeout and not doselect and not dopoll:
+        print("selpolltest: timeout (-t) requires select (-s) or poll (-p)",
+              file=sys.stderr)
+        return 1
 
     ebuf = ct.create_string_buffer(pcap.PCAP_ERRBUF_SIZE)
 
@@ -118,133 +101,110 @@ def main(argv):
     elif ebuf.value:
         warning("{!s}", ebuf.value.decode("utf-8", "ignore"))
 
+    localnet = pcap.bpf_u_int32()
+    netmask  = pcap.bpf_u_int32()
     if pcap.lookupnet(device, ct.byref(localnet), ct.byref(netmask), ebuf) < 0:
-        localnet = 0
-        netmask = 0
+        localnet = pcap.bpf_u_int32(0)
+        netmask  = pcap.bpf_u_int32(0)
         warning("{!s}", ebuf.value.decode("utf-8", "ignore"))
 
-    cmdbuf = copy_argv(&argv[optind]);
+    fcode = pcap.bpf_program()
 
+    cmdbuf = " ".join(expression).encode("utf-8")
     if pcap.compile(pd, ct.byref(fcode), cmdbuf, 1, netmask) < 0:
         error("{!s}", pcap.geterr(pd).decode("utf-8", "ignore"))
 
     if pcap.setfilter(pd, ct.byref(fcode)) < 0:
         error("{!s}", pcap.geterr(pd).decode("utf-8", "ignore"))
-    if pcap_get_selectable_fd(pd) == -1:
-        error("pcap_get_selectable_fd() fails")
+    if pcap.get_selectable_fd(pd) == -1:
+        error("pcap.get_selectable_fd() fails")
     if dononblock:
         if pcap.setnonblock(pd, 1, ebuf) == -1:
             error("pcap.setnonblock failed: {!s}",
                   ebuf.value.decode("utf-8", "ignore"))
 
-    selectable_fd = pcap_get_selectable_fd(pd)
+    selectable_fd = pcap.get_selectable_fd(pd)  # int
 
-    print("Listening on {!s}".format(device.decode("utf-8", "ignore")))
+    print("Listening on {!s}".format(device.decode("utf-8")))
+
+    status = 0
 
     if doselect:
-    {
         while True:
-        {
-            fd_set setread, setexcept;
-            struct timeval seltimeout;
+            try:
+                if dotimeout:
+                    seltimeout = 0.001
+                    rfds, wfds, efds = select.select([selectable_fd], [],
+                                                     [selectable_fd], seltimeout)
+                else:
+                    rfds, wfds, efds = select.select([selectable_fd], [],
+                                                     [selectable_fd])
+            except select.error as exc:
+                print("Select returns error ({})".format(exc.args[1]))
+            else:
+                print("Select timed out: "
+                      if not rfds and not wfds and not efds else
+                      "Select returned a descriptor: ", end="")
+                print("readable, "
+                      if selectable_fd in rfds else
+                      "not readable, ", end="")
+                print("exceptional condition"
+                      if selectable_fd in efds else
+                      "no exceptional condition", end="")
+                print()
 
-            FD_ZERO(&setread);
-            FD_SET(selectable_fd, &setread);
-            FD_ZERO(&setexcept);
-            FD_SET(selectable_fd, &setexcept);
-            if (dotimeout) {
-                seltimeout.tv_sec = 0;
-                seltimeout.tv_usec = 1000;
-                status = select(selectable_fd + 1, &setread,
-                    NULL, &setexcept, &seltimeout);
-            } else {
-                status = select(selectable_fd + 1, &setread,
-                    NULL, &setexcept, NULL);
-            }
-            if (status == -1) {
-                printf("Select returns error (%s)\n",
-                    strerror(errno));
-            } else {
-                if (status == 0)
-                    printf("Select timed out: ");
-                else
-                    printf("Select returned a descriptor: ");
-                if (FD_ISSET(selectable_fd, &setread))
-                    printf("readable, ");
-                else
-                    printf("not readable, ");
-                if (FD_ISSET(selectable_fd, &setexcept))
-                    printf("exceptional condition\n");
-                else
-                    printf("no exceptional condition\n");
-                packet_count = 0
-                status = pcap.dispatch(pd, -1, countme, (u_char *)&packet_count)
+                packet_count = ct.c_int(0)
+                status = pcap.dispatch(pd, -1, countme,
+                    ct.cast(ct.pointer(packet_count), ct.POINTER(ct.c_ubyte)))
                 if status < 0:
                     break
-                printf("%d packets seen, %d packets counted after select returns\n",
-                    status, packet_count);
-            }
-        }
-    }
+                print("{:d} packets seen, {:d} packets counted after "
+                      "select returns".format(status, packet_count.value))
     elif dopoll:
-    {
         while True:
-        {
-            struct pollfd fd;
-            int polltimeout;
+            poller = select.poll()
+            poller.register(selectable_fd, select.POLLIN)
+            polltimeout = 1 if dotimeout else None
+            try:
+                events = poller.poll(polltimeout)
+            except select.error as exc:
+                print("Poll returns error ({})".format(exc.args[1]))
+            else:
+                if not events:
+                    print("Poll timed out")
+                else:
+                    event = events[0][1]
+                    print("Poll returned a descriptor: ", end="")
+                    print("readable, "
+                          if event & select.POLLIN else
+                          "not readable, ", end="")
+                    print("exceptional condition, "
+                          if event & select.POLLERR else
+                          "no exceptional condition, ", end="")
+                    print("disconnect, "
+                          if event & select.POLLHUP else
+                          "no disconnect, ", end="")
+                    print("invalid"
+                          if event & select.POLLNVAL else
+                          "not invalid", end="")
+                    print()
 
-            fd.fd = selectable_fd;
-            fd.events = POLLIN;
-            if (dotimeout)
-                polltimeout = 1;
-            else
-                polltimeout = -1;
-            status = poll(&fd, 1, polltimeout);
-            if (status == -1) {
-                printf("Poll returns error (%s)\n",
-                    strerror(errno));
-            } else {
-                if (status == 0)
-                    printf("Poll timed out\n");
-                else {
-                    printf("Poll returned a descriptor: ");
-                    if (fd.revents & POLLIN)
-                        printf("readable, ");
-                    else
-                        printf("not readable, ");
-                    if (fd.revents & POLLERR)
-                        printf("exceptional condition, ");
-                    else
-                        printf("no exceptional condition, ");
-                    if (fd.revents & POLLHUP)
-                        printf("disconnect, ");
-                    else
-                        printf("no disconnect, ");
-                    if (fd.revents & POLLNVAL)
-                        printf("invalid\n");
-                    else
-                        printf("not invalid\n");
-                }
-                packet_count = 0
-                status = pcap.dispatch(pd, -1, countme, (u_char *)&packet_count)
+                packet_count = ct.c_int(0)
+                status = pcap.dispatch(pd, -1, countme,
+                    ct.cast(ct.pointer(packet_count), ct.POINTER(ct.c_ubyte)))
                 if status < 0:
                     break
-                printf("%d packets seen, %d packets counted after poll returns\n",
-                    status, packet_count);
-            }
-        }
-    }
+                print("{:d} packets seen, {:d} packets counted after "
+                      "poll returns".format(status, packet_count.value))
     else:
-
         while True:
-        {
-            packet_count = 0
-            status = pcap.dispatch(pd, -1, countme, (u_char *)&packet_count)
+            packet_count = ct.c_int(0)
+            status = pcap.dispatch(pd, -1, countme,
+                ct.cast(ct.pointer(packet_count), ct.POINTER(ct.c_ubyte)))
             if status < 0:
                 break
-            printf("%d packets seen, %d packets counted after pcap.dispatch returns\n",
-                status, packet_count);
-        }
+            print("{:d} packets seen, {:d} packets counted after "
+                  "pcap.dispatch returns".format(status, packet_count.value))
 
     if status == -2:
         # We got interrupted, so perhaps we didn't manage to finish a
@@ -253,26 +213,26 @@ def main(argv):
     sys.stdout.flush()
     if status == -1:
         # Error. Report it.
-        print("{}: pcap_loop: {!s}".format(program_name,
+        print("{}: pcap.loop: {!s}".format(program_name,
               pcap.geterr(pd).decode("utf-8", "ignore")), file=sys.stderr)
 
     pcap.close(pd)
 
-    exit(status == -1 ? 1 : 0);
+    return 1 if status == -1 else 0
 
 
-static void countme(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
-{
-    int *counterp = (int *)user;
+@pcap.pcap_handler
+def countme(arg, hdr, pkt):
 
-    (*counterp)++;
-}
+    counterp = ct.cast(arg, ct.POINTER(ct.c_int))
+    counterp[0] += 1
+
 
 def usage():
 
     global program_name
-    print("Usage: {!s} [ -sptn ] [ -i interface ] [expression]".format(
-          program_name), file=sys.stderr)
+    print("Usage: {} [ -sptn ] [ -i interface ] "
+          "[expression]".format(program_name), file=sys.stderr)
     sys.exit(1)
 
 

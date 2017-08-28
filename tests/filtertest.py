@@ -107,7 +107,7 @@ def usage():
 
     global program_name
     print("{}, with {!s}".format(program_name,
-          pcap.lib_version().decode("utf-8", "ignore")), file=sys.stderr)
+          pcap.lib_version().decode("utf-8")), file=sys.stderr)
     print("Usage: {} [-dO] [ -F file ] [ -s snaplen ] dlt "
           "[ expression ]".format(program_name), file=sys.stderr)
     print("e.g. ./{} EN10MB host 192.168.1.1".format(program_name),

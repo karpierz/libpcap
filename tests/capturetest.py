@@ -96,7 +96,7 @@ def main(argv):
     status = pcap.set_snaplen(pd, 65535)
     if status != 0:
         error("{!s}: pcap.set_snaplen failed: {!s}",
-              device.decode("utf-8", "ignore"),
+              device.decode("utf-8"),
               statustostr(status).decode("utf-8", "ignore"));
     if immediate:
         try:
@@ -105,26 +105,26 @@ def main(argv):
             error("pcap.set_immediate_mode is not available on this platform")
         if status != 0:
             error("{!s}: pcap.set_immediate_mode failed: {!s}",
-                  device.decode("utf-8", "ignore"),
+                  device.decode("utf-8"),
                   statustostr(status).decode("utf-8", "ignore"));
     status = pcap.set_timeout(pd, timeout)
     if status != 0:
         error("{!s}: pcap.set_timeout failed: {!s}",
-              device.decode("utf-8", "ignore"),
+              device.decode("utf-8"),
               statustostr(status).decode("utf-8", "ignore"));
 
     status = pcap.activate(pd)
     if status < 0:
         # pcap.activate() failed.
         error("{!s}: {!s}\n({!s})",
-              device.decode("utf-8", "ignore"),
+              device.decode("utf-8"),
               statustostr(status).decode("utf-8", "ignore"),
               pcap.geterr(pd).decode("utf-8", "ignore"))
     elif status > 0:
         # pcap.activate() succeeded, but it's warning us
         # of a problem it had.
         warning("{!s}: {!s}\n({!s})",
-                device.decode("utf-8", "ignore"),
+                device.decode("utf-8"),
                 statustostr(status).decode("utf-8", "ignore"),
                 pcap.geterr(pd).decode("utf-8", "ignore"))
 
@@ -147,7 +147,7 @@ def main(argv):
         error("pcap.setnonblock failed: {!s}",
               ebuf.value.decode("utf-8", "ignore"))
 
-    print("Listening on {!s}".format(device.decode("utf-8", "ignore")))
+    print("Listening on {!s}".format(device.decode("utf-8")))
 
     while True:
         packet_count = ct.c_int(0)

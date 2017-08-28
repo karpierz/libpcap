@@ -36,8 +36,7 @@ def main(argv):
         print("Error in pcap.lookupdev: {!s}".format(
               errbuf.value.decode("utf-8", "ignore")), file=sys.stderr)
     else:
-        print("Preferred device name: {!s}".format(
-              s.decode("utf-8", "ignore")))
+        print("Preferred device name: {!s}".format(s.decode("utf-8")))
 
     net  = pcap.bpf_u_int32()
     mask = pcap.bpf_u_int32()
@@ -53,10 +52,9 @@ def main(argv):
 
 def ifprint(d): # pcap_if_t*
 
-    print("{!s}".format(d.name.decode("utf-8", "ignore")))
+    print("{!s}".format(d.name.decode("utf-8")))
     if d.description:
-        print("\tDescription: {!s}".format(
-              d.description.decode("utf-8", "ignore")))
+        print("\tDescription: {!s}".format(d.description.decode("utf-8")))
     print("\tLoopback: {}".format(
           "yes" if d.flags & pcap.PCAP_IF_LOOPBACK else "no"))
 

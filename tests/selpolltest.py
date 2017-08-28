@@ -116,14 +116,18 @@ def main(argv):
 
     if pcap.setfilter(pd, ct.byref(fcode)) < 0:
         error("{!s}", pcap.geterr(pd).decode("utf-8", "ignore"))
-    if pcap.get_selectable_fd(pd) == -1:
+    try:
+        selectable_fd = pcap.get_selectable_fd(pd)
+    except AttributeError:
+        error("pcap.get_selectable_fd is not available on this platform")
+    if selectable_fd == -1:
         error("pcap.get_selectable_fd() fails")
     if dononblock:
         if pcap.setnonblock(pd, 1, ebuf) == -1:
             error("pcap.setnonblock failed: {!s}",
                   ebuf.value.decode("utf-8", "ignore"))
 
-    selectable_fd = pcap.get_selectable_fd(pd)  # int
+    selectable_fd = pcap.get_selectable_fd(pd)
 
     print("Listening on {!s}".format(device.decode("utf-8")))
 

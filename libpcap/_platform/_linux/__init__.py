@@ -1,4 +1,6 @@
-# coding: utf-8
+# Copyright (c) 2016-2017, Adam Karpierz
+# Licensed under the BSD license
+# https://opensource.org/licenses/BSD-3-Clause
 
 import sys
 import os
@@ -35,5 +37,3 @@ class sockaddr(ct.Structure):
     ("ipv6_addr", ct.c_byte * 16), 
     ("__pad2",    ct.c_ulong),
 ] 
-
-# eof

@@ -1,4 +1,6 @@
-# coding: utf-8
+# Copyright (c) 2016-2017, Adam Karpierz
+# Licensed under the BSD license
+# https://opensource.org/licenses/BSD-3-Clause
 
 # Copyright (c) 1999 - 2005 NetGroup, Politecnico di Torino (Italy)
 # Copyright (c) 2005 - 2006 CACE Technologies, Davis (California)

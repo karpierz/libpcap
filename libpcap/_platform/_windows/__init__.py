@@ -1,4 +1,6 @@
-# coding: utf-8
+# Copyright (c) 2016-2017, Adam Karpierz
+# Licensed under the BSD license
+# https://opensource.org/licenses/BSD-3-Clause
 
 import sys
 import os
@@ -85,5 +87,3 @@ class sockaddr_in6(ct.Structure):
     ('sin6_addr',     in6_addr),     # IPv6 address                  
     ('sin6_scope_id', ct.c_ulong),   # Scope ID                      
 ]
-
-# eof

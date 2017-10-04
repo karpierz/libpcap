@@ -1,4 +1,6 @@
-# coding: utf-8
+# Copyright (c) 2016-2017, Adam Karpierz
+# Licensed under the BSD license
+# https://opensource.org/licenses/BSD-3-Clause
 
 from __future__ import absolute_import
 
@@ -26,8 +28,4 @@ setup(
     license          = about.__license__,
     long_description = (fread(path.join(top_dir, "README.rst")) + "\n" +
                         fread(path.join(top_dir, "CHANGES.rst"))),
-
-    python_requires  = ">=2.7.0,!=3.0.*,!=3.1.*,!=3.2.*",
 )
-
-# eof

@@ -1,4 +1,6 @@
-# coding: utf-8
+# Copyright (c) 2016-2017, Adam Karpierz
+# Licensed under the BSD license
+# https://opensource.org/licenses/BSD-3-Clause
 
 from __future__ import absolute_import
 
@@ -11,5 +13,3 @@ sys.dont_write_bytecode = True
 test_dir = os.path.dirname(os.path.abspath(__file__))
 top_dir = os.path.dirname(test_dir)
 del sys, os, importlib
-
-# eof

@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-# coding: utf-8
-
 from __future__ import absolute_import, division, print_function
 
 import sys
@@ -116,6 +114,3 @@ def iptos(inp): # pcap.bpf_u_int32 inp
 
 
 sys.exit(main(sys.argv) or 0)
-
-
-# eof

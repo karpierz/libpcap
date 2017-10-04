@@ -1,10 +1,11 @@
-# coding: utf-8
+# Copyright (c) 2016-2017, Adam Karpierz
+# Licensed under the BSD license
+# https://opensource.org/licenses/BSD-3-Clause
 
 from __future__ import absolute_import, print_function
 
 import unittest
 import sys
-import os
 import logging
 
 from . import test_dir
@@ -45,5 +46,3 @@ def main():
 
 
 main()
-
-# eof

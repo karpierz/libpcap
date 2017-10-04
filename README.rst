@@ -148,7 +148,7 @@ Installation
 
 Prerequisites:
 
-+ Python 2.7 or higher or 3.3 or higher
++ Python 2.7 or higher or 3.4 or higher
 
   * http://www.python.org/
   * 2.7 and 3.4 are primary test environments.

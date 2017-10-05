@@ -13,7 +13,7 @@ try:
 except ImportError:
     DLL_PATH = "C:/Windows/System32/wpcap.dll"
 else:
-    if os.path.isabs(path):
+    if os.path.isabs(LIBPCAP):
         DLL_PATH = LIBPCAP
     else:
         arch = "x86" if is_py32bit else "x64"

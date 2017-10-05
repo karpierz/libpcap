@@ -8,8 +8,16 @@ import os
 this_dir = os.path.dirname(os.path.abspath(__file__))
 is_py32bit = sys.maxsize <= 2**32
 
-DLL_PATH = "C:/Windows/System32/wpcap.dll"
-DLL_PATH = os.path.join(this_dir, ("x86" if is_py32bit else "x64") + "_" + "wpcap", "wpcap.dll")
+try:
+    from ...__config__ import LIBPCAP
+except ImportError:
+    DLL_PATH = "C:/Windows/System32/wpcap.dll"
+else:
+    if os.path.isabs(path):
+        DLL_PATH = LIBPCAP
+    else:
+        arch = "x86" if is_py32bit else "x64"
+        DLL_PATH = os.path.join(this_dir, arch + "_" + LIBPCAP, "wpcap.dll")
 
 import ctypes as ct
 from ctypes  import WinDLL      as DLL
@@ -29,14 +37,14 @@ class timeval(ct.Structure):
     ("tv_usec", ct.c_long),  # microseconds
 ]
 
-class sockaddr(ct.Structure): 
+class sockaddr(ct.Structure):
     _fields_ = [
-    ("sa_family", ct.c_short), 
-    ("__pad1",    ct.c_ushort), 
-    ("ipv4_addr", ct.c_byte * 4), 
-    ("ipv6_addr", ct.c_byte * 16), 
+    ("sa_family", ct.c_short),
+    ("__pad1",    ct.c_ushort),
+    ("ipv4_addr", ct.c_byte * 4),
+    ("ipv6_addr", ct.c_byte * 16),
     ("__pad2",    ct.c_ulong),
-] 
+]
 
 # IPv4 AF_INET sockets:
 
@@ -66,8 +74,8 @@ class in_addr(ct.Union):
 
 class sockaddr_in(ct.Structure):
     _fields_ = [
-    ("sin_family", ct.c_short),       # e.g. AF_INET, AF_INET6   
-    ("sin_port",   ct.c_ushort),      # e.g. htons(3490)         
+    ("sin_family", ct.c_short),       # e.g. AF_INET, AF_INET6
+    ("sin_port",   ct.c_ushort),      # e.g. htons(3490)
     ("sin_addr",   in_addr),          # see struct in_addr, below
     ("sin_zero",   (ct.c_char * 8)),  # padding, zero this if you want to
 ]
@@ -81,9 +89,9 @@ class in6_addr(ct.Union):
 
 class sockaddr_in6(ct.Structure):
     _fields_ = [
-    ('sin6_family',   ct.c_short),   # address family, AF_INET6      
+    ('sin6_family',   ct.c_short),   # address family, AF_INET6
     ('sin6_port',     ct.c_ushort),  # port number, Network Byte Order
-    ('sin6_flowinfo', ct.c_ulong),   # IPv6 flow information         
-    ('sin6_addr',     in6_addr),     # IPv6 address                  
-    ('sin6_scope_id', ct.c_ulong),   # Scope ID                      
+    ('sin6_flowinfo', ct.c_ulong),   # IPv6 flow information
+    ('sin6_addr',     in6_addr),     # IPv6 address
+    ('sin6_scope_id', ct.c_ulong),   # Scope ID
 ]

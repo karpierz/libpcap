@@ -5,6 +5,7 @@
 import sys
 import os
 from functools import partial
+import ctypes as ct
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 is_py32bit = sys.maxsize <= 2**32
@@ -20,7 +21,6 @@ else:
         arch = "x86" if is_py32bit else "x64"
         DLL_PATH = os.path.join(this_dir, arch + "_" + LIBPCAP, "libpcap-1.0.so")
 
-import ctypes as ct
 from ctypes  import CDLL      as DLL
 from ctypes  import CFUNCTYPE as CFUNC
 from _ctypes import dlclose

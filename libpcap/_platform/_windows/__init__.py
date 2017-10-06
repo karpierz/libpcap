@@ -4,6 +4,7 @@
 
 import sys
 import os
+from functools import partial
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 is_py32bit = sys.maxsize <= 2**32
@@ -23,6 +24,8 @@ import ctypes as ct
 from ctypes  import WinDLL      as DLL
 from ctypes  import CFUNCTYPE   as CFUNC
 from _ctypes import FreeLibrary as dlclose
+
+DLL = partial(DLL, mode=ct.RTLD_GLOBAL)
 
 # Taken from the file winsock.h.
 #

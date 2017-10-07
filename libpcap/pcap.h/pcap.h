@@ -172,7 +172,7 @@ struct pcap_stat {
 	u_int ps_recv;		/* number of packets received */
 	u_int ps_drop;		/* number of packets dropped */
 	u_int ps_ifdrop;	/* drops by interface -- only supported on some platforms */
-#ifdef HAVE_REMOTE
+#if defined(_WIN32) && defined(HAVE_REMOTE)
 	u_int ps_capt;		/* number of packets that reach the application */
 	u_int ps_sent;		/* number of packets sent by the server on the network */
 	u_int ps_netdrop;	/* number of packets lost on the network */
@@ -289,14 +289,16 @@ PCAP_API int	pcap_activate(pcap_t *);
 PCAP_API pcap_t	*pcap_open_live(const char *, int, int, int, char *);
 PCAP_API pcap_t	*pcap_open_dead(int, int);
 PCAP_API pcap_t	*pcap_open_offline(const char *, char *);
-#if defined(_WIN32)
+#ifdef _WIN32
   PCAP_API pcap_t  *pcap_hopen_offline(intptr_t, char *);
-#if !defined(LIBPCAP_EXPORTS)
-#define pcap_fopen_offline(f,b) \
+  /*
+   * If we're building libpcap, these are internal routines in savefile.c,
+   * so we mustn't define them as macros.
+   */
+  #ifndef BUILDING_PCAP
+    #define pcap_fopen_offline(f,b) \
 	pcap_hopen_offline(_get_osfhandle(_fileno(f)), b)
-#else /*LIBPCAP_EXPORTS*/
-  static pcap_t *pcap_fopen_offline(FILE *, char *);
-#endif
+  #endif
 #else /*_WIN32*/
   PCAP_API pcap_t	*pcap_fopen_offline(FILE *, char *);
 #endif /*_WIN32*/
@@ -355,8 +357,16 @@ PCAP_API void	pcap_freealldevs(pcap_if_t *);
 
 PCAP_API const char *pcap_lib_version(void);
 
-/* XXX this guy lives in the bpf tree */
-PCAP_API u_int	bpf_filter(const struct bpf_insn *, const u_char *, u_int, u_int);
+/*
+ * On at least some versions of NetBSD and QNX, we don't want to declare
+ * bpf_filter() here, as it's also be declared in <net/bpf.h>, with a
+ * different signature, but, on other BSD-flavored UN*Xes, it's not
+ * declared in <net/bpf.h>, so we *do* want to declare it here, so it's
+ * declared when we build pcap-bpf.c.
+ */
+#if !defined(__NetBSD__) && !defined(__QNX__)
+  PCAP_API u_int	bpf_filter(const struct bpf_insn *, const u_char *, u_int, u_int);
+#endif
 PCAP_API int	bpf_validate(const struct bpf_insn *f, int len);
 PCAP_API char	*bpf_image(const struct bpf_insn *, int);
 PCAP_API void	bpf_dump(const struct bpf_program *, int);
@@ -367,23 +377,15 @@ PCAP_API void	bpf_dump(const struct bpf_program *, int);
    * Win32 definitions
    */
 
-  PCAP_API int pcap_setbuff(pcap_t *p, int dim);
-  PCAP_API int pcap_setmode(pcap_t *p, int mode);
-  PCAP_API int pcap_setmintocopy(pcap_t *p, int size);
-
-  #ifdef WPCAP
-  /* Include file with the wpcap-specific extensions */
-
-  /* Definitions */
-
   /*!
     \brief A queue of raw packets that will be sent to the network with pcap_sendqueue_transmit().
   */
   struct pcap_send_queue
   {
-  	u_int maxlen;		///< Maximum size of the the queue, in bytes. This variable contains the size of the buffer field.
-  	u_int len;			///< Current size of the queue, in bytes.
-  	char *buffer;		///< Buffer containing the packets to be sent.
+	u_int maxlen;	/* Maximum size of the the queue, in bytes. This
+			   variable contains the size of the buffer field. */
+	u_int len;	/* Current size of the queue, in bytes. */
+	char *buffer;	/* Buffer containing the packets to be sent. */
   };
 
   typedef struct pcap_send_queue pcap_send_queue;
@@ -417,6 +419,10 @@ PCAP_API void	bpf_dump(const struct bpf_program *, int);
   #define		BPF_SET_AUTODELETION	0x30
   #define		BPF_SEPARATION			0xff
 
+  PCAP_API int pcap_setbuff(pcap_t *p, int dim);
+  PCAP_API int pcap_setmode(pcap_t *p, int mode);
+  PCAP_API int pcap_setmintocopy(pcap_t *p, int size);
+
   PCAP_API HANDLE pcap_getevent(pcap_t *p);
 
   PCAP_API pcap_send_queue* pcap_sendqueue_alloc(u_int memsize);
@@ -435,13 +441,9 @@ PCAP_API void	bpf_dump(const struct bpf_program *, int);
 
   PCAP_API int pcap_live_dump_ended(pcap_t *p, int sync);
 
-  PCAP_API int pcap_offline_filter(struct bpf_program *prog, const struct pcap_pkthdr *header, const u_char *pkt_data);
-
   PCAP_API int pcap_start_oem(char* err_str, int flags);
 
   PCAP_API PAirpcapHandle pcap_get_airpcap_handle(pcap_t *p);
-
-  #endif /* WPCAP */
 
   #define MODE_CAPT 0
   #define MODE_STAT 1

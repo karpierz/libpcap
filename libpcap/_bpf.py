@@ -47,7 +47,10 @@
 # "pcap-bpf.c" will include the native OS version, as it deals with
 # the OS's BPF implementation.
 #
-# XXX - should this all just be moved to "pcap.h"?
+# At least two programs found by Google Code Search explicitly includes
+# <pcap/bpf.h> (even though <pcap.h>/<pcap/pcap.h> includes it for you),
+# so moving that stuff to <pcap/pcap.h> would break the build for some
+# programs.
 
 from __future__ import absolute_import
 
@@ -66,6 +69,8 @@ bpf_u_int32 = ct.c_uint32  # u_int
 
 # Alignment macros.  BPF_WORDALIGN rounds up to the next
 # even multiple of BPF_ALIGNMENT.
+#
+# Tcpdump's print-pflog.c uses this, so we define it here.
 
 if defined("__NetBSD__"):
     BPF_ALIGNMENT = ct.sizeof(ct.c_long)
@@ -73,32 +78,10 @@ else:
     BPF_ALIGNMENT = ct.sizeof(bpf_int32)
 BPF_WORDALIGN = lambda x: ((x + (BPF_ALIGNMENT - 1)) & ~(BPF_ALIGNMENT - 1))
 
-BPF_MAXBUFSIZE = 0x8000
-BPF_MINBUFSIZE = 32
-
-# Struct return by BIOCVERSION.  This represents the version number of
-# the filter language described by the instruction encodings below.
-# bpf understands a program iff kernel_major == filter_major &&
-# kernel_minor >= filter_minor, that is, if the value returned by the
-# running kernel has the same major number and a minor number equal
-# equal to or less than the filter being downloaded.  Otherwise, the
-# results are undefined, meaning an error may be returned or packets
-# may be accepted haphazardly.
-# It has nothing to do with the source code version.
-
-class bpf_version(ct.Structure):
-    _fields_ = [
-    ("bv_major", ct.c_ushort),
-    ("bv_minor", ct.c_ushort),
-]
-
-# Current version number of filter architecture.
-BPF_MAJOR_VERSION = 1
-BPF_MINOR_VERSION = 1
-
+# Link-layer type codes.
+#
 from ._dlt import *
 
-#
 # The instruction encodings.
 #
 # Please inform tcpdump-workers@lists.tcpdump.org if you use any
@@ -124,6 +107,7 @@ BPF_SIZE = lambda code: (code & 0x18)
 BPF_W   = 0x00
 BPF_H   = 0x08
 BPF_B   = 0x10
+#         0x18  # reserved; used by BSD/OS
 BPF_MODE = lambda code: (code & 0xE0)
 BPF_IMM = 0x00
 BPF_ABS = 0x20
@@ -131,6 +115,8 @@ BPF_IND = 0x40
 BPF_MEM = 0x60
 BPF_LEN = 0x80
 BPF_MSH = 0xA0
+#         0xc0  # reserved; used by BSD/OS
+#         0xe0  # reserved; used by BSD/OS
 
 # alu/jmp fields
 BPF_OP = lambda code: (code & 0xF0)
@@ -143,11 +129,30 @@ BPF_AND = 0x50
 BPF_LSH = 0x60
 BPF_RSH = 0x70
 BPF_NEG = 0x80
+BPF_MOD = 0x90
+BPF_XOR = 0xa0
+#         0xb0  # reserved
+#         0xc0  # reserved
+#         0xd0  # reserved
+#         0xe0  # reserved
+#         0xf0  # reserved
+
 BPF_JA  = 0x00
 BPF_JEQ = 0x10
 BPF_JGT = 0x20
 BPF_JGE = 0x30
 BPF_JSET= 0x40
+#         0x50  # reserved; used on BSD/OS
+#         0x60  # reserved
+#         0x70  # reserved
+#         0x80  # reserved
+#         0x90  # reserved
+#         0xa0  # reserved
+#         0xb0  # reserved
+#         0xc0  # reserved
+#         0xd0  # reserved
+#         0xe0  # reserved
+#         0xf0  # reserved
 BPF_SRC = lambda code: (code & 0x08)
 BPF_K   = 0x00
 BPF_X   = 0x08
@@ -155,11 +160,42 @@ BPF_X   = 0x08
 # ret - BPF_K and BPF_X also apply
 BPF_RVAL = lambda code: (code & 0x18)
 BPF_A = 0x10
+#       0x18  # reserved
 
 # misc
 BPF_MISCOP = lambda code: (code & 0xF8)
 BPF_TAX = 0x00
+#         0x08  # reserved
+#         0x10  # reserved
+#         0x18  # reserved
+BPF_COP = 0x20  # NetBSD "coprocessor" extensions
+#         0x28  # reserved
+#         0x30  # reserved
+#         0x38  # reserved
+BPF_COPX= 0x40  # NetBSD "coprocessor" extensions, also used on BSD/OS
+#         0x48  # reserved
+#         0x50  # reserved
+#         0x58  # reserved
+#         0x60  # reserved
+#         0x68  # reserved
+#         0x70  # reserved
+#         0x78  # reserved
 BPF_TXA = 0x80
+#         0x88  # reserved
+#         0x90  # reserved
+#         0x98  # reserved
+#         0xa0  # reserved
+#         0xa8  # reserved
+#         0xb0  # reserved
+#         0xb8  # reserved
+#         0xc0  # reserved; used on BSD/OS
+#         0xc8  # reserved
+#         0xd0  # reserved
+#         0xd8  # reserved
+#         0xe0  # reserved
+#         0xe8  # reserved
+#         0xf0  # reserved
+#         0xf8  # reserved
 
 #
 # The instruction data structure.
@@ -172,6 +208,16 @@ class bpf_insn(ct.Structure):
     ("jf",   ct.c_ubyte),
     ("k",    bpf_u_int32),
 ]
+
+# Auxiliary data, for use when interpreting a filter intended for the
+# Linux kernel when the kernel rejects the filter (requiring us to
+# run it in userland).  It contains VLAN tag information.
+
+# class bpf_aux_data(ct.Structure):
+#     _fields_ = [
+#     ("vlan_tag_present", ct.c_ushort),
+#     ("vlan_tag",         ct.c_ushort),
+# ]
 
 #
 # Structure for "pcap.compile()", "pcap.setfilter()", etc..
@@ -204,6 +250,19 @@ bpf_filter   = CFUNC(ct.c_uint,
                      (1, "buffer"),
                      (1, "wirelen"),
                      (1, "buflen"),))
+
+# bpf_filter_with_aux_data = CFUNC(ct.c_uint,
+#                      ct.POINTER(bpf_insn),
+#                      ct.POINTER(ct.c_ubyte),
+#                      ct.c_uint,
+#                      ct.c_uint,
+#                      ct.POINTER(bpf_aux_data))(
+#                      ("bpf_filter_with_aux_data", dll), (
+#                      (1, "insn"),
+#                      (1, "buffer"),
+#                      (1, "wirelen"),
+#                      (1, "buflen"),
+#                      (1, "aux_data"),))
 
 bpf_validate = CFUNC(ct.c_int,
                      ct.POINTER(bpf_insn),

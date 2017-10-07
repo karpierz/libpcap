@@ -356,12 +356,15 @@ PCAP_API pcap_t	*pcap_open_dead_with_tstamp_precision(int, int, u_int);
 PCAP_API pcap_t	*pcap_open_offline_with_tstamp_precision(const char *, u_int, char *);
 PCAP_API pcap_t	*pcap_open_offline(const char *, char *);
 #ifdef _WIN32
+  PCAP_API pcap_t  *pcap_hopen_offline_with_tstamp_precision(intptr_t, u_int, char *);
   PCAP_API pcap_t  *pcap_hopen_offline(intptr_t, char *);
   /*
    * If we're building libpcap, these are internal routines in savefile.c,
    * so we mustn't define them as macros.
    */
   #ifndef BUILDING_PCAP
+    #define pcap_fopen_offline_with_tstamp_precision(f,p,b) \
+	pcap_hopen_offline_with_tstamp_precision(_get_osfhandle(_fileno(f)), p, b)
     #define pcap_fopen_offline(f,b) \
 	pcap_hopen_offline(_get_osfhandle(_fileno(f)), b)
   #endif

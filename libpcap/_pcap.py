@@ -245,6 +245,8 @@ pcap_if._fields_ = [
 pcap_if_t = pcap_if
 
 PCAP_IF_LOOPBACK = 0x00000001  # interface is loopback
+PCAP_IF_UP       = 0x00000002  # interface is up
+PCAP_IF_RUNNING  = 0x00000004  # interface is running
 
 pcap_handler = CFUNC(None, ct.POINTER(ct.c_ubyte), ct.POINTER(pkthdr), ct.POINTER(ct.c_ubyte))
 
@@ -262,6 +264,9 @@ PCAP_ERROR_RFMON_NOTSUP            = -6   # this device doesn't support rfmon (m
 PCAP_ERROR_NOT_RFMON               = -7   # operation supported only in monitor mode
 PCAP_ERROR_PERM_DENIED             = -8   # no permission to open the device
 PCAP_ERROR_IFACE_NOT_UP            = -9   # interface isn't up
+PCAP_ERROR_CANTSET_TSTAMP_TYPE     = -10  # this device doesn't support setting the time stamp type
+PCAP_ERROR_PROMISC_PERM_DENIED     = -11  # you don't have permission to capture in promiscuous mode
+PCAP_ERROR_TSTAMP_PRECISION_NOTSUP = -12  # the requested time stamp precision is not supported
 
 # Warning codes for the pcap API.
 # These will all be positive and non-zero, so they won't look like
@@ -269,6 +274,63 @@ PCAP_ERROR_IFACE_NOT_UP            = -9   # interface isn't up
 
 PCAP_WARNING                    = 1  # generic warning code
 PCAP_WARNING_PROMISC_NOTSUP     = 2  # this device doesn't support promiscuous mode
+PCAP_WARNING_TSTAMP_TYPE_NOTSUP = 3  # the requested time stamp type is not supported
+
+# Value to pass to pcap_compile() as the netmask if you don't know what
+# the netmask is.
+
+PCAP_NETMASK_UNKNOWN = 0xFFFFFFFF
+
+# Time stamp types.
+# Not all systems and interfaces will necessarily support all of these.
+#
+# A system that supports PCAP_TSTAMP_HOST is offering time stamps
+# provided by the host machine, rather than by the capture device,
+# but not committing to any characteristics of the time stamp;
+# it will not offer any of the PCAP_TSTAMP_HOST_ subtypes.
+#
+# PCAP_TSTAMP_HOST_LOWPREC is a time stamp, provided by the host machine,
+# that's low-precision but relatively cheap to fetch; it's normally done
+# using the system clock, so it's normally synchronized with times you'd
+# fetch from system calls.
+#
+# PCAP_TSTAMP_HOST_HIPREC is a time stamp, provided by the host machine,
+# that's high-precision; it might be more expensive to fetch.  It might
+# or might not be synchronized with the system clock, and might have
+# problems with time stamps for packets received on different CPUs,
+# depending on the platform.
+#
+# PCAP_TSTAMP_ADAPTER is a high-precision time stamp supplied by the
+# capture device; it's synchronized with the system clock.
+#
+# PCAP_TSTAMP_ADAPTER_UNSYNCED is a high-precision time stamp supplied by
+# the capture device; it's not synchronized with the system clock.
+#
+# Note that time stamps synchronized with the system clock can go
+# backwards, as the system clock can go backwards.  If a clock is
+# not in sync with the system clock, that could be because the
+# system clock isn't keeping accurate time, because the other
+# clock isn't keeping accurate time, or both.
+#
+# Note that host-provided time stamps generally correspond to the
+# time when the time-stamping code sees the packet; this could
+# be some unknown amount of time after the first or last bit of
+# the packet is received by the network adapter, due to batching
+# of interrupts for packet arrival, queueing delays, etc..
+
+PCAP_TSTAMP_HOST             = 0  # host-provided, unknown characteristics
+PCAP_TSTAMP_HOST_LOWPREC     = 1  # host-provided, low precision
+PCAP_TSTAMP_HOST_HIPREC      = 2  # host-provided, high precision
+PCAP_TSTAMP_ADAPTER          = 3  # device-provided, synced with the system clock
+PCAP_TSTAMP_ADAPTER_UNSYNCED = 4  # device-provided, not synced with the system clock
+
+# Time stamp resolution types.
+# Not all systems and interfaces will necessarily support all of these
+# resolutions when doing live captures; all of them can be requested
+# when reading a savefile.
+
+PCAP_TSTAMP_PRECISION_MICRO = 0  # use timestamps with microsecond precision, default
+PCAP_TSTAMP_PRECISION_NANO  = 1  # use timestamps with nanosecond precision
 
 #
 # Exported functions
@@ -334,12 +396,83 @@ set_timeout   = CFUNC(ct.c_int,
                       (1, "pcap"),
                       (1, "timeout"),))
 
+try:
+    set_tstamp_type = CFUNC(ct.c_int,
+                      ct.POINTER(pcap_t),
+                      ct.c_int)(
+                      ("pcap_set_tstamp_type", dll), (
+                      (1, "pcap"),
+                      (1, "tstamp_type"),))
+except: pass
+
+try:
+    set_immediate_mode = CFUNC(ct.c_int,
+                      ct.POINTER(pcap_t),
+                      ct.c_int)(
+                      ("pcap_set_immediate_mode", dll), (
+                      (1, "pcap"),
+                      (1, "immediate"),))
+except: pass
+
 set_buffer_size = CFUNC(ct.c_int,
                       ct.POINTER(pcap_t),
                       ct.c_int)(
                       ("pcap_set_buffer_size", dll), (
                       (1, "pcap"),
                       (1, "buffer_size"),))
+
+try:
+    set_tstamp_precision = CFUNC(ct.c_int,
+                      ct.POINTER(pcap_t),
+                      ct.c_int)(
+                      ("pcap_set_tstamp_precision", dll), (
+                      (1, "pcap"),
+                      (1, "tstamp_precision"),))
+except: pass
+
+try:
+    get_tstamp_precision = CFUNC(ct.c_int,
+                      ct.POINTER(pcap_t))(
+                      ("pcap_get_tstamp_precision", dll), (
+                      (1, "pcap"),))
+except: pass
+
+try:
+    list_tstamp_types = CFUNC(ct.c_int,
+                      ct.POINTER(pcap_t),
+                      ct.POINTER(ct.POINTER(ct.c_int)))(
+                      ("pcap_list_tstamp_types", dll), (
+                      (1, "pcap"),
+                      (1, "tstamp_type_list"),))
+except: pass
+
+try:
+    free_tstamp_types = CFUNC(None,
+                      ct.POINTER(ct.c_int))(
+                      ("pcap_free_tstamp_types", dll), (
+                      (1, "tstamp_type_list"),))
+except: pass
+
+try:
+    tstamp_type_name_to_val = CFUNC(ct.c_int,
+                      ct.c_char_p)(
+                      ("pcap_tstamp_type_name_to_val", dll), (
+                      (1, "name"),))
+except: pass
+
+try:
+    tstamp_type_val_to_name = CFUNC(ct.c_char_p,
+                      ct.c_int)(
+                      ("pcap_tstamp_type_val_to_name", dll), (
+                      (1, "tstamp_type"),))
+except: pass
+
+try:
+    tstamp_type_val_to_description = CFUNC(ct.c_char_p,
+                      ct.c_int)(
+                      ("pcap_tstamp_type_val_to_description", dll), (
+                      (1, "tstamp_type"),))
+except: pass
 
 activate      = CFUNC(ct.c_int,
                       ct.POINTER(pcap_t))(
@@ -366,12 +499,34 @@ open_dead     = CFUNC(ct.POINTER(pcap_t),
                       (1, "linktype"),
                       (1, "snaplen"),))
 
+try:
+    open_dead_with_tstamp_precision = CFUNC(ct.POINTER(pcap_t),
+                      ct.c_int,
+                      ct.c_int,
+                      ct.c_uint)(
+                      ("pcap_open_dead_with_tstamp_precision", dll), (
+                      (1, "linktype"),
+                      (1, "snaplen"),
+                      (1, "precision"),))
+except: pass
+
 open_offline  = CFUNC(ct.POINTER(pcap_t),
                       ct.c_char_p,
                       ct.c_char_p)(
                       ("pcap_open_offline", dll), (
                       (1, "fname"),
                       (1, "errbuf"),))
+
+try:
+    open_offline_with_tstamp_precision = CFUNC(ct.POINTER(pcap_t),
+                      ct.c_char_p,
+                      ct.c_uint,
+                      ct.c_char_p)(
+                      ("pcap_open_offline_with_tstamp_precision", dll), (
+                      (1, "fname"),
+                      (1, "precision"),
+                      (1, "errbuf"),))
+except: pass
 
 if is_windows:
     hopen_offline = CFUNC(ct.POINTER(pcap_t),
@@ -384,6 +539,22 @@ if is_windows:
     #@CFUNC(ct.POINTER(pcap_t), ct.POINTER(FILE), ct.c_char_p)
     def fopen_offline(fp, errbuf, libc=ct.cdll.msvcrt):
         return hopen_offline(libc._get_osfhandle(libc._fileno(fp)), errbuf)
+
+    try:
+        hopen_offline_with_tstamp_precision = CFUNC(ct.POINTER(pcap_t),
+                          intptr_t,
+                          ct.c_uint,
+                          ct.c_char_p)(
+                          ("pcap_hopen_offline_with_tstamp_precision", dll), (
+                          (1, "osfd"),
+                          (1, "precision"),
+                          (1, "errbuf"),))
+
+        #@CFUNC(ct.POINTER(pcap_t), ct.POINTER(FILE), ct.c_uint, ct.c_char_p)
+        def fopen_offline_with_tstamp_precision(fp, precision, errbuf, libc=ct.cdll.msvcrt):
+            return hopen_offline_with_tstamp_precision(libc._get_osfhandle(libc._fileno(fp)),
+                                                       precision, errbuf)
+    except: pass
 else:
     fopen_offline = CFUNC(ct.POINTER(pcap_t),
                       ct.POINTER(FILE),
@@ -391,6 +562,17 @@ else:
                       ("pcap_fopen_offline", dll), (
                       (1, "fp"),
                       (1, "errbuf"),))
+
+    try:
+        fopen_offline_with_tstamp_precision = CFUNC(ct.POINTER(pcap_t),
+                      ct.POINTER(FILE),
+                      ct.c_uint,
+                      ct.c_char_p)(
+                      ("pcap_fopen_offline_with_tstamp_precision", dll), (
+                      (1, "fp"),
+                      (1, "precision"),
+                      (1, "errbuf"),))
+    except: pass
 
 close         = CFUNC(None,
                       ct.POINTER(pcap_t))(
@@ -648,6 +830,15 @@ dump_open     = CFUNC(ct.POINTER(pcap_dumper_t),
                       (1, "fname"),))
 
 try:
+    dump_open_append = CFUNC(ct.POINTER(pcap_dumper_t),
+                      ct.POINTER(pcap_t),
+                      ct.c_char_p)(
+                      ("pcap_dump_open_append", dll), (
+                      (1, "pcap"),
+                      (1, "fname"),))
+except: pass
+
+try:
     dump_fopen = CFUNC(ct.POINTER(pcap_dumper_t),
                       ct.POINTER(pcap_t),
                       ct.POINTER(FILE))(
@@ -704,6 +895,10 @@ if is_windows:
 
     # Win32 definitions
 
+    try:
+        wsockinit = CFUNC(ct.c_int)(("pcap_wsockinit", dll),)
+    except: pass
+
     #if defined("WPCAP"):
 
     import ctypes.wintypes
@@ -757,6 +952,32 @@ if is_windows:
                                ct.POINTER(pcap_t))(
                                ("pcap_getevent", dll), (
                                (1, "pcap"),))
+
+    try:
+        oid_get_request = CFUNC(ct.c_int,
+                               ct.POINTER(pcap_t),
+                               bpf_u_int32,
+                               ct.c_void_p,
+                               ct.c_size_t)(
+                               ("pcap_oid_get_request", dll), (
+                               (1, "pcap"),
+                               (1, "oid"),
+                               (1, "data"),
+                               (1, "length"),))
+    except: pass
+
+    try:
+        oid_set_request = CFUNC(ct.c_int,
+                               ct.POINTER(pcap_t),
+                               bpf_u_int32,
+                               ct.c_void_p,
+                               ct.c_size_t)(
+                               ("pcap_oid_set_request", dll), (
+                               (1, "pcap"),
+                               (1, "oid"),
+                               (1, "data"),
+                               (1, "length"),))
+    except: pass
 
     sendqueue_alloc    = CFUNC(ct.POINTER(send_queue),
                                ct.c_uint)(

@@ -63,6 +63,7 @@ else:
 # In Winsock, the error return if socket() fails is INVALID_SOCKET;
 # in UN*X, it's -1.
 # We define INVALID_SOCKET, so that it can be used on both platforms.
+INVALID_SOCKET = SOCKET(-1).value
 
 # Defines the maximum buffer size in which address, port, interface names are
 # kept.

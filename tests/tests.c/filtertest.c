@@ -165,6 +165,7 @@ main(int argc, char **argv)
 	int Oflag;
 	long snaplen;
 	int dlt;
+	bpf_u_int32 netmask = PCAP_NETMASK_UNKNOWN;
 	char *cmdbuf;
 	pcap_t *pd;
 	struct bpf_program fcode;
@@ -248,7 +249,7 @@ usage(void)
 	(void)fprintf(stderr, "%s, with %s\n", program_name,
 	    pcap_lib_version());
 	(void)fprintf(stderr,
-	    "Usage: %s [-dO] [ -F file ] [ -s snaplen ] dlt [ expression ]\n",
+	    "Usage: %s [-dO] [ -F file ] [ -m netmask] [ -s snaplen ] dlt [ expression ]\n",
 	    program_name);
 	exit(1);
 }

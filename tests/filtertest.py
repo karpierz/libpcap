@@ -51,6 +51,7 @@ def main(argv):
 
     dflag = 1
     infile = None
+    netmask = pcap.PCAP_NETMASK_UNKNOWN  # bpf_u_int32
     Oflag = 1
     snaplen = 68
     for op, optarg in opts:
@@ -106,7 +107,7 @@ def usage():
     global program_name
     print("{}, with {!s}".format(program_name,
           pcap.lib_version().decode("utf-8")), file=sys.stderr)
-    print("Usage: {} [-dO] [ -F file ] [ -s snaplen ] dlt "
+    print("Usage: {} [-dO] [ -F file ] [ -m netmask] [ -s snaplen ] dlt "
           "[ expression ]".format(program_name), file=sys.stderr)
     print("e.g. ./{} EN10MB host 192.168.1.1".format(program_name),
           file=sys.stderr)

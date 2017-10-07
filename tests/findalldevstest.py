@@ -5,6 +5,8 @@ from __future__ import absolute_import, division, print_function
 import sys
 import os
 import socket
+if sys.version_info.major <= 2:
+    import win_inet_pton
 import ctypes as ct
 
 import libpcap as pcap

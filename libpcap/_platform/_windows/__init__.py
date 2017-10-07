@@ -4,6 +4,7 @@
 
 import sys
 import os
+import ctypes as ct
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 is_py32bit = sys.maxsize <= 2**32
@@ -12,6 +13,7 @@ try:
     from ...__config__ import LIBPCAP
 except ImportError:
     DLL_PATH = "C:/Windows/System32/wpcap.dll"
+    from ctypes import WinDLL as DLL
 else:
     if os.path.isabs(LIBPCAP):
         DLL_PATH = LIBPCAP
@@ -19,8 +21,18 @@ else:
         arch = "x86" if is_py32bit else "x64"
         DLL_PATH = os.path.join(this_dir, arch + "_" + LIBPCAP, "wpcap.dll")
 
-import ctypes as ct
-from ctypes  import WinDLL      as DLL
+    def DLL(*args, **kargs):
+        from ctypes import WinDLL
+        env_PATH = os.environ.get("PATH")
+        try:
+            os.environ["PATH"] = os.path.dirname(DLL_PATH)
+            if env_PATH is not None:
+                os.environ["PATH"] += os.pathsep + env_PATH
+            return WinDLL(*args, **kargs)
+        finally:
+            if env_PATH is not None:
+                os.environ["PATH"] = env_PATH
+
 from ctypes  import CFUNCTYPE   as CFUNC
 from _ctypes import FreeLibrary as dlclose
 

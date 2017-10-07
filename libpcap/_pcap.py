@@ -728,27 +728,6 @@ if is_windows:
     class _AirpcapHandle(ct.Structure): pass
     PAirpcapHandle = ct.POINTER(_AirpcapHandle)
 
-    BPF_MEM_EX_IMM = 0xC0
-    BPF_MEM_EX_IND = 0xE0
-
-    # used for ST
-    BPF_MEM_EX = 0xC0
-    BPF_TME    = 0x08
-
-    BPF_LOOKUP             = 0x90
-    BPF_EXECUTE            = 0xA0
-    BPF_INIT               = 0xB0
-    BPF_VALIDATE           = 0xC0
-    BPF_SET_ACTIVE         = 0xD0
-    BPF_RESET              = 0xE0
-    BPF_SET_MEMORY         = 0x80
-    BPF_GET_REGISTER_VALUE = 0x70
-    BPF_SET_REGISTER_VALUE = 0x60
-    BPF_SET_WORKING        = 0x50
-    BPF_SET_ACTIVE_READ    = 0x40
-    BPF_SET_AUTODELETION   = 0x30
-    BPF_SEPARATION         = 0xFF
-
     #
     # Exported functions
     #

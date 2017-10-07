@@ -2,8 +2,6 @@
 # Licensed under the BSD license
 # https://opensource.org/licenses/BSD-3-Clause
 
-# /tcpdump/master/libpcap/pcap/pcap.h,v 1.4.2.11 2008-10-06 15:38:39 gianluca
-
 # Copyright (c) 1993, 1994, 1995, 1996, 1997
 #    The Regents of the University of California.  All rights reserved.
 #
@@ -42,13 +40,10 @@ import ctypes as ct
 intptr_t = (ct.c_int32 if ct.sizeof(ct.c_void_p) == ct.sizeof(ct.c_int32)
             else ct.c_int64)
 
-from ._platform import is_windows, defined 
+from ._platform import is_windows, defined
 from ._platform import CFUNC
 from ._platform import timeval, sockaddr
 from ._dll      import dll
-
-if is_windows and os.path.basename(dll._name) == "wpcap.dll":
-    WPCAP = True
 
 try:
     ct.c_void_p.in_dll(dll, "pcap_remoteact_accept")
@@ -60,6 +55,12 @@ from ._bpf import *
 
 
 class FILE(ct.Structure): pass
+
+# Version number of the current version of the pcap file format.
+#
+# NOTE: this is *NOT* the version number of the libpcap library.
+# To fetch the version information for the version of libpcap
+# you're using, use pcap_lib_version().
 
 PCAP_VERSION_MAJOR = 2
 PCAP_VERSION_MINOR = 4
@@ -107,12 +108,13 @@ pcap_dumper_t = pcap_dumper
 #    the old file header as well as files with the new file header
 #    (using the magic number to determine the header format).
 #
-# Then supply the changes as a patch at
+# Then supply the changes by forking the branch at
 #
-#    http://sourceforge.net/projects/libpcap/
+#    https://github.com/the-tcpdump-group/libpcap/issues
 #
-# so that future versions of libpcap and programs that use it (such as
-# tcpdump) will be able to read your new capture file format.
+# and issuing a pull request, so that future versions of libpcap and
+# programs that use it (such as tcpdump) will be able to read your new
+# capture file format.
 
 class file_header(ct.Structure):
     _fields_ = [
@@ -168,9 +170,9 @@ class stat(ct.Structure): pass
 _fields_ = [
     ("ps_recv",    ct.c_uint),  # number of packets received
     ("ps_drop",    ct.c_uint),  # number of packets dropped
-    ("ps_ifdrop",  ct.c_uint),  # drops by interface XXX not yet supported
+    ("ps_ifdrop",  ct.c_uint),  # drops by interface -- only supported on some platforms
 ]
-if defined("HAVE_REMOTE"):
+if is_windows and defined("HAVE_REMOTE"):
     _fields_ += [
         ("ps_capt",    ct.c_uint),  # number of packets that are received by the application;
                                     # please get rid off the Win32 ifdef
@@ -251,22 +253,22 @@ pcap_handler = CFUNC(None, ct.POINTER(ct.c_ubyte), ct.POINTER(pkthdr), ct.POINTE
 # failure of a call that returns these codes by checking for a
 # negative value.
 
-PCAP_ERROR                = -1  # generic error code
-PCAP_ERROR_BREAK          = -2  # loop terminated by pcap.breakloop
-PCAP_ERROR_NOT_ACTIVATED  = -3  # the capture needs to be activated
-PCAP_ERROR_ACTIVATED      = -4  # the operation can't be performed on already activated captures
-PCAP_ERROR_NO_SUCH_DEVICE = -5  # no such device exists
-PCAP_ERROR_RFMON_NOTSUP   = -6  # this device doesn't support rfmon (monitor) mode
-PCAP_ERROR_NOT_RFMON      = -7  # operation supported only in monitor mode
-PCAP_ERROR_PERM_DENIED    = -8  # no permission to open the device
-PCAP_ERROR_IFACE_NOT_UP   = -9  # interface isn't up
+PCAP_ERROR                         = -1   # generic error code
+PCAP_ERROR_BREAK                   = -2   # loop terminated by pcap.breakloop
+PCAP_ERROR_NOT_ACTIVATED           = -3   # the capture needs to be activated
+PCAP_ERROR_ACTIVATED               = -4   # the operation can't be performed on already activated captures
+PCAP_ERROR_NO_SUCH_DEVICE          = -5   # no such device exists
+PCAP_ERROR_RFMON_NOTSUP            = -6   # this device doesn't support rfmon (monitor) mode
+PCAP_ERROR_NOT_RFMON               = -7   # operation supported only in monitor mode
+PCAP_ERROR_PERM_DENIED             = -8   # no permission to open the device
+PCAP_ERROR_IFACE_NOT_UP            = -9   # interface isn't up
 
 # Warning codes for the pcap API.
 # These will all be positive and non-zero, so they won't look like
 # errors.
 
-PCAP_WARNING                = 1  # generic warning code
-PCAP_WARNING_PROMISC_NOTSUP = 2  # this device doesn't support promiscuous mode
+PCAP_WARNING                    = 1  # generic warning code
+PCAP_WARNING_PROMISC_NOTSUP     = 2  # this device doesn't support promiscuous mode
 
 #
 # Exported functions
@@ -702,30 +704,154 @@ if is_windows:
 
     # Win32 definitions
 
-    setbuff   = CFUNC(ct.c_int,
-                      ct.POINTER(pcap_t),
-                      ct.c_int)(
-                      ("pcap_setbuff", dll), (
-                      (1, "pcap"),
-                      (1, "dim"),))
+    #if defined("WPCAP"):
 
-    setmode   = CFUNC(ct.c_int,
-                      ct.POINTER(pcap_t),
-                      ct.c_int)(
-                      ("pcap_setmode", dll), (
-                      (1, "pcap"),
-                      (1, "mode"),))
+    import ctypes.wintypes
 
-    setmintocopy = CFUNC(ct.c_int,
-                      ct.POINTER(pcap_t),
-                      ct.c_int)(
-                      ("pcap_setmintocopy", dll), (
-                      (1, "pcap"),
-                      (1, "size"),))
+    #
+    # A queue of raw packets that will be sent to the network with
+    # pcap.sendqueue_transmit().
+    #
 
-    if defined("WPCAP"):
-        # Include file with the wpcap-specific extensions
-        from ._win32_ext import *
+    class send_queue(ct.Structure):
+        _fields_ = [
+        ("maxlen", ct.c_uint),    # Maximum size of the queue, in bytes. This
+                                  # variable contains the size of the buffer field.
+        ("len",    ct.c_uint),    # Current size of the queue, in bytes.
+        ("buffer", ct.c_char_p),  # Buffer containing the packets to be sent.
+    ]
+
+    #
+    # This typedef is a support for the pcap.get_airpcap_handle() function
+    #
+
+    class _AirpcapHandle(ct.Structure): pass
+    PAirpcapHandle = ct.POINTER(_AirpcapHandle)
+
+    BPF_MEM_EX_IMM = 0xC0
+    BPF_MEM_EX_IND = 0xE0
+
+    # used for ST
+    BPF_MEM_EX = 0xC0
+    BPF_TME    = 0x08
+
+    BPF_LOOKUP             = 0x90
+    BPF_EXECUTE            = 0xA0
+    BPF_INIT               = 0xB0
+    BPF_VALIDATE           = 0xC0
+    BPF_SET_ACTIVE         = 0xD0
+    BPF_RESET              = 0xE0
+    BPF_SET_MEMORY         = 0x80
+    BPF_GET_REGISTER_VALUE = 0x70
+    BPF_SET_REGISTER_VALUE = 0x60
+    BPF_SET_WORKING        = 0x50
+    BPF_SET_ACTIVE_READ    = 0x40
+    BPF_SET_AUTODELETION   = 0x30
+    BPF_SEPARATION         = 0xFF
+
+    #
+    # Exported functions
+    #
+
+    setbuff            = CFUNC(ct.c_int,
+                               ct.POINTER(pcap_t),
+                               ct.c_int)(
+                               ("pcap_setbuff", dll), (
+                               (1, "pcap"),
+                               (1, "dim"),))
+
+    setmode            = CFUNC(ct.c_int,
+                               ct.POINTER(pcap_t),
+                               ct.c_int)(
+                               ("pcap_setmode", dll), (
+                               (1, "pcap"),
+                               (1, "mode"),))
+
+    setmintocopy       = CFUNC(ct.c_int,
+                               ct.POINTER(pcap_t),
+                               ct.c_int)(
+                               ("pcap_setmintocopy", dll), (
+                               (1, "pcap"),
+                               (1, "size"),))
+
+    getevent           = CFUNC(ct.wintypes.HANDLE,
+                               ct.POINTER(pcap_t))(
+                               ("pcap_getevent", dll), (
+                               (1, "pcap"),))
+
+    sendqueue_alloc    = CFUNC(ct.POINTER(send_queue),
+                               ct.c_uint)(
+                               ("pcap_sendqueue_alloc", dll), (
+                               (1, "memsize"),))
+
+    sendqueue_destroy  = CFUNC(None,
+                               ct.POINTER(send_queue))(
+                               ("pcap_sendqueue_destroy", dll), (
+                               (1, "queue"),))
+
+    sendqueue_queue    = CFUNC(ct.c_int,
+                               ct.POINTER(send_queue),
+                               ct.POINTER(pkthdr),
+                               ct.POINTER(ct.c_ubyte))(
+                               ("pcap_sendqueue_queue", dll), (
+                               (1, "queue"),
+                               (1, "pkt_header"),
+                               (1, "pkt_data"),))
+
+    sendqueue_transmit = CFUNC(ct.c_uint,
+                               ct.POINTER(pcap_t),
+                               ct.POINTER(send_queue),
+                               ct.c_int)(
+                               ("pcap_sendqueue_transmit", dll), (
+                               (1, "pcap"),
+                               (1, "queue"),
+                               (1, "sync"),))
+
+    stats_ex           = CFUNC(ct.POINTER(stat),
+                               ct.POINTER(pcap_t),
+                               ct.POINTER(ct.c_int))(
+                               ("pcap_stats_ex", dll), (
+                               (1, "pcap"),
+                               (1, "stat_size"),))
+
+    setuserbuffer      = CFUNC(ct.c_int,
+                               ct.POINTER(pcap_t),
+                               ct.c_int)(
+                               ("pcap_setuserbuffer", dll), (
+                               (1, "pcap"),
+                               (1, "size"),))
+
+    live_dump           = CFUNC(ct.c_int,
+                               ct.POINTER(pcap_t),
+                               ct.c_char_p,
+                               ct.c_int,
+                               ct.c_int)(
+                               ("pcap_live_dump", dll), (
+                               (1, "pcap"),
+                               (1, "filename"),
+                               (1, "maxsize"),
+                               (1, "maxpacks"),))
+
+    live_dump_ended    = CFUNC(ct.c_int,
+                               ct.POINTER(pcap_t),
+                               ct.c_int)(
+                               ("pcap_live_dump_ended", dll), (
+                               (1, "pcap"),
+                               (1, "sync"),))
+
+    try:
+        start_oem      = CFUNC(ct.c_int,
+                               ct.c_char_p,
+                               ct.c_int)(
+                               ("pcap_start_oem", dll), (
+                               (1, "err_str"),
+                               (1, "flags"),))
+    except: pass
+
+    get_airpcap_handle = CFUNC(PAirpcapHandle,
+                               ct.POINTER(pcap_t))(
+                               ("pcap_get_airpcap_handle", dll), (
+                               (1, "pcap"),))
 
     MODE_CAPT = 0
     MODE_STAT = 1

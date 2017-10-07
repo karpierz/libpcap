@@ -46,7 +46,10 @@
  * "pcap-bpf.c" will include the native OS version, as it deals with
  * the OS's BPF implementation.
  *
- * XXX - should this all just be moved to "pcap.h"?
+ * At least two programs found by Google Code Search explicitly includes
+ * <pcap/bpf.h> (even though <pcap.h>/<pcap/pcap.h> includes it for you),
+ * so moving that stuff to <pcap/pcap.h> would break the build for some
+ * programs.
  */
 
 /*
@@ -69,6 +72,8 @@
 #if !defined(_NET_BPF_H_) && !defined(_NET_BPF_H_INCLUDED) && !defined(_BPF_H_) && !defined(_H_BPF) && !defined(lib_pcap_bpf_h)
 #define lib_pcap_bpf_h
 
+#include <pcap/export-defs.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -87,6 +92,8 @@ typedef	u_int bpf_u_int32;
 /*
  * Alignment macros.  BPF_WORDALIGN rounds up to the next
  * even multiple of BPF_ALIGNMENT.
+ *
+ * Tcpdump's print-pflog.c uses this, so we define it here.
  */
 #ifndef __NetBSD__
 #define BPF_ALIGNMENT sizeof(bpf_int32)
@@ -94,9 +101,6 @@ typedef	u_int bpf_u_int32;
 #define BPF_ALIGNMENT sizeof(long)
 #endif
 #define BPF_WORDALIGN(x) (((x)+(BPF_ALIGNMENT-1))&~(BPF_ALIGNMENT-1))
-
-#define BPF_MAXBUFSIZE 0x8000
-#define BPF_MINBUFSIZE 32
 
 /*
  * Structure for "pcap_compile()", "pcap_setfilter()", etc..
@@ -156,6 +160,7 @@ struct bpf_version {
 #define		BPF_W		0x00
 #define		BPF_H		0x08
 #define		BPF_B		0x10
+/*				0x18	reserved; used by BSD/OS */
 #define BPF_MODE(code)	((code) & 0xe0)
 #define		BPF_IMM 	0x00
 #define		BPF_ABS		0x20
@@ -163,6 +168,8 @@ struct bpf_version {
 #define		BPF_MEM		0x60
 #define		BPF_LEN		0x80
 #define		BPF_MSH		0xa0
+/*				0xc0	reserved; used by BSD/OS */
+/*				0xe0	reserved; used by BSD/OS */
 
 /* alu/jmp fields */
 #define BPF_OP(code)	((code) & 0xf0)
@@ -175,11 +182,30 @@ struct bpf_version {
 #define		BPF_LSH		0x60
 #define		BPF_RSH		0x70
 #define		BPF_NEG		0x80
+#define		BPF_MOD		0x90
+#define		BPF_XOR		0xa0
+/*				0xb0	reserved */
+/*				0xc0	reserved */
+/*				0xd0	reserved */
+/*				0xe0	reserved */
+/*				0xf0	reserved */
+
 #define		BPF_JA		0x00
 #define		BPF_JEQ		0x10
 #define		BPF_JGT		0x20
 #define		BPF_JGE		0x30
 #define		BPF_JSET	0x40
+/*				0x50	reserved; used on BSD/OS */
+/*				0x60	reserved */
+/*				0x70	reserved */
+/*				0x80	reserved */
+/*				0x90	reserved */
+/*				0xa0	reserved */
+/*				0xb0	reserved */
+/*				0xc0	reserved */
+/*				0xd0	reserved */
+/*				0xe0	reserved */
+/*				0xf0	reserved */
 #define BPF_SRC(code)	((code) & 0x08)
 #define		BPF_K		0x00
 #define		BPF_X		0x08
@@ -187,11 +213,43 @@ struct bpf_version {
 /* ret - BPF_K and BPF_X also apply */
 #define BPF_RVAL(code)	((code) & 0x18)
 #define		BPF_A		0x10
+/*				0x18	reserved */
 
 /* misc */
 #define BPF_MISCOP(code) ((code) & 0xf8)
 #define		BPF_TAX		0x00
+/*				0x08	reserved */
+/*				0x10	reserved */
+/*				0x18	reserved */
+/* #define	BPF_COP		0x20	NetBSD "coprocessor" extensions */
+/*				0x28	reserved */
+/*				0x30	reserved */
+/*				0x38	reserved */
+/* #define	BPF_COPX	0x40	NetBSD "coprocessor" extensions */
+/*					also used on BSD/OS */
+/*				0x48	reserved */
+/*				0x50	reserved */
+/*				0x58	reserved */
+/*				0x60	reserved */
+/*				0x68	reserved */
+/*				0x70	reserved */
+/*				0x78	reserved */
 #define		BPF_TXA		0x80
+/*				0x88	reserved */
+/*				0x90	reserved */
+/*				0x98	reserved */
+/*				0xa0	reserved */
+/*				0xa8	reserved */
+/*				0xb0	reserved */
+/*				0xb8	reserved */
+/*				0xc0	reserved; used on BSD/OS */
+/*				0xc8	reserved */
+/*				0xd0	reserved */
+/*				0xd8	reserved */
+/*				0xe0	reserved */
+/*				0xe8	reserved */
+/*				0xf0	reserved */
+/*				0xf8	reserved */
 
 /*
  * The instruction data structure.
@@ -204,17 +262,27 @@ struct bpf_insn {
 };
 
 /*
+ * Auxiliary data, for use when interpreting a filter intended for the
+ * Linux kernel when the kernel rejects the filter (requiring us to
+ * run it in userland).  It contains VLAN tag information.
+ */
+struct bpf_aux_data {
+	u_short vlan_tag_present;
+	u_short vlan_tag;
+};
+
+/*
  * Macros for insn array initializers.
  */
 #define BPF_STMT(code, k) { (u_short)(code), 0, 0, k }
 #define BPF_JUMP(code, k, jt, jf) { (u_short)(code), jt, jf, k }
 
 #if __STDC__ || defined(__cplusplus)
-extern int bpf_validate(const struct bpf_insn *, int);
-extern u_int bpf_filter(const struct bpf_insn *, const u_char *, u_int, u_int);
+PCAP_API int bpf_validate(const struct bpf_insn *, int);
+PCAP_API u_int bpf_filter(const struct bpf_insn *, const u_char *, u_int, u_int);
 #else
-extern int bpf_validate();
-extern u_int bpf_filter();
+PCAP_API int bpf_validate();
+PCAP_API u_int bpf_filter();
 #endif
 
 /*

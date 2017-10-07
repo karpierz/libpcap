@@ -51,19 +51,6 @@
 
 #include <stdio.h>
 
-#ifdef HAVE_REMOTE
-	// We have to define the SOCKET here, although it has been defined in sockutils.h
-	// This is to avoid the distribution of the 'sockutils.h' file around
-	// (for example in the WinPcap developer's pack)
-	#ifndef SOCKET
-		#ifdef _WIN32
-			#define SOCKET unsigned int
-		#else
-			#define SOCKET int
-		#endif
-	#endif
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -51,14 +51,19 @@ from ._pcap     import pcap_t, pcap_if_t
 # Some of the functions are not really a remote feature, but, right now,
 # they are placed here.
 
-# We have to define the SOCKET here, although it has been defined in
-# sockutils.h
-# This is to avoid the distribution of the 'sockutils.h' file around
-# (for example in the WinPcap developer's pack)
+# Some minor differences between UN*X sockets and and Winsock sockets.
+#
+# In Winsock, a socket handle is of type SOCKET; in UN*X, it's
+# a file descriptor, and therefore a signed integer.
+# We define SOCKET, so that it can be used on both platforms.
 if is_windows:
     SOCKET = ct.c_uint
 else:
     SOCKET = ct.c_int
+# In Winsock, the error return if socket() fails is INVALID_SOCKET;
+# in UN*X, it's -1.
+# We define INVALID_SOCKET, so that it can be used on both platforms.
+INVALID_SOCKET = SOCKET(-1).value
 
 # Defines the maximum buffer size in which address, port, interface names are
 # kept.
@@ -115,7 +120,7 @@ PCAP_SRC_IFREMOTE = 4
 # - rpcap:// [lists all local adapters]
 # - rpcap://host:port/ [lists the devices available on a remote host]
 #
-# Referring to the 'host' and 'port' paramters, they can be either numeric or
+# Referring to the 'host' and 'port' parameters, they can be either numeric or
 # literal. Since IPv6 is fully supported, these are the allowed formats:
 #
 # - host (literal): e.g. host.foo.bar
@@ -174,7 +179,7 @@ PCAP_SRC_IF_STRING = "rpcap://"
 
 PCAP_OPENFLAG_PROMISCUOUS = 1
 
-# Defines if the data trasfer (in case of a remote
+# Defines if the data transfer (in case of a remote
 # capture) has to be done with UDP protocol.
 #
 # If it is '1' if you want a UDP data connection, '0' if you want
@@ -200,7 +205,7 @@ PCAP_OPENFLAG_NOCAPTURE_RPCAP = 4
 # Defines if the local adapter will capture its own generated traffic.
 #
 # This flag tells the underlying capture driver to drop the packets that were
-# sent by itself. This is usefult when building applications like bridges,
+# sent by itself. This is useful when building applications like bridges,
 # that should ignore the traffic they just sent.
 
 PCAP_OPENFLAG_NOCAPTURE_LOCAL = 8
@@ -336,7 +341,7 @@ class samp(ct.Structure):
     ("value", ct.c_int),
 ]
 
-# Maximum lenght of an host name (needed for the RPCAP active mode)
+# Maximum length of an host name (needed for the RPCAP active mode)
 
 RPCAP_HOSTLIST_SIZE = 1024
 

@@ -267,6 +267,7 @@ typedef void (*pcap_handler)(u_char *, const struct pcap_pkthdr *,
  */
 #define PCAP_WARNING			1	/* generic warning code */
 #define PCAP_WARNING_PROMISC_NOTSUP	2	/* this device doesn't support promiscuous mode */
+#define PCAP_WARNING_TSTAMP_TYPE_NOTSUP	3	/* the requested time stamp type is not supported */
 
 /*
  * Value to pass to pcap_compile() as the netmask if you don't know what
@@ -283,11 +284,76 @@ PCAP_API int	pcap_set_promisc(pcap_t *, int);
 PCAP_API int	pcap_can_set_rfmon(pcap_t *);
 PCAP_API int	pcap_set_rfmon(pcap_t *, int);
 PCAP_API int	pcap_set_timeout(pcap_t *, int);
+PCAP_API int	pcap_set_tstamp_type(pcap_t *, int);
+PCAP_API int	pcap_set_immediate_mode(pcap_t *, int);
 PCAP_API int	pcap_set_buffer_size(pcap_t *, int);
+PCAP_API int	pcap_set_tstamp_precision(pcap_t *, int);
+PCAP_API int	pcap_get_tstamp_precision(pcap_t *);
 PCAP_API int	pcap_activate(pcap_t *);
+
+PCAP_API int	pcap_list_tstamp_types(pcap_t *, int **);
+PCAP_API void	pcap_free_tstamp_types(int *);
+PCAP_API int	pcap_tstamp_type_name_to_val(const char *);
+PCAP_API const char *pcap_tstamp_type_val_to_name(int);
+PCAP_API const char *pcap_tstamp_type_val_to_description(int);
+
+/*
+ * Time stamp types.
+ * Not all systems and interfaces will necessarily support all of these.
+ *
+ * A system that supports PCAP_TSTAMP_HOST is offering time stamps
+ * provided by the host machine, rather than by the capture device,
+ * but not committing to any characteristics of the time stamp;
+ * it will not offer any of the PCAP_TSTAMP_HOST_ subtypes.
+ *
+ * PCAP_TSTAMP_HOST_LOWPREC is a time stamp, provided by the host machine,
+ * that's low-precision but relatively cheap to fetch; it's normally done
+ * using the system clock, so it's normally synchronized with times you'd
+ * fetch from system calls.
+ *
+ * PCAP_TSTAMP_HOST_HIPREC is a time stamp, provided by the host machine,
+ * that's high-precision; it might be more expensive to fetch.  It might
+ * or might not be synchronized with the system clock, and might have
+ * problems with time stamps for packets received on different CPUs,
+ * depending on the platform.
+ *
+ * PCAP_TSTAMP_ADAPTER is a high-precision time stamp supplied by the
+ * capture device; it's synchronized with the system clock.
+ *
+ * PCAP_TSTAMP_ADAPTER_UNSYNCED is a high-precision time stamp supplied by
+ * the capture device; it's not synchronized with the system clock.
+ *
+ * Note that time stamps synchronized with the system clock can go
+ * backwards, as the system clock can go backwards.  If a clock is
+ * not in sync with the system clock, that could be because the
+ * system clock isn't keeping accurate time, because the other
+ * clock isn't keeping accurate time, or both.
+ *
+ * Note that host-provided time stamps generally correspond to the
+ * time when the time-stamping code sees the packet; this could
+ * be some unknown amount of time after the first or last bit of
+ * the packet is received by the network adapter, due to batching
+ * of interrupts for packet arrival, queueing delays, etc..
+ */
+#define PCAP_TSTAMP_HOST		0	/* host-provided, unknown characteristics */
+#define PCAP_TSTAMP_HOST_LOWPREC	1	/* host-provided, low precision */
+#define PCAP_TSTAMP_HOST_HIPREC		2	/* host-provided, high precision */
+#define PCAP_TSTAMP_ADAPTER		3	/* device-provided, synced with the system clock */
+#define PCAP_TSTAMP_ADAPTER_UNSYNCED	4	/* device-provided, not synced with the system clock */
+
+/*
+ * Time stamp resolution types.
+ * Not all systems and interfaces will necessarily support all of these
+ * resolutions when doing live captures; all of them can be requested
+ * when reading a savefile.
+ */
+#define PCAP_TSTAMP_PRECISION_MICRO	0	/* use timestamps with microsecond precision, default */
+#define PCAP_TSTAMP_PRECISION_NANO	1	/* use timestamps with nanosecond precision */
 
 PCAP_API pcap_t	*pcap_open_live(const char *, int, int, int, char *);
 PCAP_API pcap_t	*pcap_open_dead(int, int);
+PCAP_API pcap_t	*pcap_open_dead_with_tstamp_precision(int, int, u_int);
+PCAP_API pcap_t	*pcap_open_offline_with_tstamp_precision(const char *, u_int, char *);
 PCAP_API pcap_t	*pcap_open_offline(const char *, char *);
 #ifdef _WIN32
   PCAP_API pcap_t  *pcap_hopen_offline(intptr_t, char *);
@@ -300,6 +366,7 @@ PCAP_API pcap_t	*pcap_open_offline(const char *, char *);
 	pcap_hopen_offline(_get_osfhandle(_fileno(f)), b)
   #endif
 #else /*_WIN32*/
+  PCAP_API pcap_t	*pcap_fopen_offline_with_tstamp_precision(FILE *, u_int, char *);
   PCAP_API pcap_t	*pcap_fopen_offline(FILE *, char *);
 #endif /*_WIN32*/
 
@@ -344,8 +411,13 @@ PCAP_API int	pcap_minor_version(pcap_t *);
 PCAP_API FILE	*pcap_file(pcap_t *);
 PCAP_API int	pcap_fileno(pcap_t *);
 
+#ifdef _WIN32
+  PCAP_API int	pcap_wsockinit(void);
+#endif
+
 PCAP_API pcap_dumper_t *pcap_dump_open(pcap_t *, const char *);
 PCAP_API pcap_dumper_t *pcap_dump_fopen(pcap_t *, FILE *fp);
+PCAP_API pcap_dumper_t *pcap_dump_open_append(pcap_t *, const char *);
 PCAP_API FILE	*pcap_dump_file(pcap_dumper_t *);
 PCAP_API long	pcap_dump_ftell(pcap_dumper_t *);
 PCAP_API int	pcap_dump_flush(pcap_dumper_t *);
@@ -398,32 +470,14 @@ PCAP_API void	bpf_dump(const struct bpf_program *, int);
     typedef struct _AirpcapHandle *PAirpcapHandle;
   #endif
 
-  #define		BPF_MEM_EX_IMM	0xc0
-  #define		BPF_MEM_EX_IND	0xe0
-
-  /*used for ST*/
-  #define		BPF_MEM_EX		0xc0
-  #define		BPF_TME					0x08
-
-  #define		BPF_LOOKUP				0x90   
-  #define		BPF_EXECUTE				0xa0
-  #define		BPF_INIT				0xb0
-  #define		BPF_VALIDATE			0xc0
-  #define		BPF_SET_ACTIVE			0xd0
-  #define		BPF_RESET				0xe0
-  #define		BPF_SET_MEMORY			0x80
-  #define		BPF_GET_REGISTER_VALUE	0x70
-  #define		BPF_SET_REGISTER_VALUE	0x60
-  #define		BPF_SET_WORKING			0x50
-  #define		BPF_SET_ACTIVE_READ		0x40
-  #define		BPF_SET_AUTODELETION	0x30
-  #define		BPF_SEPARATION			0xff
-
   PCAP_API int pcap_setbuff(pcap_t *p, int dim);
   PCAP_API int pcap_setmode(pcap_t *p, int mode);
   PCAP_API int pcap_setmintocopy(pcap_t *p, int size);
 
   PCAP_API HANDLE pcap_getevent(pcap_t *p);
+
+  PCAP_API int pcap_oid_get_request(pcap_t *, bpf_u_int32, void *, size_t *);
+  PCAP_API int pcap_oid_set_request(pcap_t *, bpf_u_int32, const void *, size_t *);
 
   PCAP_API pcap_send_queue* pcap_sendqueue_alloc(u_int memsize);
 

@@ -56,6 +56,10 @@
 #
 # for detailed descriptions of some of these link-layer header types.
 
+from __future__ import absolute_import
+
+from ._platform import defined
+
 # These are the types that are the same on all platforms, and that
 # have been defined by <net/bpf.h> for ages.
 

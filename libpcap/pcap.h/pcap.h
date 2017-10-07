@@ -35,6 +35,8 @@
 #ifndef lib_pcap_pcap_h
 #define lib_pcap_pcap_h
 
+#include <pcap/export-defs.h>
+
 #if defined(_WIN32)
   #include <pcap-stdinc.h>
 #elif defined(MSDOS)
@@ -55,6 +57,13 @@
 extern "C" {
 #endif
 
+/*
+ * Version number of the current version of the pcap file format.
+ *
+ * NOTE: this is *NOT* the version number of the libpcap library.
+ * To fetch the version information for the version of libpcap
+ * you're using, use pcap_lib_version().
+ */
 #define PCAP_VERSION_MAJOR 2
 #define PCAP_VERSION_MINOR 4
 
@@ -108,8 +117,9 @@ typedef struct pcap_addr pcap_addr_t;
  *
  *	https://github.com/the-tcpdump-group/libpcap/issues
  *
- * so that future versions of libpcap and programs that use it (such as
- * tcpdump) will be able to read your new capture file format.
+ * and issuing a pull request, so that future versions of libpcap and
+ * programs that use it (such as tcpdump) will be able to read your new
+ * capture file format.
  */
 struct pcap_file_header {
 	bpf_u_int32 magic;
@@ -407,7 +417,8 @@ PCAP_API void	bpf_dump(const struct bpf_program *, int);
   #define		BPF_SET_AUTODELETION	0x30
   #define		BPF_SEPARATION			0xff
 
-  /* Prototypes */
+  PCAP_API HANDLE pcap_getevent(pcap_t *p);
+
   PCAP_API pcap_send_queue* pcap_sendqueue_alloc(u_int memsize);
 
   PCAP_API void pcap_sendqueue_destroy(pcap_send_queue* queue);
@@ -415,8 +426,6 @@ PCAP_API void	bpf_dump(const struct bpf_program *, int);
   PCAP_API int pcap_sendqueue_queue(pcap_send_queue* queue, const struct pcap_pkthdr *pkt_header, const u_char *pkt_data);
 
   PCAP_API u_int pcap_sendqueue_transmit(pcap_t *p, pcap_send_queue* queue, int sync);
-
-  PCAP_API HANDLE pcap_getevent(pcap_t *p);
 
   PCAP_API struct pcap_stat *pcap_stats_ex(pcap_t *p, int *pcap_stat_size);
 

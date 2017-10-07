@@ -3,7 +3,7 @@
 # https://opensource.org/licenses/BSD-3-Clause
 
 # Copyright (c) 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997
-#	The Regents of the University of California.  All rights reserved.
+#    The Regents of the University of California.  All rights reserved.
 #
 # This code is derived from the Stanford/CMU enet packet filter,
 # (net/enet.c) distributed as part of 4.3BSD, and code contributed
@@ -52,7 +52,7 @@
 #
 # See
 #
-#	http://www.tcpdump.org/linktypes.html
+#    http://www.tcpdump.org/linktypes.html
 #
 # for detailed descriptions of some of these link-layer header types.
 
@@ -102,9 +102,34 @@ else:
     DLT_SLIP_BSDOS = 15  # BSD/OS Serial Line IP
     DLT_PPP_BSDOS  = 16  # BSD/OS Point-to-point Protocol
 
-# 17 is used for DLT_OLD_PFLOG in OpenBSD;
-#    OBSOLETE: DLT_PFLOG is 117 in OpenBSD now as well. See below.
-# 18 is used for DLT_PFSYNC in OpenBSD; don't use it for anything else.
+# 17 was used for DLT_PFLOG in OpenBSD; it no longer is.
+#
+# It was DLT_LANE8023 in SuSE 6.3, so we defined LINKTYPE_PFLOG
+# as 117 so that pflog captures would use a link-layer header type
+# value that didn't collide with any other values.  On all
+# platforms other than OpenBSD, we defined DLT_PFLOG as 117,
+# and we mapped between LINKTYPE_PFLOG and DLT_PFLOG.
+#
+# OpenBSD eventually switched to using 117 for DLT_PFLOG as well.
+#
+# Don't use 17 for anything else.
+
+# 18 is used for DLT_PFSYNC in OpenBSD, NetBSD, DragonFly BSD and
+# Mac OS X; don't use it for anything else.  (FreeBSD uses 121,
+# which collides with DLT_HHDLC, even though it doesn't use 18
+# for anything and doesn't appear to have ever used it for anything.)
+#
+# We define it as 18 on those platforms; it is, unfortunately, used
+# for DLT_CIP in Suse 6.3, so we don't define it as DLT_PFSYNC
+# in general.  As the packet format for it, like that for
+# DLT_PFLOG, is not only OS-dependent but OS-version-dependent,
+# we don't support printing it in tcpdump except on OSes that
+# have the relevant header files, so it's not that useful on
+# other platforms.
+
+if (defined("__OpenBSD__") or defined("__NetBSD__") or
+    defined("__DragonFly__") or defined("__APPLE__")):
+    DLT_PFSYNC = 18
 
 DLT_ATM_CLIP = 19  # Linux Classical-IP over ATM
 
@@ -129,8 +154,9 @@ DLT_PPP_ETHER  = 51  # PPP over Ethernet
 DLT_SYMANTEC_FIREWALL = 99
 
 # Values between 100 and 103 are used in capture file headers as
-# link-layer types corresponding to DLT_ types that differ
-# between platforms; don't use those values for new DLT_ new types.
+# link-layer header type LINKTYPE_ values corresponding to DLT_ types
+# that differ between platforms; don't use those values for new DLT_
+# new types.
 
 # This value was defined by libpcap 0.5; platforms that have defined
 # it with a different value should define it here with that value -
@@ -203,14 +229,7 @@ DLT_ECONET = 115
 
 DLT_IPFILTER = 116
 
-# OpenBSD DLT_PFLOG; DLT_PFLOG is 17 in OpenBSD, but that's DLT_LANE8023
-# in SuSE 6.3, so we can't use 17 for it in capture-file headers.
-#
-# XXX: is there a conflict with DLT_PFSYNC 18 as well?
-
-if defined("__OpenBSD__"):
-    DLT_OLD_PFLOG = 17
-    DLT_PFSYNC    = 18
+# OpenBSD DLT_PFLOG.
 
 DLT_PFLOG = 117
 
@@ -229,9 +248,69 @@ DLT_PRISM_HEADER = 119
 
 DLT_AIRONET_HEADER = 120
 
-# Reserved for Siemens HiPath HDLC.
+# Sigh.
+#
+# 121 was reserved for Siemens HiPath HDLC on 2002-01-25, as
+# requested by Tomas Kukosa.
+#
+# On 2004-02-25, a FreeBSD checkin to sys/net/bpf.h was made that
+# assigned 121 as DLT_PFSYNC.  In current versions, its libpcap
+# does DLT_ <-> LINKTYPE_ mapping, mapping DLT_PFSYNC to a
+# LINKTYPE_PFSYNC value of 246, so it should write out DLT_PFSYNC
+# dump files with 246 as the link-layer header type.  (Earlier
+# versions might not have done mapping, in which case they would
+# have written them out with a link-layer header type of 121.)
+#
+# OpenBSD, from which pf came, however, uses 18 for DLT_PFSYNC;
+# its libpcap does no DLT_ <-> LINKTYPE_ mapping, so it would
+# write out DLT_PFSYNC dump files with use 18 as the link-layer
+# header type.
+#
+# NetBSD, DragonFly BSD, and Darwin also use 18 for DLT_PFSYNC; in
+# current versions, their libpcaps do DLT_ <-> LINKTYPE_ mapping,
+# mapping DLT_PFSYNC to a LINKTYPE_PFSYNC value of 246, so they
+# should write out DLT_PFSYNC dump files with 246 as the link-layer
+# header type.  (Earlier versions might not have done mapping,
+# in which case they'd work the same way OpenBSD does, writing
+# them out with a link-layer header type of 18.)
+#
+# We'll define DLT_PFSYNC as:
+#
+#    18 on NetBSD, OpenBSD, DragonFly BSD, and Darwin;
+#
+#    121 on FreeBSD;
+#
+#    246 everywhere else.
+#
+# We'll define DLT_HHDLC as 121 on everything except for FreeBSD;
+# anybody who wants to compile, on FreeBSD, code that uses DLT_HHDLC
+# is out of luck.
+#
+# We'll define LINKTYPE_PFSYNC as 246 on#all* platforms, so that
+# savefiles written using#this* code won't use 18 or 121 for PFSYNC,
+# they'll all use 246.
+#
+# Code that uses pcap_datalink() to determine the link-layer header
+# type of a savefile won't, when built and run on FreeBSD, be able
+# to distinguish between LINKTYPE_PFSYNC and LINKTYPE_HHDLC capture
+# files, as pcap_datalink() will give 121 for both of them.  Code
+# that doesn't, such as the code in Wireshark, will be able to
+# distinguish between them.
+#
+# FreeBSD's libpcap won't map a link-layer header type of 18 - i.e.,
+# DLT_PFSYNC files from OpenBSD and possibly older versions of NetBSD,
+# DragonFly BSD, and OS X - to DLT_PFSYNC, so code built with FreeBSD's
+# libpcap won't treat those files as DLT_PFSYNC files.
+#
+# Other libpcaps won't map a link-layer header type of 121 to DLT_PFSYNC;
+# this means they can read DLT_HHDLC files, if any exist, but won't
+# treat pcap files written by any older versions of FreeBSD libpcap that
+# didn't map to 246 as DLT_PFSYNC files.
 
-DLT_HHDLC = 121
+if defined("__FreeBSD__"):
+    DLT_PFSYNC = 121
+else:
+    DLT_HHDLC = 121
 
 # This is for RFC 2625 IP-over-Fibre Channel.
 #
@@ -413,7 +492,7 @@ DLT_IEEE802_11_RADIO_AVS = 163  # 802.11 plus AVS radio header
 
 DLT_JUNIPER_MONITOR = 164
 
-# Reserved for BACnet MS/TP.
+# BACnet MS/TP frames.
 
 DLT_BACNET_MS_TP = 165
 
@@ -513,8 +592,21 @@ DLT_A429 = 184
 
 DLT_A653_ICM = 185
 
-# USB packets, beginning with a USB setup header; requested by
-# Paolo Abeni <paolo.abeni@email.it>.
+# This used to be "USB packets, beginning with a USB setup header;
+# requested by Paolo Abeni <paolo.abeni@email.it>."
+#
+# However, that header didn't work all that well - it left out some
+# useful information - and was abandoned in favor of the DLT_USB_LINUX
+# header.
+#
+# This is now used by FreeBSD for its BPF taps for USB; that has its
+# own headers.  So it is written, so it is done.
+#
+# For source-code compatibility, we also define DLT_USB to have this
+# value.  We do it numerically so that, if code that includes this
+# file (directly or indirectly) also includes an OS header that also
+# defines DLT_USB as 186, we don't get a redefinition warning.
+# (NetBSD 7 does that.)
 
 DLT_USB = 186
 
@@ -565,6 +657,8 @@ DLT_JUNIPER_ISM = 194
 
 # IEEE 802.15.4, exactly as it appears in the spec (no padding, no
 # nothing); requested by Mikko Saarnivala <mikko.saarnivala@sensinode.com>.
+# For this one, we expect the FCS to be present at the end of the frame;
+# if the frame has no FCS, DLT_IEEE802_15_4_NOFCS should be used.
 
 DLT_IEEE802_15_4 = 195
 

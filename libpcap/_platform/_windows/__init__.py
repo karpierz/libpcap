@@ -22,16 +22,12 @@ else:
         DLL_PATH = os.path.join(this_dir, arch + "_" + LIBPCAP, "wpcap.dll")
 
     def DLL(*args, **kargs):
-        from ctypes import WinDLL
-        env_PATH = os.environ.get("PATH")
+        from ctypes import windll, WinDLL
+        windll.kernel32.SetDllDirectoryA(os.path.dirname(DLL_PATH).encode("utf-8"))
         try:
-            os.environ["PATH"] = os.path.dirname(DLL_PATH)
-            if env_PATH is not None:
-                os.environ["PATH"] += os.pathsep + env_PATH
             return WinDLL(*args, **kargs)
         finally:
-            if env_PATH is not None:
-                os.environ["PATH"] = env_PATH
+            windll.kernel32.SetDllDirectoryA(None)
 
 from ctypes  import CFUNCTYPE   as CFUNC
 from _ctypes import FreeLibrary as dlclose

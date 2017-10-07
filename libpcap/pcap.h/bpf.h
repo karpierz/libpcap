@@ -109,25 +109,6 @@ struct bpf_program {
 	u_int bf_len;
 	struct bpf_insn *bf_insns;
 };
- 
-/*
- * Struct return by BIOCVERSION.  This represents the version number of 
- * the filter language described by the instruction encodings below.
- * bpf understands a program iff kernel_major == filter_major &&
- * kernel_minor >= filter_minor, that is, if the value returned by the
- * running kernel has the same major number and a minor number equal
- * equal to or less than the filter being downloaded.  Otherwise, the
- * results are undefined, meaning an error may be returned or packets
- * may be accepted haphazardly.
- * It has nothing to do with the source code version.
- */
-struct bpf_version {
-	u_short bv_major;
-	u_short bv_minor;
-};
-/* Current version number of filter architecture. */
-#define BPF_MAJOR_VERSION 1
-#define BPF_MINOR_VERSION 1
 
 #include <pcap/dlt.h>
 
@@ -280,9 +261,11 @@ struct bpf_aux_data {
 #if __STDC__ || defined(__cplusplus)
 PCAP_API int bpf_validate(const struct bpf_insn *, int);
 PCAP_API u_int bpf_filter(const struct bpf_insn *, const u_char *, u_int, u_int);
+extern u_int bpf_filter_with_aux_data(const struct bpf_insn *, const u_char *, u_int, u_int, const struct bpf_aux_data *);
 #else
 PCAP_API int bpf_validate();
 PCAP_API u_int bpf_filter();
+extern u_int bpf_filter_with_aux_data();
 #endif
 
 /*

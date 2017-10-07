@@ -359,7 +359,7 @@ PCAP_API void	pcap_freealldevs(pcap_if_t *);
 PCAP_API const char *pcap_lib_version(void);
 
 /* XXX this guy lives in the bpf tree */
-u_int	bpf_filter(const struct bpf_insn *, const u_char *, u_int, u_int);
+PCAP_API u_int	bpf_filter(const struct bpf_insn *, const u_char *, u_int, u_int);
 PCAP_API int	bpf_validate(const struct bpf_insn *f, int len);
 PCAP_API char	*bpf_image(const struct bpf_insn *, int);
 PCAP_API void	bpf_dump(const struct bpf_program *, int);

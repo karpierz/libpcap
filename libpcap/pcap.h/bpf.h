@@ -4,7 +4,7 @@
  *
  * This code is derived from the Stanford/CMU enet packet filter,
  * (net/enet.c) distributed as part of 4.3BSD, and code contributed
- * to Berkeley by Steven McCanne and Van Jacobson both of Lawrence 
+ * to Berkeley by Steven McCanne and Van Jacobson both of Lawrence
  * Berkeley Laboratory.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,25 @@
  * XXX - should this all just be moved to "pcap.h"?
  */
 
-#ifndef BPF_MAJOR_VERSION
+/*
+ * If we've already included <net/bpf.h>, don't re-define this stuff.
+ * We assume BSD-style multiple-include protection in <net/bpf.h>,
+ * which is true of all but the oldest versions of FreeBSD and NetBSD,
+ * or Tru64 UNIX-style multiple-include protection (or, at least,
+ * Tru64 UNIX 5.x-style; I don't have earlier versions available to check),
+ * or AIX-style multiple-include protection (or, at least, AIX 5.x-style;
+ * I don't have earlier versions available to check), or QNX-style
+ * multiple-include protection (as per GitHub pull request #394).
+ *
+ * We do not check for BPF_MAJOR_VERSION, as that's defined by
+ * <linux/filter.h>, which is directly or indirectly included in some
+ * programs that also include pcap.h, and <linux/filter.h> doesn't
+ * define stuff we need.
+ *
+ * This also provides our own multiple-include protection.
+ */
+#if !defined(_NET_BPF_H_) && !defined(_NET_BPF_H_INCLUDED) && !defined(_BPF_H_) && !defined(_H_BPF) && !defined(lib_pcap_bpf_h)
+#define lib_pcap_bpf_h
 
 #ifdef __cplusplus
 extern "C" {
@@ -67,8 +85,8 @@ typedef	u_int bpf_u_int32;
 #endif
 
 /*
- * Alignment macros.  BPF_WORDALIGN rounds up to the next 
- * even multiple of BPF_ALIGNMENT. 
+ * Alignment macros.  BPF_WORDALIGN rounds up to the next
+ * even multiple of BPF_ALIGNMENT.
  */
 #ifndef __NetBSD__
 #define BPF_ALIGNMENT sizeof(bpf_int32)
@@ -107,9 +125,6 @@ struct bpf_version {
 #define BPF_MAJOR_VERSION 1
 #define BPF_MINOR_VERSION 1
 
-/*
- * Data-link level type codes.
- */
 #include <pcap/dlt.h>
 
 /*
@@ -120,6 +135,11 @@ struct bpf_version {
  * (and perhaps implement it in the reference BPF implementation
  * and encourage its implementation elsewhere).
  */
+
+/*
+ * The upper 8 bits of the opcode aren't used. BSD/OS used 0x8000.
+ */
+
 /* instruction classes */
 #define BPF_CLASS(code) ((code) & 0x07)
 #define		BPF_LD		0x00
@@ -206,4 +226,4 @@ extern u_int bpf_filter();
 }
 #endif
 
-#endif
+#endif /* !defined(_NET_BPF_H_) && !defined(_BPF_H_) && !defined(_H_BPF) && !defined(lib_pcap_bpf_h) */

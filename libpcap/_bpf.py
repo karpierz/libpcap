@@ -96,7 +96,6 @@ class bpf_version(ct.Structure):
 BPF_MAJOR_VERSION = 1
 BPF_MINOR_VERSION = 1
 
-# Data-link level type codes.
 from ._dlt import *
 
 #
@@ -106,6 +105,8 @@ from ._dlt import *
 # of the reserved values, so that we can note that they're used
 # (and perhaps implement it in the reference BPF implementation
 # and encourage its implementation elsewhere).
+
+# The upper 8 bits of the opcode aren't used. BSD/OS used 0x8000.
 
 # instruction classes
 BPF_CLASS = lambda code: (code & 0x07)

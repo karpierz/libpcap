@@ -166,7 +166,7 @@ struct pcap_stat {
 	u_int ps_capt;		/* number of packets that reach the application */
 	u_int ps_sent;		/* number of packets sent by the server on the network */
 	u_int ps_netdrop;	/* number of packets lost on the network */
-#endif /* HAVE_REMOTE */
+#endif /* _WIN32 && HAVE_REMOTE */
 };
 
 #ifdef MSDOS

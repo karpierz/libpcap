@@ -133,7 +133,7 @@ above or submitted by forking the branch on GitHub at:
 
 and issuing a pull request.
 
-Current versions can be found at www.tcpdump.org.
+Current versions can be found at: http://www.tcpdump.org
 
 \- The TCPdump team
 

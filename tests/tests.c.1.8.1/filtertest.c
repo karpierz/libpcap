@@ -23,8 +23,6 @@
 static const char copyright[] _U_ =
     "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000\n\
 The Regents of the University of California.  All rights reserved.\n";
-static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/filtertest.c,v 1.2 2005/08/08 17:50:13 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -36,26 +34,81 @@ static const char rcsid[] _U_ =
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#ifdef _WIN32
+#include "getopt.h"
+#else
 #include <unistd.h>
+#endif
 #include <fcntl.h>
 #include <errno.h>
+#ifdef _WIN32
+  #include <winsock2.h>
+  typedef unsigned __int32 in_addr_t;
+#else
+  #include <arpa/inet.h>
+#endif
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#ifndef HAVE___ATTRIBUTE__
-#define __attribute__(x)
+/*
+ * This was introduced by Clang:
+ *
+ *     http://clang.llvm.org/docs/LanguageExtensions.html#has-attribute
+ *
+ * in some version (which version?); it has been picked up by GCC 5.0.
+ */
+#ifndef __has_attribute
+  /*
+   * It's a macro, so you can check whether it's defined to check
+   * whether it's supported.
+   *
+   * If it's not, define it to always return 0, so that we move on to
+   * the fallback checks.
+   */
+  #define __has_attribute(x) 0
+#endif
+
+#if __has_attribute(noreturn) \
+    || (defined(__GNUC__) && ((__GNUC__ * 100 + __GNUC_MINOR__) >= 205)) \
+    || (defined(__SUNPRO_C) && (__SUNPRO_C >= 0x590)) \
+    || (defined(__xlC__) && __xlC__ >= 0x0A01) \
+    || (defined(__HP_aCC) && __HP_aCC >= 61000)
+  /*
+   * Compiler with support for it, or GCC 2.5 and later, or Solaris Studio 12
+   * (Sun C 5.9) and later, or IBM XL C 10.1 and later (do any earlier
+   * versions of XL C support this?), or HP aCC A.06.10 and later.
+   */
+  #define PCAP_NORETURN __attribute((noreturn))
+#elif defined( _MSC_VER )
+  #define PCAP_NORETURN __declspec(noreturn)
+#else
+  #define PCAP_NORETURN
+#endif
+
+#if __has_attribute(__format__) \
+    || (defined(__GNUC__) && ((__GNUC__ * 100 + __GNUC_MINOR__) >= 203)) \
+    || (defined(__xlC__) && __xlC__ >= 0x0A01) \
+    || (defined(__HP_aCC) && __HP_aCC >= 61000)
+  /*
+   * Compiler with support for it, or GCC 2.3 and later, or IBM XL C 10.1
+   * and later (do any earlier versions of XL C support this?),
+   * or HP aCC A.06.10 and later.
+   */
+  #define PCAP_PRINTFLIKE(x,y) __attribute__((__format__(__printf__,x,y)))
+#else
+  #define PCAP_PRINTFLIKE(x,y)
 #endif
 
 static char *program_name;
 
 /* Forwards */
-static void usage(void) __attribute__((noreturn));
-static void error(const char *, ...)
-    __attribute__((noreturn, format (printf, 1, 2)));
+static void PCAP_NORETURN usage(void);
+static void PCAP_NORETURN error(const char *, ...) PCAP_PRINTFLIKE(1, 2);
+static void warn(const char *, ...) PCAP_PRINTFLIKE(1, 2);
 
-extern int optind;
-extern int opterr;
-extern char *optarg;
+#ifdef BDEBUG
+int dflag;
+#endif
 
 /*
  * On Windows, we need to open the file in binary mode, so that
@@ -121,6 +174,23 @@ error(const char *fmt, ...)
 	/* NOTREACHED */
 }
 
+/* VARARGS */
+static void
+warn(const char *fmt, ...)
+{
+	va_list ap;
+
+	(void)fprintf(stderr, "%s: WARNING: ", program_name);
+	va_start(ap, fmt);
+	(void)vfprintf(stderr, fmt, ap);
+	va_end(ap);
+	if (*fmt) {
+		fmt += strlen(fmt);
+		if (fmt[-1] != '\n')
+			(void)fputc('\n', stderr);
+	}
+}
+
 /*
  * Copy arg vector into a new buffer, concatenating arguments with spaces.
  */
@@ -160,32 +230,43 @@ main(int argc, char **argv)
 {
 	char *cp;
 	int op;
+#ifndef BDEBUG
 	int dflag;
+#endif
 	char *infile;
 	int Oflag;
 	long snaplen;
+	char *p;
 	int dlt;
 	bpf_u_int32 netmask = PCAP_NETMASK_UNKNOWN;
 	char *cmdbuf;
 	pcap_t *pd;
 	struct bpf_program fcode;
 
-#ifdef WIN32
+#ifdef _WIN32
 	if(wsockinit() != 0) return 1;
-#endif /* WIN32 */
+#endif /* _WIN32 */
 
+#ifndef BDEBUG
 	dflag = 1;
+#else
+	/* if optimizer debugging is enabled, output DOT graph
+	 * `dflag=4' is equivalent to -dddd to follow -d/-dd/-ddd
+	 * convention in tcpdump command line
+	 */
+	dflag = 4;
+#endif
 	infile = NULL;
 	Oflag = 1;
 	snaplen = 68;
-  
+
 	if ((cp = strrchr(argv[0], '/')) != NULL)
 		program_name = cp + 1;
 	else
 		program_name = argv[0];
 
 	opterr = 0;
-	while ((op = getopt(argc, argv, "dF:Os:")) != -1) {
+	while ((op = getopt(argc, argv, "dF:m:Os:")) != -1) {
 		switch (op) {
 
 		case 'd':
@@ -199,6 +280,16 @@ main(int argc, char **argv)
 		case 'O':
 			Oflag = 0;
 			break;
+
+		case 'm': {
+			in_addr_t addr;
+
+			addr = inet_addr(optarg);
+			if (addr == (in_addr_t)(-1))
+				error("invalid netmask %s", optarg);
+			netmask = addr;
+			break;
+		}
 
 		case 's': {
 			char *end;
@@ -224,9 +315,12 @@ main(int argc, char **argv)
 	}
 
 	dlt = pcap_datalink_name_to_val(argv[optind]);
-	if (dlt < 0)
-		error("invalid data link type %s", argv[optind]);
-	
+	if (dlt < 0) {
+		dlt = (int)strtol(argv[optind], &p, 10);
+		if (p == argv[optind] || *p != '\0')
+			error("invalid data link type %s", argv[optind]);
+	}
+
 	if (infile)
 		cmdbuf = read_infile(infile);
 	else
@@ -236,8 +330,23 @@ main(int argc, char **argv)
 	if (pd == NULL)
 		error("Can't open fake pcap_t");
 
-	if (pcap_compile(pd, &fcode, cmdbuf, Oflag, 0) < 0)
+	if (pcap_compile(pd, &fcode, cmdbuf, Oflag, netmask) < 0)
 		error("%s", pcap_geterr(pd));
+
+	if (!bpf_validate(fcode.bf_insns, fcode.bf_len))
+		warn("Filter doesn't pass validation");
+
+#ifdef BDEBUG
+	// replace line feed with space
+	for (cp = cmdbuf; *cp != '\0'; ++cp) {
+		if (*cp == '\r' || *cp == '\n') {
+			*cp = ' ';
+		}
+	}
+	// only show machine code if BDEBUG defined, since dflag > 3
+	printf("machine codes for filter: %s\n", cmdbuf);
+#endif
+
 	bpf_dump(&fcode, dflag);
 	pcap_close(pd);
 	exit(0);

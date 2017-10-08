@@ -27,13 +27,13 @@ import getopt
 import ctypes as ct
 
 import libpcap as pcap
+from libpcap._platform import is_windows, defined
 
 #ifndef lint
 copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
             "1995, 1996, 1997, 2000\n"\
             "The Regents of the University of California.  "\
             "All rights reserved.\n"
-rcsid = "/tcpdump/master/libpcap/filtertest.c,v 1.2 2005/08/08 17:50:13 guy"
 #endif
 
 MAXIMUM_SNAPLEN = 65535
@@ -45,13 +45,19 @@ def main(argv):
     program_name = os.path.basename(argv[0])
 
     try:
-        opts, args = getopt.getopt(argv[1:], "dF:Os:")
+        opts, args = getopt.getopt(argv[1:], "dF:m:Os:")
     except getopt.GetoptError:
         usage()
 
-    dflag = 1
+    if defined("BDEBUG"):
+        # if optimizer debugging is enabled, output DOT graph
+        # `dflag=4' is equivalent to -dddd to follow -d/-dd/-ddd
+        # convention in tcpdump command line
+        dflag = 4
+    else:
+        dflag = 1
     infile = None
-    netmask = pcap.PCAP_NETMASK_UNKNOWN  # bpf_u_int32
+    netmask = pcap.PCAP_NETMASK_UNKNOWN
     Oflag = 1
     snaplen = 68
     for op, optarg in opts:
@@ -61,6 +67,12 @@ def main(argv):
             infile = optarg
         elif op == '-O':
             Oflag = 0
+        elif op == '-m':
+            # addr = inet_addr(optarg) # in_addr_t
+            # if addr == (in_addr_t)(-1):
+            #     error("invalid netmask {}", optarg)
+            # netmask = addr
+            pass
         elif op == '-s':
             try:
                 snaplen = int(optarg)
@@ -81,7 +93,10 @@ def main(argv):
 
     dlt = pcap.datalink_name_to_val(dlt_name.encode("utf-8"))
     if dlt < 0:
-        error("invalid data link type {!s}", dlt_name)
+        try:
+            dlt = int(dlt_name)
+        except:
+            error("invalid data link type {!s}", dlt_name)
 
     if infile:
         cmdbuf = read_infile(infile)
@@ -94,8 +109,20 @@ def main(argv):
         error("Can't open fake pcap_t")
 
     fcode = pcap.bpf_program()
-    if pcap.compile(pd, ct.byref(fcode), cmdbuf, Oflag, 0) < 0:
+
+    if pcap.compile(pd, ct.byref(fcode), cmdbuf, Oflag, netmask) < 0:
         error("{!s}", pcap.geterr(pd).decode("utf-8", "ignore"))
+
+    if not pcap.bpf_validate(fcode.bf_insns, fcode.bf_len):
+        warn("Filter doesn't pass validation")
+
+    if defined("BDEBUG"):
+        # replace line feed with space
+        mcodes = cmdbuf.decode("utf-8", "ignore")
+        mcodes = mcodes.replace('\r', ' ').replace('\n', ' ')
+        # only show machine code if BDEBUG defined, since dflag > 3
+        print("machine codes for filter: {}".format(mcodes))
+
     pcap.bpf_dump(ct.byref(fcode), dflag)
     pcap.close(pd)
 
@@ -160,6 +187,15 @@ def error(fmt, *args):
     if fmt and fmt[-1] != '\n':
         print(file=sys.stderr)
     sys.exit(1)
+
+
+def warn(fmt, *args):
+
+    global program_name
+    print("{}: WARNING: ".format(program_name), end="", file=sys.stderr)
+    print(fmt.format(*args), end="", file=sys.stderr)
+    if fmt and fmt[-1] != '\n':
+        print(file=sys.stderr)
 
 
 sys.exit(main(sys.argv) or 0)

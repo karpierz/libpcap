@@ -18,11 +18,7 @@
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in the
 #    documentation and/or other materials provided with the distribution.
-# 3. All advertising materials mentioning features or use of this software
-#    must display the following acknowledgement:
-#      This product includes software developed by the University of
-#      California, Berkeley and its contributors.
-# 4. Neither the name of the University nor the names of its contributors
+# 3. Neither the name of the University nor the names of its contributors
 #    may be used to endorse or promote products derived from this software
 #    without specific prior written permission.
 #
@@ -129,8 +125,8 @@ BPF_AND = 0x50
 BPF_LSH = 0x60
 BPF_RSH = 0x70
 BPF_NEG = 0x80
-BPF_MOD = 0x90
-BPF_XOR = 0xa0
+BPF_MOD = 0x90  # available from v.1.8.1
+BPF_XOR = 0xa0  # available from v.1.8.1
 #         0xb0  # reserved
 #         0xc0  # reserved
 #         0xd0  # reserved
@@ -168,11 +164,11 @@ BPF_TAX = 0x00
 #         0x08  # reserved
 #         0x10  # reserved
 #         0x18  # reserved
-BPF_COP = 0x20  # NetBSD "coprocessor" extensions
+BPF_COP = 0x20  # NetBSD "coprocessor" extensions # available from v.1.8.1
 #         0x28  # reserved
 #         0x30  # reserved
 #         0x38  # reserved
-BPF_COPX= 0x40  # NetBSD "coprocessor" extensions, also used on BSD/OS
+BPF_COPX= 0x40  # NetBSD "coprocessor" extensions, also used on BSD/OS # available from v.1.8.1
 #         0x48  # reserved
 #         0x50  # reserved
 #         0x58  # reserved

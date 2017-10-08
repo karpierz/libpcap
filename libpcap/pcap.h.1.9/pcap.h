@@ -317,7 +317,9 @@ typedef void (*pcap_handler)(u_char *, const struct pcap_pkthdr *,
  * thread-safe, can behave weirdly with WinPcap).  Callers
  * should use pcap_findalldevs() and use the first device.
  */
-PCAP_API char	*pcap_lookupdev(char *);
+PCAP_API char	*pcap_lookupdev(char *)
+PCAP_DEPRECATED(pcap_lookupdev, "use 'pcap_findalldevs' and use the first device");
+
 PCAP_API int	pcap_lookupnet(const char *, bpf_u_int32 *, bpf_u_int32 *, char *);
 
 PCAP_API pcap_t	*pcap_create(const char *, char *);
@@ -597,8 +599,6 @@ PCAP_API void	bpf_dump(const struct bpf_program *, int);
   PCAP_API int	pcap_get_selectable_fd(pcap_t *);
 
 #endif /* _WIN32/MSDOS/UN*X */
-
-#ifdef HAVE_REMOTE
 
 /*
  * Remote capture definitions.
@@ -958,8 +958,6 @@ PCAP_API int	pcap_remoteact_list(char *hostlist, char sep, int size,
 	    char *errbuf);
 PCAP_API int	pcap_remoteact_close(const char *host, char *errbuf);
 PCAP_API void	pcap_remoteact_cleanup(void);
-
-#endif	 /* HAVE_REMOTE */
 
 #ifdef __cplusplus
 }

@@ -32,8 +32,6 @@ The Regents of the University of California.  All rights reserved.\n";
 
 #include <pcap.h>
 
-#include "pcap/funcattrs.h"
-
 static const char *program_name;
 
 /* Forwards */

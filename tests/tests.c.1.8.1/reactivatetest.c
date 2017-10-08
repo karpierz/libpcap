@@ -25,52 +25,42 @@ static const char copyright[] _U_ =
 The Regents of the University of California.  All rights reserved.\n";
 #endif
 
+#include <pcap.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
 
-#include <pcap.h>
-
-#include "pcap/funcattrs.h"
-
-static const char *program_name;
-
 /* Forwards */
 static void error(const char *, ...);
 
 int
-main(int argc, char **argv)
+main(void)
 {
-	const char *cp;
-	pcap_t *pd;
 	char ebuf[PCAP_ERRBUF_SIZE];
-	int status;
+	pcap_t *pd;
+	int status = 0;
 
-	if ((cp = strrchr(argv[0], '/')) != NULL)
-		program_name = cp + 1;
-	else
-		program_name = argv[0];
-
-	if (argc != 2) {
-		fprintf(stderr, "Usage: %s <device>\n", program_name);
-		return 2;
+	pd = pcap_open_live("lo0", 65535, 0, 1000, ebuf);
+	if (pd == NULL) {
+		pd = pcap_open_live("lo", 65535, 0, 1000, ebuf);
+		if (pd == NULL) {
+			error("Neither lo0 nor lo could be opened: %s",
+			    ebuf);
+			return 2;
+		}
 	}
-
-	pd = pcap_create(argv[1], ebuf);
-	if (pd == NULL)
-		error("%s", ebuf);
-	status = pcap_can_set_rfmon(pd);
-	if (status < 0) {
-		if (status == PCAP_ERROR)
-			error("%s: pcap_can_set_rfmon failed: %s", argv[1],
+	status = pcap_activate(pd);
+	if (status != PCAP_ERROR_ACTIVATED) {
+		if (status == 0)
+			error("pcap_activate() of opened pcap_t succeeded");
+		else if (status == PCAP_ERROR)
+			error("pcap_activate() of opened pcap_t failed with %s, not PCAP_ERROR_ACTIVATED",
 			    pcap_geterr(pd));
 		else
-			error("%s: pcap_can_set_rfmon failed: %s", argv[1],
+			error("pcap_activate() of opened pcap_t failed with %s, not PCAP_ERROR_ACTIVATED",
 			    pcap_statustostr(status));
-		return 1;
 	}
-	printf("%s: Monitor mode %s be set\n", argv[1], status ? "can" : "cannot");
 	return 0;
 }
 
@@ -80,7 +70,7 @@ error(const char *fmt, ...)
 {
 	va_list ap;
 
-	(void)fprintf(stderr, "%s: ", program_name);
+	(void)fprintf(stderr, "reactivatetest: ");
 	va_start(ap, fmt);
 	(void)vfprintf(stderr, fmt, ap);
 	va_end(ap);

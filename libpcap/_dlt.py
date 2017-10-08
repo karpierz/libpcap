@@ -18,11 +18,7 @@
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in the
 #    documentation and/or other materials provided with the distribution.
-# 3. All advertising materials mentioning features or use of this software
-#    must display the following acknowledgement:
-#      This product includes software developed by the University of
-#      California, Berkeley and its contributors.
-# 4. Neither the name of the University nor the names of its contributors
+# 3. Neither the name of the University nor the names of its contributors
 #    may be used to endorse or promote products derived from this software
 #    without specific prior written permission.
 #
@@ -167,7 +163,7 @@ DLT_SYMANTEC_FIREWALL = 99
 # DLT_MATCHING_MIN is the lowest such value; DLT_MATCHING_MAX is
 # the highest such value.
 
-DLT_MATCHING_MIN = 104
+DLT_MATCHING_MIN = 104  # available from v.1.8.1
 
 # This value was defined by libpcap 0.5; platforms that have defined
 # it with a different value should define it here with that value -
@@ -619,7 +615,7 @@ DLT_A653_ICM = 185
 # defines DLT_USB as 186, we don't get a redefinition warning.
 # (NetBSD 7 does that.)
 
-DLT_USB_FREEBSD = 186
+DLT_USB_FREEBSD = 186  # available from v.1.8.1
 DLT_USB         = 186
 
 # Bluetooth HCI UART transport layer (part H:4); requested by
@@ -777,6 +773,8 @@ DLT_X2E_XORAYA = 214
 
 DLT_IEEE802_15_4_NONASK_PHY = 215
 
+## below available from v.1.8.1
+
 # David Gibson <david@gibson.dropbear.id.au> requested this for
 # captures from the Linux kernel /dev/input/eventN devices. This
 # is used to communicate keystrokes and mouse movements from the
@@ -848,14 +846,14 @@ DLT_FC_2_WITH_FRAME_DELIMS = 225
 # the pseudo-header is:
 #
 # struct dl_ipnetinfo {
-#     u_int8_t   dli_version;
-#     u_int8_t   dli_family;
-#     u_int16_t  dli_htype;
-#     u_int32_t  dli_pktlen;
-#     u_int32_t  dli_ifindex;
-#     u_int32_t  dli_grifindex;
-#     u_int32_t  dli_zsrc;
-#     u_int32_t  dli_zdst;
+#     uint8_t   dli_version;
+#     uint8_t   dli_family;
+#     uint16_t  dli_htype;
+#     uint32_t  dli_pktlen;
+#     uint32_t  dli_ifindex;
+#     uint32_t  dli_grifindex;
+#     uint32_t  dli_zsrc;
+#     uint32_t  dli_zdst;
 # };
 #
 # dli_version is 2 for the current version of the pseudo-header.
@@ -1169,13 +1167,48 @@ DLT_ISO_14443 = 264
 
 DLT_RDS = 265
 
+## below available from v.1.9.0
+
+# USB packets, beginning with a Darwin (macOS, etc.) header.
+
+DLT_USB_DARWIN = 266
+
+# OpenBSD DLT_OPENFLOW.
+
+DLT_OPENFLOW = 267
+
+# SDLC frames containing SNA PDUs.
+
+DLT_SDLC = 268
+
+# per "Selvig, Bjorn" <b.selvig@ti.com> used for
+# TI protocol sniffer.
+
+DLT_TI_LLN_SNIFFER = 269
+
+# per: Erik de Jong <erikdejong at gmail.com> for
+#   https://github.com/eriknl/LoRaTap/releases/tag/v0.1
+
+DLT_LORATAP = 270
+
+# per: Stefanha at gmail.com for
+#   http://lists.sandelman.ca/pipermail/tcpdump-workers/2017-May/000772.html
+# and: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/uapi/linux/vsockmon.h
+# for: http://qemu-project.org/Features/VirtioVsock
+
+DLT_VSOCK = 271
+
+# Nordic Semiconductor Bluetooth LE sniffer.
+
+DLT_NORDIC_BLE = 272
+
 # In case the code that includes this file (directly or indirectly)
 # has also included OS files that happen to define DLT_MATCHING_MAX,
 # with a different value (perhaps because that OS hasn't picked up
 # the latest version of our DLT definitions), we undefine the
 # previous value of DLT_MATCHING_MAX.
 
-DLT_MATCHING_MAX = 265  # highest value in the "matching" range
+DLT_MATCHING_MAX = 272  # highest value in the "matching" range # available from v.1.8.1
 
 # DLT and savefile link type values are split into a class and
 # a member of that class.  A class value of 0 indicates a regular

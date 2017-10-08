@@ -19,7 +19,7 @@
 
 #include <pcap.h>
 
-#include "../funcattrs.h"
+#include "pcap/funcattrs.h"
 
 static int ifprint(pcap_if_t *d);
 static char *iptos(bpf_u_int32 in);
@@ -56,7 +56,7 @@ win32_strerror(DWORD error)
   pcap_snprintf(p, ERRBUF_SIZE+1-(p-errbuf), " (%lu)", error);
   return errbuf;
 }
-	
+
 static char *
 getpass(const char *prompt)
 {

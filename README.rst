@@ -15,10 +15,10 @@ Overview
   |
   | *libpcap* is a lightweight Python package, based on the *ctypes* library.
   | It is fully compliant implementation of the original C *libpcap* from
-    1.0.0 up to 1.8.8 API and the *WinPcap*'s 4.1.3 libpcap (1.0.0rel0b) API
+    1.0.0 up to 1.9.0 API and the *WinPcap*'s 4.1.3 libpcap (1.0.0rel0b) API
     by implementing whole its functionality in a clean Python instead of C.
   |
-  | Useful *libpcap* API 1.8.8+ API documentation can be found at:
+  | Useful *libpcap* API documentation can be found at:
 
     `Main pcap man page <http://www.tcpdump.org/manpages/pcap.3pcap.html>`__,
     `(MORE pcap man pages) <http://www.tcpdump.org/manpages/>`__
@@ -26,25 +26,15 @@ Overview
 About original LIBPCAP:
 -----------------------
 
-LIBPCAP 1.8.8
-
+LIBPCAP 1.x.y
+Now maintained by "The Tcpdump Group"
 http://www.tcpdump.org
-
-Please send inquiries/comments/reports to:
-
-    tcpdump-workers@lists.tcpdump.org
 
 Anonymous Git is available via:
 
     git clone git://bpf.tcpdump.org/libpcap
 
-Please submit patches by forking the branch on GitHub at:
-
-    http://github.com/the-tcpdump-group/libpcap/tree/master
-
-and issuing a pull request.
-
-Formerly from:
+formerly from:
 
   | Lawrence Berkeley National Laboratory
   | Network Research Group <libpcap@ee.lbl.gov>
@@ -119,23 +109,9 @@ We've been maintaining binary compatibility between libpcap releases for
 quite a while; there's no reason to tie a binary linked with libpcap to
 a particular release of libpcap.
 
-Problems, bugs, questions, desirable enhancements, etc. should be sent
-to the address "tcpdump-workers@lists.tcpdump.org".  Bugs, support
-requests, and feature requests may also be submitted on the GitHub issue
-tracker for libpcap at:
-
-    https://github.com/the-tcpdump-group/libpcap/issues
-
-Source code contributions, etc. should be sent to the email address
-above or submitted by forking the branch on GitHub at:
-
-    http://github.com/the-tcpdump-group/libpcap/tree/master
-
-and issuing a pull request.
-
 Current versions can be found at: http://www.tcpdump.org
 
-\- The TCPdump team
+\- The TCPdump group
 
 Requirements
 ============
@@ -152,7 +128,7 @@ Prerequisites:
 + Python 2.7 or higher or 3.4 or higher
 
   * http://www.python.org/
-  * 2.7 and 3.4 are primary test environments.
+  * 2.7 and 3.4 and LIBPCAP 1.8.1 are primary test environments.
 
 + pip and setuptools
 

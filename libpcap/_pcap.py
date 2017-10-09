@@ -373,6 +373,8 @@ PCAP_TSTAMP_PRECISION_NANO  = 1  # use timestamps with nanosecond precision
 # reasons (not thread-safe, can behave weirdly with WinPcap).
 # Callers should use  pcap.findalldevs() and use the first device.
 #
+#PCAP_DEPRECATED(pcap_lookupdev, "use 'pcap.findalldevs' and use the first device")
+#
 lookupdev     = CFUNC(ct.c_char_p,
                       ct.c_char_p)(
                       ("pcap_lookupdev", dll), (

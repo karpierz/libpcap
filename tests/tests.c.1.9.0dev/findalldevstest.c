@@ -100,18 +100,17 @@ int main(int argc, char **argv)
 {
   pcap_if_t *alldevs;
   pcap_if_t *d;
-  char *s;
   bpf_u_int32 net, mask;
   int exit_status = 0;
   char errbuf[PCAP_ERRBUF_SIZE+1];
-#ifdef HAVE_REMOTE
+#ifdef ENABLE_REMOTE
   struct pcap_rmtauth auth;
   char username[128+1];
   char *p;
   char *password;
 #endif
 
-#ifdef HAVE_REMOTE
+#ifdef ENABLE_REMOTE
   if (argc >= 2)
   {
     if (pcap_findalldevs_ex(argv[1], NULL, &alldevs, errbuf) == -1)
@@ -151,26 +150,20 @@ int main(int argc, char **argv)
       exit_status = 2;
   }
 
-  if ( (s = pcap_lookupdev(errbuf)) == NULL)
+  if (alldevs != NULL)
   {
-    fprintf(stderr,"Error in pcap_lookupdev: %s\n",errbuf);
-    exit_status = 2;
-  }
-  else
-  {
-    printf("Preferred device name: %s\n",s);
-  }
-
-  if (pcap_lookupnet(s, &net, &mask, errbuf) < 0)
-  {
-    fprintf(stderr,"Error in pcap_lookupnet: %s\n",errbuf);
-    exit_status = 2;
-  }
-  else
-  {
-    printf("Preferred device is on network: %s/%s\n",iptos(net), iptos(mask));
+    if (pcap_lookupnet(alldevs->name, &net, &mask, errbuf) < 0)
+    {
+      fprintf(stderr,"Error in pcap_lookupnet: %s\n",errbuf);
+      exit_status = 2;
+    }
+    else
+    {
+      printf("Preferred device is on network: %s/%s\n",iptos(net), iptos(mask));
+    }
   }
 
+  pcap_freealldevs(alldevs);
   exit(exit_status);
 }
 

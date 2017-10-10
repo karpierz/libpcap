@@ -128,7 +128,7 @@ Prerequisites:
 + Python 2.7 or higher or 3.4 or higher
 
   * http://www.python.org/
-  * 2.7 and 3.4 and LIBPCAP 1.8.1 are primary test environments.
+  * 2.7 and 3.4 with LIBPCAP 1.8.1 are primary test environments.
 
 + pip and setuptools
 
@@ -166,6 +166,7 @@ License
   | Copyright (c) 2016-2017, Adam Karpierz
   |
   | Licensed under the BSD license
+  | http://opensource.org/licenses/BSD-3-Clause
   | Please refer to the LICENSE file.
 
 Authors

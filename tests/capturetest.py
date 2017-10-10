@@ -82,9 +82,13 @@ def main(argv):
     ebuf = ct.create_string_buffer(pcap.PCAP_ERRBUF_SIZE)
 
     if device is None:
-        device = pcap.lookupdev(ebuf)
-        if device is None:
+        devlist = ct.POINTER(pcap.pcap_if_t)()
+        if pcap.findalldevs(ct.byref(devlist), ebuf) == -1:
             error("{!s}", ebuf.value.decode("utf-8", "ignore"))
+        if not devlist:
+            error("no interfaces available for capture")
+        device = devlist[0].name
+        pcap.freealldevs(devlist)
 
     ebuf.value = b""
     pd = pcap.create(device, ebuf)
@@ -134,7 +138,6 @@ def main(argv):
         warning("{!s}", ebuf.value.decode("utf-8", "ignore"))
 
     fcode = pcap.bpf_program()
-
     cmdbuf = " ".join(expression).encode("utf-8")
     if pcap.compile(pd, ct.byref(fcode), cmdbuf, 1, netmask) < 0:
         error("{!s}", pcap.geterr(pd).decode("utf-8", "ignore"))
@@ -167,6 +170,7 @@ def main(argv):
         print("{}: pcap.loop: {!s}".format(program_name,
               pcap.geterr(pd).decode("utf-8", "ignore")), file=sys.stderr)
 
+    pcap.freecode(ct.byref(fcode))
     pcap.close(pd)
 
     return 1 if status == -1 else 0

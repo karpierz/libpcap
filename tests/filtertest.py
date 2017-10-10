@@ -49,6 +49,7 @@ def main(argv):
     except getopt.GetoptError:
         usage()
 
+    have_fcode = False
     if defined("BDEBUG"):
         # if optimizer debugging is enabled, output DOT graph
         # `dflag=4' is equivalent to -dddd to follow -d/-dd/-ddd
@@ -109,21 +110,27 @@ def main(argv):
         error("Can't open fake pcap_t")
 
     fcode = pcap.bpf_program()
-
     if pcap.compile(pd, ct.byref(fcode), cmdbuf, Oflag, netmask) < 0:
         error("{!s}", pcap.geterr(pd).decode("utf-8", "ignore"))
+    have_fcode = True
 
     if not pcap.bpf_validate(fcode.bf_insns, fcode.bf_len):
         warn("Filter doesn't pass validation")
 
     if defined("BDEBUG"):
-        # replace line feed with space
-        mcodes = cmdbuf.decode("utf-8", "ignore")
-        mcodes = mcodes.replace('\r', ' ').replace('\n', ' ')
-        # only show machine code if BDEBUG defined, since dflag > 3
-        print("machine codes for filter: {}".format(mcodes))
+        if cmdbuf:
+            # replace line feed with space
+            mcodes = cmdbuf.decode("utf-8", "ignore")
+            mcodes = mcodes.replace('\r', ' ').replace('\n', ' ')
+            # only show machine code if BDEBUG defined, since dflag > 3
+            print("machine codes for filter: {}".format(mcodes))
+        else:
+            print("machine codes for empty filter:")
 
     pcap.bpf_dump(ct.byref(fcode), dflag)
+    del cmdbuf
+    if have_fcode:
+        pcap.freecode(ct.byref(fcode))
     pcap.close(pd)
 
     return 0

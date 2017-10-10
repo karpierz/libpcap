@@ -221,7 +221,7 @@ def main(argv):
         print("{}: pcap.loop: {!s}".format(program_name,
               pcap.geterr(pd).decode("utf-8", "ignore")), file=sys.stderr)
 
-    pcap_freecode(ct.byref(fcode))
+    pcap.freecode(ct.byref(fcode))
     pcap.close(pd)
 
     return 1 if status == -1 else 0

@@ -7,6 +7,8 @@ import os
 import socket
 if sys.version_info.major <= 2:
     import win_inet_pton
+    input = raw_input
+from getpass import getpass
 import ctypes as ct
 
 import libpcap as pcap
@@ -18,45 +20,77 @@ def main(argv):
     global program_name
     program_name = os.path.basename(argv[0])
 
+    exit_status = 0
+
     alldevs = ct.POINTER(pcap.pcap_if_t)()
     errbuf  = ct.create_string_buffer(pcap.PCAP_ERRBUF_SIZE + 1)
-    if pcap.findalldevs(ct.byref(alldevs), errbuf) == -1:
-        print("Error in pcap.findalldevs: {!s}".format(
-              errbuf.value.decode("utf-8", "ignore")), file=sys.stderr)
-        sys.exit(1)
+
+    #ifdef ENABLE_REMOTE
+    if len(argv) >= 2:
+        source = argv[1]
+        if pcap.findalldevs_ex(source, NULL, ct.byref(alldevs), errbuf) == -1:
+
+            # OK, try it with a user name and password.
+
+            username = input("User name: ")
+            if not username:
+                exit_status = 1
+                return exit_status
+            password = getpass("Password: ")
+
+            auth = pcap.rmtauth()
+            auth.type     = pcap.RPCAP_RMTAUTH_PWD
+            auth.username = username
+            auth.password = password
+            if pcap.findalldevs_ex(source, ct.byref(auth), ct.byref(alldevs), errbuf) == -1:
+                print("Error in pcap.findalldevs: {!s}".format(
+                      errbuf.value.decode("utf-8", "ignore")), file=sys.stderr)
+                exit_status = 1
+                return exit_status
+    else:
+    #endif
+        if pcap.findalldevs(ct.byref(alldevs), errbuf) == -1:
+            print("Error in pcap.findalldevs: {!s}".format(
+                  errbuf.value.decode("utf-8", "ignore")), file=sys.stderr)
+            exit_status = 1
+            return exit_status
 
     d = alldevs
     while d:
         d = d.contents
-        ifprint(d)
+        if not ifprint(d):
+            exit_status = 2
         d = d.next
 
-    s = pcap.lookupdev(errbuf)
-    if s is None:
-        print("Error in pcap.lookupdev: {!s}".format(
-              errbuf.value.decode("utf-8", "ignore")), file=sys.stderr)
-    else:
-        print("Preferred device name: {!s}".format(s.decode("utf-8")))
+    if alldevs:
+        net  = pcap.bpf_u_int32()
+        mask = pcap.bpf_u_int32()
+        if pcap.lookupnet(alldevs[0].name, ct.byref(net), ct.byref(mask), errbuf) < 0:
+            print("Error in pcap.lookupnet: {!s}".format(
+                  errbuf.value.decode("utf-8", "ignore")), file=sys.stderr)
+            exit_status = 2
+        else:
+            print("Preferred device is on network: {}/{}".format(
+                  iptos(net), iptos(mask)))
 
-    net  = pcap.bpf_u_int32()
-    mask = pcap.bpf_u_int32()
-    if pcap.lookupnet(s, ct.byref(net), ct.byref(mask), errbuf) < 0:
-        print("Error in pcap.lookupnet: {!s}".format(
-              errbuf.value.decode("utf-8", "ignore")), file=sys.stderr)
-    else:
-        print("Preferred device is on network: {}/{}".format(
-              iptos(net), iptos(mask)))
+    pcap.freealldevs(alldevs)
 
-    return 0
+    return exit_status
 
 
 def ifprint(d): # pcap_if_t*
 
+    status = True  # success
+
     print("{!s}".format(d.name.decode("utf-8")))
     if d.description:
         print("\tDescription: {!s}".format(d.description.decode("utf-8")))
-    print("\tLoopback: {}".format(
-          "yes" if d.flags & pcap.PCAP_IF_LOOPBACK else "no"))
+
+    flags = []
+    if d.flags & pcap.PCAP_IF_UP:       flags.append("UP")
+    if d.flags & pcap.PCAP_IF_RUNNING:  flags.append("RUNNING")
+    if d.flags & pcap.PCAP_IF_LOOPBACK: flags.append("LOOPBACK")
+    print("\tFlags: {}".format(", ".join(flags)))
 
     a = d.addresses
     while a:
@@ -66,35 +100,39 @@ def ifprint(d): # pcap_if_t*
         netmask   = a.netmask
         broadaddr = a.broadaddr
         dstaddr   = a.dstaddr
-        if addr.contents.sa_family == socket.AF_INET:
-            print("\tAddress Family: AF_INET")
-            if addr:
-                print("\t\tAddress: {}".format(socket.inet_ntoa(ct.cast(addr, ct.POINTER(sockaddr_in)).contents.sin_addr)))
-            if netmask:
-                print("\t\tNetmask: {}".format(socket.inet_ntoa(ct.cast(netmask, ct.POINTER(sockaddr_in)).contents.sin_addr)))
-            if broadaddr:
-                print("\t\tBroadcast Address: {}".format(socket.inet_ntoa(ct.cast(broadaddr, ct.POINTER(sockaddr_in)).contents.sin_addr)))
-            if dstaddr:
-                print("\t\tDestination Address: {}".format(socket.inet_ntoa(ct.cast(dstaddr, ct.POINTER(sockaddr_in)).contents.sin_addr)))
-        #ifdef INET6
-        elif addr.contents.sa_family == socket.AF_INET6:
-            print("\tAddress Family: AF_INET6")
-            if addr:
-                print("\t\tAddress: {}".format(socket.inet_ntop(socket.AF_INET6, ct.cast(addr, ct.POINTER(sockaddr_in6)).contents.sin6_addr.s6_addr)))
-            if netmask:
-                print("\t\tNetmask: {}".format(socket.inet_ntop(socket.AF_INET6, ct.cast(netmask, ct.POINTER(sockaddr_in6)).contents.sin6_addr.s6_addr)))
-            if broadaddr:
-                print("\t\tBroadcast Address: {}".format(socket.inet_ntop(socket.AF_INET6, ct.cast(broadaddr, ct.POINTER(sockaddr_in6)).contents.sin6_addr.s6_addr)))
-            if dstaddr:
-                print("\t\tDestination Address: {}".format(socket.inet_ntop(socket.AF_INET6, ct.cast(dstaddr, ct.POINTER(sockaddr_in6)).contents.sin6_addr.s6_addr)))
-        #endif
+        if not addr:
+            print("\tWarning: a.addr is NULL, skipping this address.", file=sys.stderr)
+            status = False
         else:
-            print("\tAddress Family: Unknown ({:d})".format(
-                  addr.contents.sa_family))
+            if addr.contents.sa_family == socket.AF_INET:
+                print("\tAddress Family: AF_INET")
+                if addr:
+                    print("\t\tAddress: {}".format(socket.inet_ntoa(ct.cast(addr, ct.POINTER(sockaddr_in)).contents.sin_addr)))
+                if netmask:
+                    print("\t\tNetmask: {}".format(socket.inet_ntoa(ct.cast(netmask, ct.POINTER(sockaddr_in)).contents.sin_addr)))
+                if broadaddr:
+                    print("\t\tBroadcast Address: {}".format(socket.inet_ntoa(ct.cast(broadaddr, ct.POINTER(sockaddr_in)).contents.sin_addr)))
+                if dstaddr:
+                    print("\t\tDestination Address: {}".format(socket.inet_ntoa(ct.cast(dstaddr, ct.POINTER(sockaddr_in)).contents.sin_addr)))
+            #ifdef INET6
+            elif addr.contents.sa_family == socket.AF_INET6:
+                print("\tAddress Family: AF_INET6")
+                if addr:
+                    print("\t\tAddress: {}".format(socket.inet_ntop(socket.AF_INET6, ct.cast(addr, ct.POINTER(sockaddr_in6)).contents.sin6_addr.s6_addr)))
+                if netmask:
+                    print("\t\tNetmask: {}".format(socket.inet_ntop(socket.AF_INET6, ct.cast(netmask, ct.POINTER(sockaddr_in6)).contents.sin6_addr.s6_addr)))
+                if broadaddr:
+                    print("\t\tBroadcast Address: {}".format(socket.inet_ntop(socket.AF_INET6, ct.cast(broadaddr, ct.POINTER(sockaddr_in6)).contents.sin6_addr.s6_addr)))
+                if dstaddr:
+                    print("\t\tDestination Address: {}".format(socket.inet_ntop(socket.AF_INET6, ct.cast(dstaddr, ct.POINTER(sockaddr_in6)).contents.sin6_addr.s6_addr)))
+            #endif
+            else:
+                print("\tAddress Family: Unknown ({:d})".format(addr.contents.sa_family))
 
         a = a.next
 
     print()
+    return status
 
 
 # From tcptraceroute

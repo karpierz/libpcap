@@ -76,13 +76,6 @@ from ._platform import CFUNC
 from ._platform import timeval, sockaddr
 from ._dll      import dll
 
-try:
-    ct.c_void_p.in_dll(dll, "pcap_remoteact_accept")
-except ValueError:
-    have_remote = False
-else:
-    have_remote = True
-
 from ._bpf import *
 
 
@@ -591,13 +584,13 @@ if is_windows:
 
     try:  # available from v.1.8.1
         hopen_offline_with_tstamp_precision = CFUNC(ct.POINTER(pcap_t),
-                          intptr_t,
-                          ct.c_uint,
-                          ct.c_char_p)(
-                          ("pcap_hopen_offline_with_tstamp_precision", dll), (
-                          (1, "osfd"),
-                          (1, "precision"),
-                          (1, "errbuf"),))
+                      intptr_t,
+                      ct.c_uint,
+                      ct.c_char_p)(
+                      ("pcap_hopen_offline_with_tstamp_precision", dll), (
+                      (1, "osfd"),
+                      (1, "precision"),
+                      (1, "errbuf"),))
 
         #@CFUNC(ct.POINTER(pcap_t), ct.POINTER(FILE), ct.c_uint, ct.c_char_p)
         def fopen_offline_with_tstamp_precision(fp, precision, errbuf, libc=ct.cdll.msvcrt):
@@ -1003,131 +996,131 @@ if is_windows:
     # Exported functions
     #
 
-    setbuff            = CFUNC(ct.c_int,
-                               ct.POINTER(pcap_t),
-                               ct.c_int)(
-                               ("pcap_setbuff", dll), (
-                               (1, "pcap"),
-                               (1, "dim"),))
+    setbuff   = CFUNC(ct.c_int,
+                      ct.POINTER(pcap_t),
+                      ct.c_int)(
+                      ("pcap_setbuff", dll), (
+                      (1, "pcap"),
+                      (1, "dim"),))
 
-    setmode            = CFUNC(ct.c_int,
-                               ct.POINTER(pcap_t),
-                               ct.c_int)(
-                               ("pcap_setmode", dll), (
-                               (1, "pcap"),
-                               (1, "mode"),))
+    setmode   = CFUNC(ct.c_int,
+                      ct.POINTER(pcap_t),
+                      ct.c_int)(
+                      ("pcap_setmode", dll), (
+                      (1, "pcap"),
+                      (1, "mode"),))
 
-    setmintocopy       = CFUNC(ct.c_int,
-                               ct.POINTER(pcap_t),
-                               ct.c_int)(
-                               ("pcap_setmintocopy", dll), (
-                               (1, "pcap"),
-                               (1, "size"),))
+    setmintocopy = CFUNC(ct.c_int,
+                      ct.POINTER(pcap_t),
+                      ct.c_int)(
+                      ("pcap_setmintocopy", dll), (
+                      (1, "pcap"),
+                      (1, "size"),))
 
-    getevent           = CFUNC(ct.wintypes.HANDLE,
-                               ct.POINTER(pcap_t))(
-                               ("pcap_getevent", dll), (
-                               (1, "pcap"),))
+    getevent  = CFUNC(ct.wintypes.HANDLE,
+                      ct.POINTER(pcap_t))(
+                      ("pcap_getevent", dll), (
+                      (1, "pcap"),))
 
     try:  # available from v.1.8.1
         oid_get_request = CFUNC(ct.c_int,
-                               ct.POINTER(pcap_t),
-                               bpf_u_int32,
-                               ct.c_void_p,
-                               ct.c_size_t)(
-                               ("pcap_oid_get_request", dll), (
-                               (1, "pcap"),
-                               (1, "oid"),
-                               (1, "data"),
-                               (1, "length"),))
+                      ct.POINTER(pcap_t),
+                      bpf_u_int32,
+                      ct.c_void_p,
+                      ct.c_size_t)(
+                      ("pcap_oid_get_request", dll), (
+                      (1, "pcap"),
+                      (1, "oid"),
+                      (1, "data"),
+                      (1, "length"),))
     except: pass
 
     try:  # available from v.1.8.1
         oid_set_request = CFUNC(ct.c_int,
-                               ct.POINTER(pcap_t),
-                               bpf_u_int32,
-                               ct.c_void_p,
-                               ct.c_size_t)(
-                               ("pcap_oid_set_request", dll), (
-                               (1, "pcap"),
-                               (1, "oid"),
-                               (1, "data"),
-                               (1, "length"),))
+                      ct.POINTER(pcap_t),
+                      bpf_u_int32,
+                      ct.c_void_p,
+                      ct.c_size_t)(
+                      ("pcap_oid_set_request", dll), (
+                      (1, "pcap"),
+                      (1, "oid"),
+                      (1, "data"),
+                      (1, "length"),))
     except: pass
 
-    sendqueue_alloc    = CFUNC(ct.POINTER(send_queue),
-                               ct.c_uint)(
-                               ("pcap_sendqueue_alloc", dll), (
-                               (1, "memsize"),))
+    sendqueue_alloc = CFUNC(ct.POINTER(send_queue),
+                      ct.c_uint)(
+                      ("pcap_sendqueue_alloc", dll), (
+                      (1, "memsize"),))
 
-    sendqueue_destroy  = CFUNC(None,
-                               ct.POINTER(send_queue))(
-                               ("pcap_sendqueue_destroy", dll), (
-                               (1, "queue"),))
+    sendqueue_destroy = CFUNC(None,
+                      ct.POINTER(send_queue))(
+                      ("pcap_sendqueue_destroy", dll), (
+                      (1, "queue"),))
 
-    sendqueue_queue    = CFUNC(ct.c_int,
-                               ct.POINTER(send_queue),
-                               ct.POINTER(pkthdr),
-                               ct.POINTER(ct.c_ubyte))(
-                               ("pcap_sendqueue_queue", dll), (
-                               (1, "queue"),
-                               (1, "pkt_header"),
-                               (1, "pkt_data"),))
+    sendqueue_queue = CFUNC(ct.c_int,
+                      ct.POINTER(send_queue),
+                      ct.POINTER(pkthdr),
+                      ct.POINTER(ct.c_ubyte))(
+                      ("pcap_sendqueue_queue", dll), (
+                      (1, "queue"),
+                      (1, "pkt_header"),
+                      (1, "pkt_data"),))
 
     sendqueue_transmit = CFUNC(ct.c_uint,
-                               ct.POINTER(pcap_t),
-                               ct.POINTER(send_queue),
-                               ct.c_int)(
-                               ("pcap_sendqueue_transmit", dll), (
-                               (1, "pcap"),
-                               (1, "queue"),
-                               (1, "sync"),))
+                      ct.POINTER(pcap_t),
+                      ct.POINTER(send_queue),
+                      ct.c_int)(
+                      ("pcap_sendqueue_transmit", dll), (
+                      (1, "pcap"),
+                      (1, "queue"),
+                      (1, "sync"),))
 
-    stats_ex           = CFUNC(ct.POINTER(stat),
-                               ct.POINTER(pcap_t),
-                               ct.POINTER(ct.c_int))(
-                               ("pcap_stats_ex", dll), (
-                               (1, "pcap"),
-                               (1, "stat_size"),))
+    stats_ex = CFUNC(ct.POINTER(stat),
+                      ct.POINTER(pcap_t),
+                      ct.POINTER(ct.c_int))(
+                      ("pcap_stats_ex", dll), (
+                      (1, "pcap"),
+                      (1, "stat_size"),))
 
-    setuserbuffer      = CFUNC(ct.c_int,
-                               ct.POINTER(pcap_t),
-                               ct.c_int)(
-                               ("pcap_setuserbuffer", dll), (
-                               (1, "pcap"),
-                               (1, "size"),))
+    setuserbuffer = CFUNC(ct.c_int,
+                      ct.POINTER(pcap_t),
+                      ct.c_int)(
+                      ("pcap_setuserbuffer", dll), (
+                      (1, "pcap"),
+                      (1, "size"),))
 
-    live_dump           = CFUNC(ct.c_int,
-                               ct.POINTER(pcap_t),
-                               ct.c_char_p,
-                               ct.c_int,
-                               ct.c_int)(
-                               ("pcap_live_dump", dll), (
-                               (1, "pcap"),
-                               (1, "filename"),
-                               (1, "maxsize"),
-                               (1, "maxpacks"),))
+    live_dump = CFUNC(ct.c_int,
+                      ct.POINTER(pcap_t),
+                      ct.c_char_p,
+                      ct.c_int,
+                      ct.c_int)(
+                      ("pcap_live_dump", dll), (
+                      (1, "pcap"),
+                      (1, "filename"),
+                      (1, "maxsize"),
+                      (1, "maxpacks"),))
 
-    live_dump_ended    = CFUNC(ct.c_int,
-                               ct.POINTER(pcap_t),
-                               ct.c_int)(
-                               ("pcap_live_dump_ended", dll), (
-                               (1, "pcap"),
-                               (1, "sync"),))
+    live_dump_ended = CFUNC(ct.c_int,
+                      ct.POINTER(pcap_t),
+                      ct.c_int)(
+                      ("pcap_live_dump_ended", dll), (
+                      (1, "pcap"),
+                      (1, "sync"),))
 
     try:
-        start_oem      = CFUNC(ct.c_int,
-                               ct.c_char_p,
-                               ct.c_int)(
-                               ("pcap_start_oem", dll), (
-                               (1, "err_str"),
-                               (1, "flags"),))
+        start_oem = CFUNC(ct.c_int,
+                      ct.c_char_p,
+                      ct.c_int)(
+                      ("pcap_start_oem", dll), (
+                      (1, "err_str"),
+                      (1, "flags"),))
     except: pass
 
     get_airpcap_handle = CFUNC(PAirpcapHandle,
-                               ct.POINTER(pcap_t))(
-                               ("pcap_get_airpcap_handle", dll), (
-                               (1, "pcap"),))
+                      ct.POINTER(pcap_t))(
+                      ("pcap_get_airpcap_handle", dll), (
+                      (1, "pcap"),))
 
     MODE_CAPT = 0
     MODE_STAT = 1
@@ -1161,424 +1154,420 @@ else: # UN*X
     # UN*X definitions
 
     get_selectable_fd = CFUNC(ct.c_int,
-                              ct.POINTER(pcap_t))(
-                              ("pcap_get_selectable_fd", dll), (
-                              (1, "pcap"),))
+                      ct.POINTER(pcap_t))(
+                      ("pcap_get_selectable_fd", dll), (
+                      (1, "pcap"),))
 
 #endif # WIN32/MSDOS/UN*X
 
-if have_remote:
+# Remote capture definitions.
+#
+# These routines are only present if libpcap has been configured to
+# include remote capture support.
 
-    # Remote capture definitions.
+# Some minor differences between UN*X sockets and and Winsock sockets.
+#
+# In Winsock, a socket handle is of type SOCKET; in UN*X, it's
+# a file descriptor, and therefore a signed integer.
+# We define SOCKET, so that it can be used on both platforms.
+if is_windows:
+    SOCKET = ct.c_uint
+else:
+    SOCKET = ct.c_int
+# In Winsock, the error return if socket() fails is INVALID_SOCKET;
+# in UN*X, it's -1.
+# We define INVALID_SOCKET, so that it can be used on both platforms.
+INVALID_SOCKET = SOCKET(-1).value
+
+# The maximum buffer size in which address, port, interface names are kept.
+#
+# In case the adapter name or such is larger than this value, it is truncated.
+# This is not used by the user; however it must be aware that an
+# hostname / interface name longer than this value will be truncated.
+
+PCAP_BUF_SIZE = 1024
+
+# The type of input source, passed to pcap.open().
+
+PCAP_SRC_FILE     = 2  # local savefile
+PCAP_SRC_IFLOCAL  = 3  # local network interface
+PCAP_SRC_IFREMOTE = 4  # interface on a remote host, using RPCAP
+
+# The formats allowed by pcap.open() are the following:
+# - file://path_and_filename [opens a local file]
+# - rpcap://devicename [opens the selected device devices available on the
+#   local host, without using the RPCAP protocol]
+# - rpcap://host/devicename [opens the selected device available on a remote
+#   host]
+# - rpcap://host:port/devicename [opens the selected device available on a
+#   remote host, using a non-standard port for RPCAP]
+# - adaptername [to open a local adapter; kept for compability, but it is
+#   strongly discouraged]
+# - (NULL) [to open the first local adapter; kept for compability, but it is
+#   strongly discouraged]
+#
+# The formats allowed by the pcap.findalldevs_ex() are the following:
+# - file://folder/ [lists all the files in the given folder]
+# - rpcap:// [lists all local adapters]
+# - rpcap://host:port/ [lists the devices available on a remote host]
+#
+# Referring to the 'host' and 'port' parameters, they can be either numeric or
+# literal. Since IPv6 is fully supported, these are the allowed formats:
+#
+# - host (literal): e.g. host.foo.bar
+# - host (numeric IPv4): e.g. 10.11.12.13
+# - host (numeric IPv4, IPv6 style): e.g. [10.11.12.13]
+# - host (numeric IPv6): e.g. [1:2:3::4]
+# - port: can be either numeric (e.g. '80') or literal (e.g. 'http')
+#
+# Here you find some allowed examples:
+# - rpcap://host.foo.bar/devicename [everything literal, no port number]
+# - rpcap://host.foo.bar:1234/devicename [everything literal, with port number]
+# - rpcap://10.11.12.13/devicename [IPv4 numeric, no port number]
+# - rpcap://10.11.12.13:1234/devicename [IPv4 numeric, with port number]
+# - rpcap://[10.11.12.13]:1234/devicename [IPv4 numeric with IPv6 format, with
+#                                          port number]
+# - rpcap://[1:2:3::4]/devicename [IPv6 numeric, no port number]
+# - rpcap://[1:2:3::4]:1234/devicename [IPv6 numeric, with port number]
+# - rpcap://[1:2:3::4]:http/devicename [IPv6 numeric, with literal port number]
+
+# URL schemes for capture source.
+
+# This string indicates that the user wants to open a capture from a
+# local file.
+
+PCAP_SRC_FILE_STRING = "file://"
+
+# This string indicates that the user wants to open a capture from a
+# network interface.  This string does not necessarily involve the use
+# of the RPCAP protocol.  If the interface required resides on the local
+# host, the RPCAP protocol is not involved and the local functions are used.
+
+PCAP_SRC_IF_STRING = "rpcap://"
+
+# Flags to pass to pcap.open().
+
+# Specifies whether promiscuous mode is to be used.
+
+PCAP_OPENFLAG_PROMISCUOUS = 0x00000001
+
+# Specifies, for an RPCAP capture, whether the data transfer (in
+# case of a remote capture) has to be done with UDP protocol.
+#
+# If it is '1' if you want a UDP data connection, '0' if you want
+# a TCP data connection; control connection is always TCP-based.
+# A UDP connection is much lighter, but it does not guarantee that all
+# the captured packets arrive to the client workstation. Moreover,
+# it could be harmful in case of network congestion.
+# This flag is meaningless if the source is not a remote interface.
+# In that case, it is simply ignored.
+
+PCAP_OPENFLAG_DATATX_UDP = 0x00000002
+
+# Specifies wheether the remote probe will capture its own generated
+# traffic.
+#
+# In case the remote probe uses the same interface to capture traffic
+# and to send data back to the caller, the captured traffic includes
+# the RPCAP traffic as well.  If this flag is turned on, the RPCAP
+# traffic is excluded from the capture, so that the trace returned
+# back to the collector is does not include this traffic.
+#
+# Has no effect on local interfaces or savefiles.
+
+PCAP_OPENFLAG_NOCAPTURE_RPCAP = 0x00000004
+
+# Specifies whether the local adapter will capture its own generated traffic.
+#
+# This flag tells the underlying capture driver to drop the packets
+# that were sent by itself.  This is useful when building applications
+# such as bridges that should ignore the traffic they just sent.
+#
+# Supported only on Windows.
+
+PCAP_OPENFLAG_NOCAPTURE_LOCAL = 0x00000008
+
+# This flag configures the adapter for maximum responsiveness.
+#
+# In presence of a large value for nbytes, WinPcap waits for the arrival
+# of several packets before copying the data to the user. This guarantees
+# a low number of system calls, i.e. lower processor usage, i.e. better
+# performance, which is good for applications like sniffers. If the user
+# sets the PCAP_OPENFLAG_MAX_RESPONSIVENESS flag, the capture driver will
+# copy the packets as soon as the application is ready to receive them.
+# This is suggested for real time applications (such as, for example,
+# a bridge) that need the best responsiveness.
+#
+# The equivalent with pcap.create()/pcap.activate() is "immediate mode".
+
+PCAP_OPENFLAG_MAX_RESPONSIVENESS = 0x00000010
+
+# Remote authentication methods.
+# These are used in the 'type' member of the pcap.rmtauth structure.
+
+# NULL authentication.
+#
+# The 'NULL' authentication has to be equal to 'zero', so that old
+# applications can just put every field of struct pcap.rmtauth to zero,
+# and it does work.
+
+RPCAP_RMTAUTH_NULL = 0
+
+# Username/password authentication.
+#
+# With this type of authentication, the RPCAP protocol will use the username/
+# password provided to authenticate the user on the remote machine. If the
+# authentication is successful (and the user has the right to open network
+# devices) the RPCAP connection will continue; otherwise it will be dropped.
+#
+# *******NOTE********: the username and password are sent over the network
+# to the capture server *IN CLEAR TEXT*.  Don't use this on a network
+# that you don't completely control!  (And be *really* careful in your
+# definition of "completely"!)
+
+RPCAP_RMTAUTH_PWD = 1
+
+# This structure keeps the information needed to autheticate the user
+# on a remote machine.
+#
+# The remote machine can either grant or refuse the access according
+# to the information provided.
+# In case the NULL authentication is required, both 'username' and
+# 'password' can be NULL pointers.
+#
+# This structure is meaningless if the source is not a remote interface;
+# in that case, the functions which requires such a structure can accept
+# a NULL pointer as well.
+
+class rmtauth(ct.Structure):
+    _fields_ = [
+
+    # Type of the authentication required.
+
+    # In order to provide maximum flexibility, we can support different types
+    # of authentication based on the value of this 'type' variable.
+    # The currently supported authentication methods are defined into the
+    # Remote Authentication Methods Section.
+
+    ("type", ct.c_int),
+
+    # Zero-terminated string containing the username that has to be
+    # used on the remote machine for authentication.
     #
-    # These routines are only present if libpcap has been configured to
-    # include remote capture support.
+    # This field is meaningless in case of the RPCAP_RMTAUTH_NULL
+    # authentication and it can be NULL.
 
-    # Some minor differences between UN*X sockets and and Winsock sockets.
+    ("username", ct.c_char_p),
+
+    # Zero-terminated string containing the password that has to be
+    # used on the remote machine for authentication.
     #
-    # In Winsock, a socket handle is of type SOCKET; in UN*X, it's
-    # a file descriptor, and therefore a signed integer.
-    # We define SOCKET, so that it can be used on both platforms.
-    if is_windows:
-        SOCKET = ct.c_uint
-    else:
-        SOCKET = ct.c_int
-    # In Winsock, the error return if socket() fails is INVALID_SOCKET;
-    # in UN*X, it's -1.
-    # We define INVALID_SOCKET, so that it can be used on both platforms.
-    INVALID_SOCKET = SOCKET(-1).value
+    # This field is meaningless in case of the RPCAP_RMTAUTH_NULL
+    # authentication and it can be NULL.
 
-    # The maximum buffer size in which address, port, interface names are kept.
-    #
-    # In case the adapter name or such is larger than this value, it is truncated.
-    # This is not used by the user; however it must be aware that an
-    # hostname / interface name longer than this value will be truncated.
+    ("password", ct.c_char_p),
+]
 
-    PCAP_BUF_SIZE = 1024
+# Sampling methods.
+#
+# These allow pcap.loop(), pcap.dispatch(), pcap.next(), and pcap.next_ex()
+# to see only a sample of packets, rather than all packets.
+#
+# Currently, they work only on Windows local captures.
 
-    # The type of input source, passed to pcap.open().
+# Specifies that no sampling is to be done on the current capture.
+#
+# In this case, no sampling algorithms are applied to the current capture.
 
-    PCAP_SRC_FILE     = 2  # local savefile
-    PCAP_SRC_IFLOCAL  = 3  # local network interface
-    PCAP_SRC_IFREMOTE = 4  # interface on a remote host, using RPCAP
+PCAP_SAMP_NOSAMP = 0
 
-    # The formats allowed by pcap.open() are the following:
-    # - file://path_and_filename [opens a local file]
-    # - rpcap://devicename [opens the selected device devices available on the
-    #   local host, without using the RPCAP protocol]
-    # - rpcap://host/devicename [opens the selected device available on a remote
-    #   host]
-    # - rpcap://host:port/devicename [opens the selected device available on a
-    #   remote host, using a non-standard port for RPCAP]
-    # - adaptername [to open a local adapter; kept for compability, but it is
-    #   strongly discouraged]
-    # - (NULL) [to open the first local adapter; kept for compability, but it is
-    #   strongly discouraged]
-    #
-    # The formats allowed by the pcap.findalldevs_ex() are the following:
-    # - file://folder/ [lists all the files in the given folder]
-    # - rpcap:// [lists all local adapters]
-    # - rpcap://host:port/ [lists the devices available on a remote host]
-    #
-    # Referring to the 'host' and 'port' parameters, they can be either numeric or
-    # literal. Since IPv6 is fully supported, these are the allowed formats:
-    #
-    # - host (literal): e.g. host.foo.bar
-    # - host (numeric IPv4): e.g. 10.11.12.13
-    # - host (numeric IPv4, IPv6 style): e.g. [10.11.12.13]
-    # - host (numeric IPv6): e.g. [1:2:3::4]
-    # - port: can be either numeric (e.g. '80') or literal (e.g. 'http')
-    #
-    # Here you find some allowed examples:
-    # - rpcap://host.foo.bar/devicename [everything literal, no port number]
-    # - rpcap://host.foo.bar:1234/devicename [everything literal, with port number]
-    # - rpcap://10.11.12.13/devicename [IPv4 numeric, no port number]
-    # - rpcap://10.11.12.13:1234/devicename [IPv4 numeric, with port number]
-    # - rpcap://[10.11.12.13]:1234/devicename [IPv4 numeric with IPv6 format, with
-    #                                          port number]
-    # - rpcap://[1:2:3::4]/devicename [IPv6 numeric, no port number]
-    # - rpcap://[1:2:3::4]:1234/devicename [IPv6 numeric, with port number]
-    # - rpcap://[1:2:3::4]:http/devicename [IPv6 numeric, with literal port number]
+# Specifies that only 1 out of N packets must be returned to the user.
+#
+# In this case, the 'value' field of the 'pcap.samp' structure indicates the
+# number of packets (minus 1) that must be discarded before one packet got
+# accepted.
+# In other words, if 'value = 10', the first packet is returned to the
+# caller, while the following 9 are discarded.
 
-    # URL schemes for capture source.
+PCAP_SAMP_1_EVERY_N = 1
 
-    # This string indicates that the user wants to open a capture from a
-    # local file.
+# Specifies that we have to return 1 packet every N milliseconds.
+#
+# In this case, the 'value' field of the 'pcap.samp' structure indicates
+# the 'waiting time' in milliseconds before one packet got accepted.
+# In other words, if 'value = 10', the first packet is returned to the
+# caller; the next returned one will be the first packet that arrives
+# when 10ms have elapsed.
 
-    PCAP_SRC_FILE_STRING = "file://"
+PCAP_SAMP_FIRST_AFTER_N_MS = 2
 
-    # This string indicates that the user wants to open a capture from a
-    # network interface.  This string does not necessarily involve the use
-    # of the RPCAP protocol.  If the interface required resides on the local
-    # host, the RPCAP protocol is not involved and the local functions are used.
+# This structure defines the information related to sampling.
+#
+# In case the sampling is requested, the capturing device should read
+# only a subset of the packets coming from the source. The returned packets
+# depend on the sampling parameters.
+#
+# WARNING:
+# The sampling process is applied *after* the filtering process.
+# In other words, packets are filtered first, then the sampling process
+# selects a subset of the 'filtered' packets and it returns them to the
+# caller.
 
-    PCAP_SRC_IF_STRING = "rpcap://"
+class samp(ct.Structure):
+    _fields_ = [
 
-    # Flags to pass to pcap.open().
+    # Method used for sampling; see above.
 
-    # Specifies whether promiscuous mode is to be used.
+    ("method", ct.c_int),
 
-    PCAP_OPENFLAG_PROMISCUOUS = 0x00000001
+    # This value depends on the sampling method defined.
+    # For its meaning, see above.
 
-    # Specifies, for an RPCAP capture, whether the data transfer (in
-    # case of a remote capture) has to be done with UDP protocol.
-    #
-    # If it is '1' if you want a UDP data connection, '0' if you want
-    # a TCP data connection; control connection is always TCP-based.
-    # A UDP connection is much lighter, but it does not guarantee that all
-    # the captured packets arrive to the client workstation. Moreover,
-    # it could be harmful in case of network congestion.
-    # This flag is meaningless if the source is not a remote interface.
-    # In that case, it is simply ignored.
+    ("value", ct.c_int),
+]
 
-    PCAP_OPENFLAG_DATATX_UDP = 0x00000002
+# RPCAP active mode.
 
-    # Specifies wheether the remote probe will capture its own generated
-    # traffic.
-    #
-    # In case the remote probe uses the same interface to capture traffic
-    # and to send data back to the caller, the captured traffic includes
-    # the RPCAP traffic as well.  If this flag is turned on, the RPCAP
-    # traffic is excluded from the capture, so that the trace returned
-    # back to the collector is does not include this traffic.
-    #
-    # Has no effect on local interfaces or savefiles.
+# Maximum length of an host name (needed for the RPCAP active mode)
 
-    PCAP_OPENFLAG_NOCAPTURE_RPCAP = 0x00000004
+RPCAP_HOSTLIST_SIZE = 1024
 
-    # Specifies whether the local adapter will capture its own generated traffic.
-    #
-    # This flag tells the underlying capture driver to drop the packets
-    # that were sent by itself.  This is useful when building applications
-    # such as bridges that should ignore the traffic they just sent.
-    #
-    # Supported only on Windows.
+#
+# Exported functions
+#
 
-    PCAP_OPENFLAG_NOCAPTURE_LOCAL = 0x00000008
+# This routine can open a savefile, a local device, or a device on
+# a remote machine running an RPCAP server.
+#
+# For opening a savefile, the pcap.open_offline routines can be used,
+# and will work just as well; code using them will work on more
+# platforms than code using pcap.open() to open savefiles.
+#
+# For opening a local device, pcap.open_live() can be used; it supports
+# most of the capabilities that pcap.open() supports, and code using it
+# will work on more platforms than code using pcap.open().  pcap.create()
+# and pcap.activate() can also be used; they support all capabilities
+# that pcap.open() supports, except for the Windows-only
+# PCAP_OPENFLAG_NOCAPTURE_LOCAL, and support additional capabilities.
+#
+# For opening a remote capture, pcap.open() is currently the only
+# API available.
+#
+open          = CFUNC(ct.POINTER(pcap_t),
+                      ct.c_char_p,
+                      ct.c_int,
+                      ct.c_int,
+                      ct.c_int,
+                      ct.POINTER(rmtauth),
+                      ct.c_char_p)(
+                      ("pcap_open", dll), (
+                      (1, "source"),
+                      (1, "snaplen"),
+                      (1, "flags"),
+                      (1, "read_timeout"),
+                      (1, "auth"),
+                      (1, "errbuf"),))
 
-    # This flag configures the adapter for maximum responsiveness.
-    #
-    # In presence of a large value for nbytes, WinPcap waits for the arrival
-    # of several packets before copying the data to the user. This guarantees
-    # a low number of system calls, i.e. lower processor usage, i.e. better
-    # performance, which is good for applications like sniffers. If the user
-    # sets the PCAP_OPENFLAG_MAX_RESPONSIVENESS flag, the capture driver will
-    # copy the packets as soon as the application is ready to receive them.
-    # This is suggested for real time applications (such as, for example,
-    # a bridge) that need the best responsiveness.
-    #
-    # The equivalent with pcap.create()/pcap.activate() is "immediate mode".
+createsrcstr  = CFUNC(ct.c_int,
+                      ct.c_char_p,
+                      ct.c_int,
+                      ct.c_char_p,
+                      ct.c_char_p,
+                      ct.c_char_p,
+                      ct.c_char_p)(
+                      ("pcap_createsrcstr", dll), (
+                      (1, "source"),
+                      (1, "type"),
+                      (1, "host"),
+                      (1, "port"),
+                      (1, "name"),
+                      (1, "errbuf"),))
 
-    PCAP_OPENFLAG_MAX_RESPONSIVENESS = 0x00000010
+parsesrcstr   = CFUNC(ct.c_int,
+                      ct.c_char_p,
+                      ct.POINTER(ct.c_int),
+                      ct.c_char_p,
+                      ct.c_char_p,
+                      ct.c_char_p,
+                      ct.c_char_p)(
+                      ("pcap_parsesrcstr", dll), (
+                      (1, "source"),
+                      (1, "type"),
+                      (1, "host"),
+                      (1, "port"),
+                      (1, "name"),
+                      (1, "errbuf"),))
 
-    # Remote authentication methods.
-    # These are used in the 'type' member of the pcap.rmtauth structure.
+# This routine can scan a directory for savefiles, list local capture
+# devices, or list capture devices on a remote machine running an RPCAP
+# server.
+#
+# For scanning for savefiles, it can be used on both UN*X systems and
+# Windows systems; for each directory entry it sees, it tries to open
+# the file as a savefile using pcap.open_offline(), and only includes
+# it in the list of files if the open succeeds, so it filters out
+# files for which the user doesn't have read permission, as well as
+# files that aren't valid savefiles readable by libpcap.
+#
+# For listing local capture devices, it's just a wrapper around
+# pcap.findalldevs(); code using pcap.findalldevs() will work on more
+# platforms than code using pcap.findalldevs_ex().
+#
+# For listing remote capture devices, pcap.findalldevs_ex() is currently
+# the only API available.
+#
+findalldevs_ex = CFUNC(ct.c_int,
+                      ct.c_char_p,
+                      ct.POINTER(rmtauth),
+                      ct.POINTER(ct.POINTER(pcap_if_t)),
+                      ct.c_char_p)(
+                      ("pcap_findalldevs_ex", dll), (
+                      (1, "source"),
+                      (1, "auth"),
+                      (1, "alldevs"),
+                      (1, "errbuf"),))
 
-    # NULL authentication.
-    #
-    # The 'NULL' authentication has to be equal to 'zero', so that old
-    # applications can just put every field of struct pcap.rmtauth to zero,
-    # and it does work.
+# New functions.
 
-    RPCAP_RMTAUTH_NULL = 0
+setsampling   = CFUNC(ct.POINTER(samp),
+                      ct.POINTER(pcap_t))(
+                      ("pcap_setsampling", dll), (
+                      (1, "pcap"),))
 
-    # Username/password authentication.
-    #
-    # With this type of authentication, the RPCAP protocol will use the username/
-    # password provided to authenticate the user on the remote machine. If the
-    # authentication is successful (and the user has the right to open network
-    # devices) the RPCAP connection will continue; otherwise it will be dropped.
-    #
-    # *******NOTE********: the username and password are sent over the network
-    # to the capture server *IN CLEAR TEXT*.  Don't use this on a network
-    # that you don't completely control!  (And be *really* careful in your
-    # definition of "completely"!)
+remoteact_accept = CFUNC(SOCKET,
+                      ct.c_char_p,
+                      ct.c_char_p,
+                      ct.c_char_p,
+                      ct.c_char_p,
+                      ct.POINTER(rmtauth),
+                      ct.c_char_p)(
+                      ("pcap_remoteact_accept", dll), (
+                      (1, "address"),
+                      (1, "port"),
+                      (1, "hostlist"),
+                      (1, "connectinghost"),
+                      (1, "auth"),
+                      (1, "errbuf"),))
 
-    RPCAP_RMTAUTH_PWD = 1
+remoteact_list = CFUNC(ct.c_int,
+                      ct.c_char_p,
+                      ct.c_char,
+                      ct.c_int,
+                      ct.c_char_p)(
+                      ("pcap_remoteact_list", dll), (
+                      (1, "hostlist"),
+                      (1, "sep"),
+                      (1, "size"),
+                      (1, "errbuf"),))
 
-    # This structure keeps the information needed to autheticate the user
-    # on a remote machine.
-    #
-    # The remote machine can either grant or refuse the access according
-    # to the information provided.
-    # In case the NULL authentication is required, both 'username' and
-    # 'password' can be NULL pointers.
-    #
-    # This structure is meaningless if the source is not a remote interface;
-    # in that case, the functions which requires such a structure can accept
-    # a NULL pointer as well.
+remoteact_close = CFUNC(ct.c_int,
+                      ct.c_char_p,
+                      ct.c_char_p)(
+                      ("pcap_remoteact_close", dll), (
+                      (1, "host"),
+                      (1, "errbuf"),))
 
-    class rmtauth(ct.Structure):
-        _fields_ = [
-
-        # Type of the authentication required.
-
-        # In order to provide maximum flexibility, we can support different types
-        # of authentication based on the value of this 'type' variable.
-        # The currently supported authentication methods are defined into the
-        # Remote Authentication Methods Section.
-
-        ("type", ct.c_int),
-
-        # Zero-terminated string containing the username that has to be
-        # used on the remote machine for authentication.
-        #
-        # This field is meaningless in case of the RPCAP_RMTAUTH_NULL
-        # authentication and it can be NULL.
-
-        ("username", ct.c_char_p),
-
-        # Zero-terminated string containing the password that has to be
-        # used on the remote machine for authentication.
-        #
-        # This field is meaningless in case of the RPCAP_RMTAUTH_NULL
-        # authentication and it can be NULL.
-
-        ("password", ct.c_char_p),
-    ]
-
-    # Sampling methods.
-    #
-    # These allow pcap.loop(), pcap.dispatch(), pcap.next(), and pcap.next_ex()
-    # to see only a sample of packets, rather than all packets.
-    #
-    # Currently, they work only on Windows local captures.
-
-    # Specifies that no sampling is to be done on the current capture.
-    #
-    # In this case, no sampling algorithms are applied to the current capture.
-
-    PCAP_SAMP_NOSAMP = 0
-
-    # Specifies that only 1 out of N packets must be returned to the user.
-    #
-    # In this case, the 'value' field of the 'pcap.samp' structure indicates the
-    # number of packets (minus 1) that must be discarded before one packet got
-    # accepted.
-    # In other words, if 'value = 10', the first packet is returned to the
-    # caller, while the following 9 are discarded.
-
-    PCAP_SAMP_1_EVERY_N = 1
-
-    # Specifies that we have to return 1 packet every N milliseconds.
-    #
-    # In this case, the 'value' field of the 'pcap.samp' structure indicates
-    # the 'waiting time' in milliseconds before one packet got accepted.
-    # In other words, if 'value = 10', the first packet is returned to the
-    # caller; the next returned one will be the first packet that arrives
-    # when 10ms have elapsed.
-
-    PCAP_SAMP_FIRST_AFTER_N_MS = 2
-
-    # This structure defines the information related to sampling.
-    #
-    # In case the sampling is requested, the capturing device should read
-    # only a subset of the packets coming from the source. The returned packets
-    # depend on the sampling parameters.
-    #
-    # WARNING:
-    # The sampling process is applied *after* the filtering process.
-    # In other words, packets are filtered first, then the sampling process
-    # selects a subset of the 'filtered' packets and it returns them to the
-    # caller.
-
-    class samp(ct.Structure):
-        _fields_ = [
-
-        # Method used for sampling; see above.
-
-        ("method", ct.c_int),
-
-        # This value depends on the sampling method defined.
-        # For its meaning, see above.
-
-        ("value", ct.c_int),
-    ]
-
-    # RPCAP active mode.
-
-    # Maximum length of an host name (needed for the RPCAP active mode)
-
-    RPCAP_HOSTLIST_SIZE = 1024
-
-    #
-    # Exported functions
-    #
-
-    # This routine can open a savefile, a local device, or a device on
-    # a remote machine running an RPCAP server.
-    #
-    # For opening a savefile, the pcap.open_offline routines can be used,
-    # and will work just as well; code using them will work on more
-    # platforms than code using pcap.open() to open savefiles.
-    #
-    # For opening a local device, pcap.open_live() can be used; it supports
-    # most of the capabilities that pcap.open() supports, and code using it
-    # will work on more platforms than code using pcap.open().  pcap.create()
-    # and pcap.activate() can also be used; they support all capabilities
-    # that pcap.open() supports, except for the Windows-only
-    # PCAP_OPENFLAG_NOCAPTURE_LOCAL, and support additional capabilities.
-    #
-    # For opening a remote capture, pcap.open() is currently the only
-    # API available.
-    #
-    open          = CFUNC(ct.POINTER(pcap_t),
-                          ct.c_char_p,
-                          ct.c_int,
-                          ct.c_int,
-                          ct.c_int,
-                          ct.POINTER(rmtauth),
-                          ct.c_char_p)(
-                          ("pcap_open", dll), (
-                          (1, "source"),
-                          (1, "snaplen"),
-                          (1, "flags"),
-                          (1, "read_timeout"),
-                          (1, "auth"),
-                          (1, "errbuf"),))
-
-    createsrcstr  = CFUNC(ct.c_int,
-                          ct.c_char_p,
-                          ct.c_int,
-                          ct.c_char_p,
-                          ct.c_char_p,
-                          ct.c_char_p,
-                          ct.c_char_p)(
-                          ("pcap_createsrcstr", dll), (
-                          (1, "source"),
-                          (1, "type"),
-                          (1, "host"),
-                          (1, "port"),
-                          (1, "name"),
-                          (1, "errbuf"),))
-
-    parsesrcstr   = CFUNC(ct.c_int,
-                          ct.c_char_p,
-                          ct.POINTER(ct.c_int),
-                          ct.c_char_p,
-                          ct.c_char_p,
-                          ct.c_char_p,
-                          ct.c_char_p)(
-                          ("pcap_parsesrcstr", dll), (
-                          (1, "source"),
-                          (1, "type"),
-                          (1, "host"),
-                          (1, "port"),
-                          (1, "name"),
-                          (1, "errbuf"),))
-
-    # This routine can scan a directory for savefiles, list local capture
-    # devices, or list capture devices on a remote machine running an RPCAP
-    # server.
-    #
-    # For scanning for savefiles, it can be used on both UN*X systems and
-    # Windows systems; for each directory entry it sees, it tries to open
-    # the file as a savefile using pcap.open_offline(), and only includes
-    # it in the list of files if the open succeeds, so it filters out
-    # files for which the user doesn't have read permission, as well as
-    # files that aren't valid savefiles readable by libpcap.
-    #
-    # For listing local capture devices, it's just a wrapper around
-    # pcap.findalldevs(); code using pcap.findalldevs() will work on more
-    # platforms than code using pcap.findalldevs_ex().
-    #
-    # For listing remote capture devices, pcap.findalldevs_ex() is currently
-    # the only API available.
-    #
-    findalldevs_ex = CFUNC(ct.c_int,
-                          ct.c_char_p,
-                          ct.POINTER(rmtauth),
-                          ct.POINTER(ct.POINTER(pcap_if_t)),
-                          ct.c_char_p)(
-                          ("pcap_findalldevs_ex", dll), (
-                          (1, "source"),
-                          (1, "auth"),
-                          (1, "alldevs"),
-                          (1, "errbuf"),))
-
-    # New functions.
-
-    setsampling   = CFUNC(ct.POINTER(samp),
-                          ct.POINTER(pcap_t))(
-                          ("pcap_setsampling", dll), (
-                          (1, "pcap"),))
-
-    remoteact_accept = CFUNC(SOCKET,
-                          ct.c_char_p,
-                          ct.c_char_p,
-                          ct.c_char_p,
-                          ct.c_char_p,
-                          ct.POINTER(rmtauth),
-                          ct.c_char_p)(
-                          ("pcap_remoteact_accept", dll), (
-                          (1, "address"),
-                          (1, "port"),
-                          (1, "hostlist"),
-                          (1, "connectinghost"),
-                          (1, "auth"),
-                          (1, "errbuf"),))
-
-    remoteact_list = CFUNC(ct.c_int,
-                          ct.c_char_p,
-                          ct.c_char,
-                          ct.c_int,
-                          ct.c_char_p)(
-                          ("pcap_remoteact_list", dll), (
-                          (1, "hostlist"),
-                          (1, "sep"),
-                          (1, "size"),
-                          (1, "errbuf"),))
-
-    remoteact_close = CFUNC(ct.c_int,
-                          ct.c_char_p,
-                          ct.c_char_p)(
-                          ("pcap_remoteact_close", dll), (
-                          (1, "host"),
-                          (1, "errbuf"),))
-
-    remoteact_cleanup = CFUNC(None)(
-                          ("pcap_remoteact_cleanup", dll),)
-
-#endif # have_remote
+remoteact_cleanup = CFUNC(None)(
+                      ("pcap_remoteact_cleanup", dll),)
 
 # eof

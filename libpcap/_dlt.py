@@ -156,7 +156,7 @@ DLT_SYMANTEC_FIREWALL = 99
 
 # Values starting with 104 are used for newly-assigned link-layer
 # header type values; for those link-layer header types, the DLT_
-# value returned by pcap_datalink() and passed to pcap_open_dead(),
+# value returned by pcap.datalink() and passed to pcap.open_dead(),
 # and the LINKTYPE_ value that appears in capture files, are the
 # same.
 #
@@ -297,10 +297,10 @@ DLT_AIRONET_HEADER = 120
 # savefiles written using#this* code won't use 18 or 121 for PFSYNC,
 # they'll all use 246.
 #
-# Code that uses pcap_datalink() to determine the link-layer header
+# Code that uses pcap.datalink() to determine the link-layer header
 # type of a savefile won't, when built and run on FreeBSD, be able
 # to distinguish between LINKTYPE_PFSYNC and LINKTYPE_HHDLC capture
-# files, as pcap_datalink() will give 121 for both of them.  Code
+# files, as pcap.datalink() will give 121 for both of them.  Code
 # that doesn't, such as the code in Wireshark, will be able to
 # distinguish between them.
 #
@@ -1120,7 +1120,7 @@ DLT_PROFIBUS_DL = 257
 # DLT_USER2 for.
 #
 # If the program saves the capture to a file using this version of
-# libpcap's pcap_dump code, the LINKTYPE_ value in the file will be
+# libpcap's pcap.dump code, the LINKTYPE_ value in the file will be
 # LINKTYPE_PKTAP, which will be 258, even on Darwin-based OSes.
 # That way, the file will *not* be a DLT_USER2 file.  That means
 # that the latest version of tcpdump, when built with this version

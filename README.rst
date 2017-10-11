@@ -6,29 +6,29 @@ Python binding for the *libpcap* C library.
 Overview
 ========
 
-  | Python *libpcap* module is a low-level binding for *libpcap* C library.
-  | It is an effort to allow python programs full access to the API provided
-    by the well known *libpcap* Unix C library and by its implementations
-    provided under Win32 systems by such packet capture systems as:
-    `WinPcap <http://www.winpcap.org>`__,
-    `Npcap <https://nmap.org/npcap/>`__
-  |
-  | *libpcap* is a lightweight Python package, based on the *ctypes* library.
-  | It is fully compliant implementation of the original C *libpcap* from
-    1.0.0 up to 1.9.0 API and the *WinPcap*'s 4.1.3 libpcap (1.0.0rel0b) API
-    by implementing whole its functionality in a clean Python instead of C.
-  |
-  | Useful *libpcap* API documentation can be found at:
+| Python *libpcap* module is a low-level binding for *libpcap* C library.
+| It is an effort to allow python programs full access to the API provided
+  by the well known *libpcap* Unix C library and by its implementations
+  provided under Win32 systems by such packet capture systems as:
+  `WinPcap <http://www.winpcap.org>`__,
+  `Npcap <https://nmap.org/npcap/>`__
+|
+| *libpcap* is a lightweight Python package, based on the *ctypes* library.
+| It is fully compliant implementation of the original C *libpcap* from
+  1.0.0 up to 1.9.0 API and the *WinPcap*'s 4.1.3 libpcap (1.0.0rel0b) API
+  by implementing whole its functionality in a clean Python instead of C.
+|
+| Useful *libpcap* API documentation can be found at:
 
-    `Main pcap man page <http://www.tcpdump.org/manpages/pcap.3pcap.html>`__,
-    `(MORE pcap man pages) <http://www.tcpdump.org/manpages/>`__
+  `Main pcap man page <http://www.tcpdump.org/manpages/pcap.3pcap.html>`__,
+  `(MORE pcap man pages) <http://www.tcpdump.org/manpages/>`__
 
 About original LIBPCAP:
 -----------------------
 
-LIBPCAP 1.x.y
-Now maintained by "The Tcpdump Group"
-http://www.tcpdump.org
+| LIBPCAP 1.x.y
+| Now maintained by "The Tcpdump Group"
+| http://www.tcpdump.org
 
 Anonymous Git is available via:
 

@@ -53,6 +53,9 @@ def main(argv):
     except getopt.GetoptError:
         usage()
 
+    if is_windows and hasattr(pcap, "wsockinit") and pcap.wsockinit() != 0:
+        return 1
+
     have_fcode = False
     if defined("BDEBUG"):
         # if optimizer debugging is enabled, output DOT graph

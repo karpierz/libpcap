@@ -19,6 +19,8 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#include "varattrs.h"
+
 #ifndef lint
 static const char copyright[] _U_ =
     "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000\n\
@@ -31,9 +33,9 @@ The Regents of the University of California.  All rights reserved.\n";
 #include <stdarg.h>
 #include <limits.h>
 #ifdef _WIN32
-#include "getopt.h"
+  #include "getopt.h"
 #else
-#include <unistd.h>
+  #include <unistd.h>
 #endif
 #include <errno.h>
 #include <sys/types.h>
@@ -41,6 +43,10 @@ The Regents of the University of California.  All rights reserved.\n";
 #include <pcap.h>
 
 #include "pcap/funcattrs.h"
+
+#ifdef _WIN32
+  #include "portability.h"
+#endif
 
 static char *program_name;
 

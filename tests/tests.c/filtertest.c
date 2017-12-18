@@ -19,6 +19,8 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#include "varattrs.h"
+
 #ifndef lint
 static const char copyright[] _U_ =
     "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000\n\
@@ -35,9 +37,9 @@ The Regents of the University of California.  All rights reserved.\n";
 #include <string.h>
 #include <stdarg.h>
 #ifdef _WIN32
-#include "getopt.h"
+  #include "getopt.h"
 #else
-#include <unistd.h>
+  #include <unistd.h>
 #endif
 #include <fcntl.h>
 #include <errno.h>
@@ -198,7 +200,8 @@ main(int argc, char **argv)
 	struct bpf_program fcode;
 
 #ifdef _WIN32
-	if(wsockinit() != 0) return 1;
+	if (pcap_wsockinit() != 0)
+		return 1;
 #endif /* _WIN32 */
 
 #ifndef BDEBUG

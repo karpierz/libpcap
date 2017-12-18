@@ -20,15 +20,15 @@ Overview
 |
 | Useful *libpcap* API documentation can be found at:
 
-  `Main pcap man page <http://www.tcpdump.org/manpages/pcap.3pcap.html>`__,
-  `(MORE pcap man pages) <http://www.tcpdump.org/manpages/>`__
+  `Main pcap man page <https://www.tcpdump.org/manpages/pcap.3pcap.html>`__,
+  `(MORE pcap man pages) <https://www.tcpdump.org/manpages/>`__
 
 About original LIBPCAP:
 -----------------------
 
 | LIBPCAP 1.x.y
 | Now maintained by "The Tcpdump Group"
-| http://www.tcpdump.org
+| https://www.tcpdump.org
 
 Anonymous Git is available via:
 
@@ -65,15 +65,15 @@ found at:
 
 or:
 
-    http://www.tcpdump.org/papers/bpf-usenix93.ps.Z
+    https://www.tcpdump.org/papers/bpf-usenix93.ps.Z
 
 and a gzipped version can be found at:
 
-    http://www.tcpdump.org/papers/bpf-usenix93.ps.gz
+    https://www.tcpdump.org/papers/bpf-usenix93.ps.gz
 
 A PDF version can be found at:
 
-    http://www.tcpdump.org/papers/bpf-usenix93.pdf
+    https://www.tcpdump.org/papers/bpf-usenix93.pdf
 
 Although most packet capture interfaces support in-kernel filtering,
 libpcap utilizes in-kernel filtering only for the BPF interface.
@@ -90,7 +90,7 @@ packetfilter interface but has been extended to accept BPF filters
 (which libpcap utilizes).  Also, you can add BPF filter support to
 Ultrix using the kernel source and/or object patches available in:
 
-    http://www.tcpdump.org/other/bpfext42.tar.Z
+    https://www.tcpdump.org/other/bpfext42.tar.Z
 
 Linux, in the 2.2 kernel and later kernels, has a "Socket Filter"
 mechanism that accepts BPF filters; see the README.linux file for
@@ -109,7 +109,7 @@ We've been maintaining binary compatibility between libpcap releases for
 quite a while; there's no reason to tie a binary linked with libpcap to
 a particular release of libpcap.
 
-Current versions can be found at: http://www.tcpdump.org
+Current versions can be found at: https://www.tcpdump.org
 
 \- The TCPdump group
 

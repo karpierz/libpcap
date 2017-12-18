@@ -1202,13 +1202,24 @@ DLT_VSOCK = 271
 
 DLT_NORDIC_BLE = 272
 
+# Excentis DOCSIS 3.1 RF sniffer (XRA-31)
+#   per: bruno.verstuyft at excentis.com
+#        http://www.xra31.com/xra-header
+
+DLT_DOCSIS31_XRA31 = 273
+
+# mPackets, as specified by IEEE 802.3br Figure 99-4, starting
+# with the preamble and always ending with a CRC field.
+
+DLT_ETHERNET_MPACKET = 274
+
 # In case the code that includes this file (directly or indirectly)
 # has also included OS files that happen to define DLT_MATCHING_MAX,
 # with a different value (perhaps because that OS hasn't picked up
 # the latest version of our DLT definitions), we undefine the
 # previous value of DLT_MATCHING_MAX.
 
-DLT_MATCHING_MAX = 272  # highest value in the "matching" range # available from v.1.8.1
+DLT_MATCHING_MAX = 274  # highest value in the "matching" range # available from v.1.8.1
 
 # DLT and savefile link type values are split into a class and
 # a member of that class.  A class value of 0 indicates a regular

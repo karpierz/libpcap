@@ -1,6 +1,10 @@
 Changelog
 =========
 
+1.0.0b7 (2017-12-18)
+--------------------
+  - Fix the error of platform detecting (thanks to Dan ???).
+
 1.0.0b6 (2017-10-11)
 --------------------
   - Upgrade to the libcap API 1.9.0

@@ -19,6 +19,8 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#include "varattrs.h"
+
 /*
  * This doesn't actually test libpcap itself; it tests whether
  * valgrind properly handles the APIs libpcap uses.  If it doesn't,
@@ -33,14 +35,14 @@
  *
  *	https://bugs.kde.org/show_bug.cgi?id=318203
  *
- * and valgrind bug 312989 for OS X:
+ * and valgrind bug 312989 for macOS:
  *
  *	https://bugs.kde.org/show_bug.cgi?id=312989
  *
  * The fixes for both of those are checked into the official valgrind
  * repository.
  *
- * The unofficial FreeBSD port has similar issues to the official OS X
+ * The unofficial FreeBSD port has similar issues to the official macOS
  * port, for similar reasons.
  */
 #ifndef lint
@@ -66,8 +68,8 @@ The Regents of the University of California.  All rights reserved.\n";
 
 #include "pcap/funcattrs.h"
 
-#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
-/* BSD-flavored OS - use BPF */
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || defined(_AIX) || defined(sun)
+/* OS with BPF - use BPF */
 #define USE_BPF
 #elif defined(linux)
 /* Linux - use socket filters */

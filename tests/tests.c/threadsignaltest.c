@@ -33,9 +33,22 @@ The Regents of the University of California.  All rights reserved.\n";
 #include <stdarg.h>
 #include <limits.h>
 #ifdef _WIN32
+  #include <winsock2.h>
+  #include <windows.h>
+
+  #define THREAD_HANDLE			HANDLE
+  #define THREAD_FUNC_ARG_TYPE		LPVOID
+  #define THREAD_FUNC_RETURN_TYPE	DWORD __stdcall
+
   #include "getopt.h"
 #else
+  #include <pthread.h>
+  #include <signal.h>
   #include <unistd.h>
+
+  #define THREAD_HANDLE			pthread_t
+  #define THREAD_FUNC_ARG_TYPE		void *
+  #define THREAD_FUNC_RETURN_TYPE	void *
 #endif
 #include <errno.h>
 #include <sys/types.h>
@@ -59,22 +72,126 @@ static char *copy_argv(char **);
 
 static pcap_t *pd;
 
+#ifdef _WIN32
+/*
+ * Generate a string for a Win32-specific error (i.e. an error generated when
+ * calling a Win32 API).
+ * For errors occurred during standard C calls, we still use pcap_strerror()
+ */
+#define ERRBUF_SIZE	1024
+static const char *
+win32_strerror(DWORD error)
+{
+  static char errbuf[ERRBUF_SIZE+1];
+  size_t errlen;
+
+  FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, error, 0, errbuf,
+                ERRBUF_SIZE, NULL);
+
+  /*
+   * "FormatMessage()" "helpfully" sticks CR/LF at the end of the
+   * message.  Get rid of it.
+   */
+  errlen = strlen(errbuf);
+  if (errlen >= 2) {
+    errbuf[errlen - 1] = '\0';
+    errbuf[errlen - 2] = '\0';
+    errlen -= 2;
+  }
+  return errbuf;
+}
+#else
+static void
+catch_sigusr1(int sig _U_)
+{
+	printf("Got SIGUSR1\n");
+}
+#endif
+
+static void
+sleep_secs(int secs)
+{
+#ifdef _WIN32
+	Sleep(secs*1000);
+#else
+	unsigned secs_remaining;
+
+	if (secs <= 0)
+		return;
+	secs_remaining = secs;
+	while (secs_remaining != 0)
+		secs_remaining = sleep(secs_remaining);
+#endif
+}
+
+static THREAD_FUNC_RETURN_TYPE
+capture_thread_func(THREAD_FUNC_ARG_TYPE arg)
+{
+	char *device = arg;
+	int packet_count;
+	int status;
+#ifndef _WIN32
+	struct sigaction action;
+	sigset_t mask;
+#endif
+
+#ifndef _WIN32
+	sigemptyset(&mask);
+	action.sa_handler = catch_sigusr1;
+	action.sa_mask = mask;
+	action.sa_flags = 0;
+	if (sigaction(SIGUSR1, &action, NULL) == -1)
+		error("Can't catch SIGUSR1: %s", strerror(errno));
+#endif
+
+	printf("Listening on %s\n", device);
+	for (;;) {
+		packet_count = 0;
+		status = pcap_dispatch(pd, -1, countme,
+		    (u_char *)&packet_count);
+		if (status < 0)
+			break;
+		if (status != 0) {
+			printf("%d packets seen, %d packets counted after pcap_dispatch returns\n",
+			    status, packet_count);
+		} else
+			printf("No packets seen by pcap_dispatch\n");
+	}
+	if (status == -2) {
+		/*
+		 * We got interrupted, so perhaps we didn't
+		 * manage to finish a line we were printing.
+		 * Print an extra newline, just in case.
+		 */
+		putchar('\n');
+		printf("Loop got broken\n");
+	}
+	(void)fflush(stdout);
+	if (status == -1) {
+		/*
+		 * Error.  Report it.
+		 */
+		(void)fprintf(stderr, "%s: pcap_loop: %s\n",
+		    program_name, pcap_geterr(pd));
+	}
+	return 0;
+}
+
 int
 main(int argc, char **argv)
 {
 	register int op;
 	register char *cp, *cmdbuf, *device;
-	long longarg;
-	char *p;
-	int timeout = 1000;
 	int immediate = 0;
-	int nonblock = 0;
 	pcap_if_t *devlist;
 	bpf_u_int32 localnet, netmask;
 	struct bpf_program fcode;
 	char ebuf[PCAP_ERRBUF_SIZE];
 	int status;
-	int packet_count;
+	THREAD_HANDLE capture_thread;
+#ifndef _WIN32
+	void *retval;
+#endif
 
 	device = NULL;
 	if ((cp = strrchr(argv[0], '/')) != NULL)
@@ -83,38 +200,11 @@ main(int argc, char **argv)
 		program_name = argv[0];
 
 	opterr = 0;
-	while ((op = getopt(argc, argv, "i:mnt:")) != -1) {
+	while ((op = getopt(argc, argv, "i:")) != -1) {
 		switch (op) {
 
 		case 'i':
 			device = optarg;
-			break;
-
-		case 'm':
-			immediate = 1;
-			break;
-
-		case 'n':
-			nonblock = 1;
-			break;
-
-		case 't':
-			longarg = strtol(optarg, &p, 10);
-			if (p == optarg || *p != '\0') {
-				error("Timeout value \"%s\" is not a number",
-				    optarg);
-				/* NOTREACHED */
-			}
-			if (longarg < 0) {
-				error("Timeout value %ld is negative", longarg);
-				/* NOTREACHED */
-			}
-			if (longarg > INT_MAX) {
-				error("Timeout value %ld is too large (> %d)",
-				    longarg, INT_MAX);
-				/* NOTREACHED */
-			}
-			timeout = (int)longarg;
 			break;
 
 		default:
@@ -145,7 +235,7 @@ main(int argc, char **argv)
 			error("%s: pcap_set_immediate_mode failed: %s",
 			    device, pcap_statustostr(status));
 	}
-	status = pcap_set_timeout(pd, timeout);
+	status = pcap_set_timeout(pd, 5*60*1000);
 	if (status != 0)
 		error("%s: pcap_set_timeout failed: %s",
 		    device, pcap_statustostr(status));
@@ -176,39 +266,43 @@ main(int argc, char **argv)
 
 	if (pcap_setfilter(pd, &fcode) < 0)
 		error("%s", pcap_geterr(pd));
-	if (pcap_setnonblock(pd, nonblock, ebuf) == -1)
-		error("pcap_setnonblock failed: %s", ebuf);
-	printf("Listening on %s\n", device);
-	for (;;) {
-		packet_count = 0;
-		status = pcap_dispatch(pd, -1, countme,
-		    (u_char *)&packet_count);
-		if (status < 0)
-			break;
-		if (status != 0) {
-			printf("%d packets seen, %d packets counted after pcap_dispatch returns\n",
-			    status, packet_count);
-		}
-	}
-	if (status == -2) {
-		/*
-		 * We got interrupted, so perhaps we didn't
-		 * manage to finish a line we were printing.
-		 * Print an extra newline, just in case.
-		 */
-		putchar('\n');
-	}
-	(void)fflush(stdout);
-	if (status == -1) {
-		/*
-		 * Error.  Report it.
-		 */
-		(void)fprintf(stderr, "%s: pcap_loop: %s\n",
-		    program_name, pcap_geterr(pd));
-	}
+
+#ifdef _WIN32
+	capture_thread = CreateThread(NULL, 0, capture_thread_func, device,
+	    0, NULL);
+	if (capture_thread == NULL)
+		error("Can't create capture thread: %s",
+		    win32_strerror(GetLastError()));
+#else
+	status = pthread_create(&capture_thread, NULL, capture_thread_func,
+	    device);
+	if (status != 0)
+		error("Can't create capture thread: %s", strerror(status));
+#endif
+	sleep_secs(60);
+	pcap_breakloop(pd);
+#ifdef _WIN32
+	printf("Setting event\n");
+	if (!SetEvent(pcap_getevent(pd)))
+		error("Can't set event for pcap_t: %s",
+		    win32_strerror(GetLastError()));
+	if (WaitForSingleObject(capture_thread, INFINITE) == WAIT_FAILED)
+		error("Wait for thread termination failed: %s",
+		    win32_strerror(GetLastError()));
+	CloseHandle(capture_thread);
+#else
+	printf("Sending SIGUSR1\n");
+	status = pthread_kill(capture_thread, SIGUSR1);
+	if (status != 0)
+		warning("Can't interrupt capture thread: %s", strerror(status));
+	status = pthread_join(capture_thread, &retval);
+	if (status != 0)
+		error("Wait for thread termination failed: %s",
+		    strerror(status));
+#endif
+
 	pcap_close(pd);
 	pcap_freecode(&fcode);
-	free(cmdbuf);
 	exit(status == -1 ? 1 : 0);
 }
 
@@ -223,7 +317,7 @@ countme(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "Usage: %s [ -mn ] [ -i interface ] [ -t timeout] [expression]\n",
+	(void)fprintf(stderr, "Usage: %s [ -m ] [ -i interface ] [ -t timeout] [expression]\n",
 	    program_name);
 	exit(1);
 }

@@ -1158,6 +1158,13 @@ else: # UN*X
                       ("pcap_get_selectable_fd", dll), (
                       (1, "pcap"),))
 
+    try:  # available from v.1.9.0
+        get_required_select_timeout = CFUNC(ct.POINTER(timeval),
+                      ct.POINTER(pcap_t))(
+                      ("pcap_get_required_select_timeout", dll), (
+                      (1, "pcap"),))
+    except: pass
+
 #endif # WIN32/MSDOS/UN*X
 
 # Remote capture definitions.

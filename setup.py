@@ -6,11 +6,8 @@ from __future__ import absolute_import
 
 from os import path
 from setuptools import setup
-from codecs import open as fopen
-fread = lambda name, encoding="utf-8": fopen(name, "r", encoding).read()
 
 top_dir = path.dirname(path.abspath(__file__))
-
 with open(path.join(top_dir, "libpcap", "__about__.py")) as f:
     class about: exec(f.read(), None)
 
@@ -26,6 +23,4 @@ setup(
     maintainer       = about.__author__,
     maintainer_email = about.__email__,
     license          = about.__license__,
-    long_description = (fread(path.join(top_dir, "README.rst")) + "\n" +
-                        fread(path.join(top_dir, "CHANGES.rst"))),
 )

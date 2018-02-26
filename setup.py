@@ -20,7 +20,7 @@ setup(
 
     author           = about.__author__,
     author_email     = about.__email__,
-    maintainer       = about.__author__,
+    maintainer       = about.__maintainer__,
     maintainer_email = about.__email__,
     license          = about.__license__,
 )

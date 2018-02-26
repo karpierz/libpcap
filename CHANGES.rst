@@ -1,6 +1,10 @@
 Changelog
 =========
 
+1.0.0b9 (2018-02-26)
+--------------------
+  - Improve and simplify setup and packaging.
+
 1.0.0b8 (2018-02-25)
 --------------------
   - Upgrade to the last libcap API 1.9.0

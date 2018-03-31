@@ -75,11 +75,17 @@ def main(argv):
             infile = optarg
         elif op == '-O':
             Oflag = 0
-        elif op == '-m':
-            # addr = inet_addr(optarg) # in_addr_t
-            # if addr == (in_addr_t)(-1):
-            #     error("invalid netmask {}", optarg)
-            # netmask = addr
+        elif op == '-m':  # !!!
+            # try:
+            #     addr = socket.inet_pton(socket.AF_INET, optarg)
+            # except socket.error:
+            #     if r == 0:                        
+            #         error("invalid netmask {}", optarg)
+            #     elif r == -1:
+            #         error("invalid netmask {}: {}", optarg, pcap_strerror(errno))
+            # else: # elif r == 1:
+            #     addr = bpf_u_int32(addr)
+            #     netmask = addr
             pass
         elif op == '-s':
             try:

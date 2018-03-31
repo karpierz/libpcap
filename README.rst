@@ -26,7 +26,7 @@ Overview
 About original LIBPCAP:
 -----------------------
 
-| LIBPCAP 1.x.y
+LIBPCAP 1.x.y
 | Now maintained by "The Tcpdump Group"
 | https://www.tcpdump.org
 

@@ -84,7 +84,7 @@ class sockaddr_in(ct.Structure):
     _fields_ = [
     ("sin_family", ct.c_short),       # e.g. AF_INET, AF_INET6
     ("sin_port",   ct.c_ushort),      # e.g. htons(3490)
-    ("sin_addr",   in_addr),          # see struct in_addr, below
+    ("sin_addr",   in_addr),          # see struct in_addr, above
     ("sin_zero",   (ct.c_char * 8)),  # padding, zero this if you want to
 ]
 

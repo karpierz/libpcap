@@ -111,13 +111,13 @@ def ifprint(d): # pcap_if_t*
             if addr.contents.sa_family == socket.AF_INET:
                 print("\tAddress Family: AF_INET")
                 if addr:
-                    print("\t\tAddress: {}".format(socket.inet_ntoa(ct.cast(addr, ct.POINTER(sockaddr_in)).contents.sin_addr)))
+                    print("\t\tAddress: {}".format(socket.inet_ntop(socket.AF_INET, ct.cast(addr, ct.POINTER(sockaddr_in)).contents.sin_addr)))
                 if netmask:
-                    print("\t\tNetmask: {}".format(socket.inet_ntoa(ct.cast(netmask, ct.POINTER(sockaddr_in)).contents.sin_addr)))
+                    print("\t\tNetmask: {}".format(socket.inet_ntop(socket.AF_INET, ct.cast(netmask, ct.POINTER(sockaddr_in)).contents.sin_addr)))
                 if broadaddr:
-                    print("\t\tBroadcast Address: {}".format(socket.inet_ntoa(ct.cast(broadaddr, ct.POINTER(sockaddr_in)).contents.sin_addr)))
+                    print("\t\tBroadcast Address: {}".format(socket.inet_ntop(socket.AF_INET, ct.cast(broadaddr, ct.POINTER(sockaddr_in)).contents.sin_addr)))
                 if dstaddr:
-                    print("\t\tDestination Address: {}".format(socket.inet_ntoa(ct.cast(dstaddr, ct.POINTER(sockaddr_in)).contents.sin_addr)))
+                    print("\t\tDestination Address: {}".format(socket.inet_ntop(socket.AF_INET, ct.cast(dstaddr, ct.POINTER(sockaddr_in)).contents.sin_addr)))
             #ifdef INET6
             elif addr.contents.sa_family == socket.AF_INET6:
                 print("\tAddress Family: AF_INET6")

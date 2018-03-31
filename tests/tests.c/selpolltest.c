@@ -70,6 +70,7 @@ main(int argc, char **argv)
 	bpf_u_int32 localnet, netmask;
 	register char *cp, *cmdbuf, *device;
 	int doselect, dopoll, dotimeout, dononblock;
+	char *mechanism;
 	struct bpf_program fcode;
 	char ebuf[PCAP_ERRBUF_SIZE];
 	pcap_if_t *devlist;
@@ -80,6 +81,7 @@ main(int argc, char **argv)
 	device = NULL;
 	doselect = 0;
 	dopoll = 0;
+	mechanism = NULL;
 	dotimeout = 0;
 	dononblock = 0;
 	if ((cp = strrchr(argv[0], '/')) != NULL)
@@ -97,10 +99,12 @@ main(int argc, char **argv)
 
 		case 's':
 			doselect = 1;
+			mechanism = "select() and pcap_dispatch()";
 			break;
 
 		case 'p':
 			dopoll = 1;
+			mechanism = "poll() and pcap_dispatch()";
 			break;
 
 		case 't':
@@ -165,9 +169,9 @@ main(int argc, char **argv)
 			struct timeval seltimeout;
 
 			FD_ZERO(&setread);
-			FD_SET(selectable_fd, &setread);
-			FD_ZERO(&setexcept);
-			FD_SET(selectable_fd, &setexcept);
+				FD_SET(selectable_fd, &setread);
+				FD_ZERO(&setexcept);
+				FD_SET(selectable_fd, &setexcept);
 			if (dotimeout) {
 				seltimeout.tv_sec = 0;
 				seltimeout.tv_usec = 1000;
@@ -181,18 +185,23 @@ main(int argc, char **argv)
 				printf("Select returns error (%s)\n",
 				    strerror(errno));
 			} else {
-				if (status == 0)
-					printf("Select timed out: ");
-				else
-					printf("Select returned a descriptor: ");
-				if (FD_ISSET(selectable_fd, &setread))
-					printf("readable, ");
-				else
-					printf("not readable, ");
-				if (FD_ISSET(selectable_fd, &setexcept))
-					printf("exceptional condition\n");
-				else
-					printf("no exceptional condition\n");
+				if (selectable_fd == -1) {
+					if (status != 0)
+						printf("Select returned a descriptor\n");
+				} else {
+					if (status == 0)
+						printf("Select timed out: ");
+					else
+						printf("Select returned a descriptor: ");
+					if (FD_ISSET(selectable_fd, &setread))
+						printf("readable, ");
+					else
+						printf("not readable, ");
+					if (FD_ISSET(selectable_fd, &setexcept))
+						printf("exceptional condition\n");
+					else
+						printf("no exceptional condition\n");
+				}
 				packet_count = 0;
 				status = pcap_dispatch(pd, -1, countme,
 				    (u_char *)&packet_count);
@@ -218,26 +227,31 @@ main(int argc, char **argv)
 				printf("Poll returns error (%s)\n",
 				    strerror(errno));
 			} else {
-				if (status == 0)
-					printf("Poll timed out\n");
-				else {
-					printf("Poll returned a descriptor: ");
-					if (fd.revents & POLLIN)
-						printf("readable, ");
-					else
-						printf("not readable, ");
-					if (fd.revents & POLLERR)
-						printf("exceptional condition, ");
-					else
-						printf("no exceptional condition, ");
-					if (fd.revents & POLLHUP)
-						printf("disconnect, ");
-					else
-						printf("no disconnect, ");
-					if (fd.revents & POLLNVAL)
-						printf("invalid\n");
-					else
-						printf("not invalid\n");
+				if (selectable_fd == -1) {
+					if (status != 0)
+						printf("Poll returned a descriptor\n");
+				} else {
+					if (status == 0)
+						printf("Poll timed out\n");
+					else {
+						printf("Poll returned a descriptor: ");
+						if (fd.revents & POLLIN)
+							printf("readable, ");
+						else
+							printf("not readable, ");
+						if (fd.revents & POLLERR)
+							printf("exceptional condition, ");
+						else
+							printf("no exceptional condition, ");
+						if (fd.revents & POLLHUP)
+							printf("disconnect, ");
+						else
+							printf("no disconnect, ");
+						if (fd.revents & POLLNVAL)
+							printf("invalid\n");
+						else
+							printf("not invalid\n");
+					}
 				}
 				packet_count = 0;
 				status = pcap_dispatch(pd, -1, countme,

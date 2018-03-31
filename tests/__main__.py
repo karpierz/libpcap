@@ -26,7 +26,7 @@ def test_suite(names=None, omit=("filtertest", "findalldevstest")):
     return tests
 
 
-def runTest():
+def main():
 
     print("Running testsuite", "\n", file=sys.stderr)
 
@@ -39,11 +39,7 @@ def runTest():
     sys.exit(0 if result.wasSuccessful() else 1)
 
 
-def main():
-
+if __name__.rpartition(".")[-1] == "__main__":
     # logging.basicConfig(level=logging.INFO)
     # logging.basicConfig(level=logging.DEBUG)
-    runTest()
-
-
-main()
+    main()

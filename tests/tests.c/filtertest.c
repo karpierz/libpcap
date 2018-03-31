@@ -38,6 +38,7 @@ The Regents of the University of California.  All rights reserved.\n";
 #include <stdarg.h>
 #ifdef _WIN32
   #include "getopt.h"
+  #include "unix.h"
 #else
   #include <unistd.h>
 #endif
@@ -45,8 +46,9 @@ The Regents of the University of California.  All rights reserved.\n";
 #include <errno.h>
 #ifdef _WIN32
   #include <winsock2.h>
-  typedef unsigned __int32 in_addr_t;
+  #include <ws2tcpip.h>
 #else
+  #include <sys/socket.h>
   #include <arpa/inet.h>
 #endif
 #include <sys/types.h>
@@ -239,12 +241,23 @@ main(int argc, char **argv)
 			break;
 
 		case 'm': {
-			in_addr_t addr;
+			bpf_u_int32 addr;
 
-			addr = inet_addr(optarg);
-			if (addr == (in_addr_t)(-1))
+			switch (inet_pton(AF_INET, optarg, &addr)) {
+
+			case 0:                        
 				error("invalid netmask %s", optarg);
-			netmask = addr;
+				break;
+
+			case -1:
+				error("invalid netmask %s: %s", optarg,
+				    pcap_strerror(errno));
+				break;
+
+			case 1:
+				netmask = addr;
+				break;
+			}
 			break;
 		}
 

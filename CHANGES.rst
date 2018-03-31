@@ -1,6 +1,12 @@
 Changelog
 =========
 
+1.0.0b10 (2018-03-31)
+---------------------
+  - Upgrade to the last libcap
+  - Improve and simplify setup and packaging.
+  - Improve and update tests.
+
 1.0.0b9 (2018-02-26)
 --------------------
   - Improve and simplify setup and packaging.

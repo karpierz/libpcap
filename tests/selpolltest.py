@@ -62,6 +62,7 @@ def main(argv):
     device = None
     doselect = False
     dopoll = False
+    mechanism = None
     dotimeout = False
     dononblock = False
     for op, optarg in opts:
@@ -69,8 +70,10 @@ def main(argv):
             device = optarg.encode("utf-8")
         elif op == '-s':
             doselect = True
+            mechanism = "select() and pcap_dispatch()"
         elif op == '-p':
             dopoll = True
+            mechanism = "poll() and pcap_dispatch()"
         elif op == '-t':
             dotimeout = True
         elif op == '-n':
@@ -132,6 +135,14 @@ def main(argv):
             error("pcap.setnonblock failed: {!s}",
                   ebuf.value.decode("utf-8", "ignore"))
 
+
+    if doselect or dopoll:
+
+        # We need either an FD on which to do select()/poll()
+        # or, if there isn't one, a timeout to use in select()/
+        # poll().
+        pass
+
     selectable_fd = pcap.get_selectable_fd(pd)
 
     print("Listening on {!s}".format(device.decode("utf-8")))
@@ -151,16 +162,20 @@ def main(argv):
             except select.error as exc:
                 print("Select returns error ({})".format(exc.args[1]))
             else:
-                print("Select timed out: "
-                      if not rfds and not wfds and not efds else
-                      "Select returned a descriptor: ", end="")
-                print("readable, "
-                      if selectable_fd in rfds else
-                      "not readable, ", end="")
-                print("exceptional condition"
-                      if selectable_fd in efds else
-                      "no exceptional condition", end="")
-                print()
+                if selectable_fd == -1:
+                    if status != 0:
+                        print("Select returned a descriptor")
+                else:
+                    print("Select timed out: "
+                          if not rfds and not wfds and not efds else
+                          "Select returned a descriptor: ", end="")
+                    print("readable, "
+                          if selectable_fd in rfds else
+                          "not readable, ", end="")
+                    print("exceptional condition"
+                          if selectable_fd in efds else
+                          "no exceptional condition", end="")
+                    print()
 
                 packet_count = ct.c_int(0)
                 status = pcap.dispatch(pd, -1, countme,
@@ -179,24 +194,28 @@ def main(argv):
             except select.error as exc:
                 print("Poll returns error ({})".format(exc.args[1]))
             else:
-                if not events:
-                    print("Poll timed out")
+                if selectable_fd == -1:
+                    if status != 0:
+                        print("Poll returned a descriptor")
                 else:
-                    event = events[0][1]
-                    print("Poll returned a descriptor: ", end="")
-                    print("readable, "
-                          if event & select.POLLIN else
-                          "not readable, ", end="")
-                    print("exceptional condition, "
-                          if event & select.POLLERR else
-                          "no exceptional condition, ", end="")
-                    print("disconnect, "
-                          if event & select.POLLHUP else
-                          "no disconnect, ", end="")
-                    print("invalid"
-                          if event & select.POLLNVAL else
-                          "not invalid", end="")
-                    print()
+                    if not events:
+                        print("Poll timed out")
+                    else:
+                        event = events[0][1]
+                        print("Poll returned a descriptor: ", end="")
+                        print("readable, "
+                              if event & select.POLLIN else
+                              "not readable, ", end="")
+                        print("exceptional condition, "
+                              if event & select.POLLERR else
+                              "no exceptional condition, ", end="")
+                        print("disconnect, "
+                              if event & select.POLLHUP else
+                              "no disconnect, ", end="")
+                        print("invalid"
+                              if event & select.POLLNVAL else
+                              "not invalid", end="")
+                        print()
 
                 packet_count = ct.c_int(0)
                 status = pcap.dispatch(pd, -1, countme,

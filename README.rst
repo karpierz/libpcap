@@ -20,16 +20,16 @@ Overview
 |
 | Useful *libpcap* API documentation can be found at:
 
-  `Main pcap man page <https://www.tcpdump.org/manpages/pcap.3pcap.html>`__,
-  `(MORE pcap man pages) <https://www.tcpdump.org/manpages/>`__
+  | `Main pcap man page <https://www.tcpdump.org/manpages/pcap.3pcap.html>`__,
+  | `(MORE pcap man pages) <https://www.tcpdump.org/manpages/>`__
 
 About original LIBPCAP:
 -----------------------
 
-LIBPCAP 1.x.y
+| LIBPCAP 1.x.y
+| Now maintained by "The Tcpdump Group":
 
-| Now maintained by "The Tcpdump Group"
-| https://www.tcpdump.org
+  https://www.tcpdump.org
 
 Anonymous Git is available via:
 

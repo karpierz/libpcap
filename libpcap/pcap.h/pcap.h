@@ -260,9 +260,15 @@ struct pcap_if {
 	bpf_u_int32 flags;	/* PCAP_IF_ interface flags */
 };
 
-#define PCAP_IF_LOOPBACK	0x00000001	/* interface is loopback */
-#define PCAP_IF_UP		0x00000002	/* interface is up */
-#define PCAP_IF_RUNNING		0x00000004	/* interface is running */
+#define PCAP_IF_LOOPBACK				0x00000001	/* interface is loopback */
+#define PCAP_IF_UP					0x00000002	/* interface is up */
+#define PCAP_IF_RUNNING					0x00000004	/* interface is running */
+#define PCAP_IF_WIRELESS				0x00000008	/* interface is wireless (*NOT* necessarily Wi-Fi!) */
+#define PCAP_IF_CONNECTION_STATUS			0x00000030	/* connection status: */
+#define PCAP_IF_CONNECTION_STATUS_UNKNOWN		0x00000000	/* unknown */
+#define PCAP_IF_CONNECTION_STATUS_CONNECTED		0x00000010	/* connected */
+#define PCAP_IF_CONNECTION_STATUS_DISCONNECTED		0x00000020	/* disconnected */
+#define PCAP_IF_CONNECTION_STATUS_NOT_APPLICABLE	0x00000030	/* not applicable */
 
 /*
  * Representation of an interface address.

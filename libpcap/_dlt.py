@@ -667,8 +667,13 @@ DLT_JUNIPER_ISM = 194
 # nothing); requested by Mikko Saarnivala <mikko.saarnivala@sensinode.com>.
 # For this one, we expect the FCS to be present at the end of the frame;
 # if the frame has no FCS, DLT_IEEE802_15_4_NOFCS should be used.
+#
+# We keep the name DLT_IEEE802_15_4 as an alias for backwards
+# compatibility, but, again, this should *only* be used for 802.15.4
+# frames that include the FCS.
 
-DLT_IEEE802_15_4 = 195
+DLT_IEEE802_15_4_WITHFCS = 195
+DLT_IEEE802_15_4         = DLT_IEEE802_15_4_WITHFCS
 
 # Various link-layer types, with a pseudo-header, for SITA
 # (http://www.sita.aero/); requested by Fulko Hew (fulko.hew@gmail.com).
@@ -1213,13 +1218,19 @@ DLT_DOCSIS31_XRA31 = 273
 
 DLT_ETHERNET_MPACKET = 274
 
+# DisplayPort AUX channel monitoring data as specified by VESA
+# DisplayPort(DP) Standard preceeded by a pseudo-header.
+#    per dirk.eibach at gdsys.cc
+
+DLT_DISPLAYPORT_AUX = 275
+
 # In case the code that includes this file (directly or indirectly)
 # has also included OS files that happen to define DLT_MATCHING_MAX,
 # with a different value (perhaps because that OS hasn't picked up
 # the latest version of our DLT definitions), we undefine the
 # previous value of DLT_MATCHING_MAX.
 
-DLT_MATCHING_MAX = 274  # highest value in the "matching" range # available from v.1.8.1
+DLT_MATCHING_MAX = 275  # highest value in the "matching" range # available from v.1.8.1
 
 # DLT and savefile link type values are split into a class and
 # a member of that class.  A class value of 0 indicates a regular

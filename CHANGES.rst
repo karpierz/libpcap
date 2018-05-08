@@ -1,9 +1,13 @@
 Changelog
 =========
 
+1.0.0b12 (2018-05-08)
+---------------------
+  - Upgrade to the last libpcap
+
 1.0.0b10 (2018-03-31)
 ---------------------
-  - Upgrade to the last libcap
+  - Upgrade to the last libpcap
   - Improve and simplify setup and packaging.
   - Improve and update tests.
 
@@ -13,7 +17,7 @@ Changelog
 
 1.0.0b8 (2018-02-25)
 --------------------
-  - Upgrade to the last libcap API 1.9.0
+  - Upgrade to the last libpcap API 1.9.0
   - Setup improvement.
 
 1.0.0b7 (2017-12-18)
@@ -22,12 +26,12 @@ Changelog
 
 1.0.0b6 (2017-10-11)
 --------------------
-  - Upgrade to the libcap API 1.9.0
+  - Upgrade to the libpcap API 1.9.0
 
 1.0.0b5 (2017-10-08)
 --------------------
-  - Upgrade to the libcap API 1.8.1
-  - Add support for libcap from `Npcap <https://nmap.org/npcap/>`__.
+  - Upgrade to the libpcap API 1.8.1
+  - Add support for libpcap from `Npcap <https://nmap.org/npcap/>`__.
 
 1.0.0b4 (2017-10-04)
 --------------------

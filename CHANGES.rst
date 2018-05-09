@@ -1,6 +1,10 @@
 Changelog
 =========
 
+1.0.0b14 (2018-05-09)
+---------------------
+  - Update required setuptools version.
+
 1.0.0b13 (2018-05-09)
 ---------------------
   - Upgrade npcap's libpcap dll-s to the 0.99rc5

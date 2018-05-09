@@ -1,13 +1,17 @@
 Changelog
 =========
 
+1.0.0b13 (2018-05-09)
+---------------------
+  - Upgrade npcap's libpcap dll-s to the 0.99rc5
+
 1.0.0b12 (2018-05-08)
 ---------------------
-  - Upgrade to the last libpcap
+  - Upgrade to the last libpcap.
 
 1.0.0b10 (2018-03-31)
 ---------------------
-  - Upgrade to the last libpcap
+  - Upgrade to the last libpcap.
   - Improve and simplify setup and packaging.
   - Improve and update tests.
 

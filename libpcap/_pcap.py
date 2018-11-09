@@ -108,6 +108,7 @@ pcap_dumper_t = pcap_dumper
 # of the flags used in the printout phases of tcpdump.
 # Many fields here are 32 bit ints so compilers won't insert unwanted
 # padding; these files need to be interchangeable across architectures.
+# Documentation: https://www.tcpdump.org/manpages/pcap-savefile.5.txt.
 #
 # Do not change the layout of this structure, in any way (this includes
 # changes that only affect the length of fields in this structure).
@@ -146,8 +147,8 @@ class file_header(ct.Structure):
     ("magic",         bpf_u_int32),
     ("version_major", ct.c_ushort),
     ("version_minor", ct.c_ushort),
-    ("thiszone",      bpf_int32),    # gmt to local correction
-    ("sigfigs",       bpf_u_int32),  # accuracy of timestamps
+    ("thiszone",      bpf_int32),    # gmt to local correction; this is always 0
+    ("sigfigs",       bpf_u_int32),  # accuracy of timestamps; this is always 0
     ("snaplen",       bpf_u_int32),  # max length saved portion of each pkt
     ("linktype",      bpf_u_int32),  # data link type (LINKTYPE_*)
 ]
@@ -514,10 +515,10 @@ except: pass
 
 try:  # available from v.1.9.0
     if is_linux:
-        set_protocol = CFUNC(ct.c_int,
+        set_protocol_linux = CFUNC(ct.c_int,
                       ct.POINTER(pcap_t),
                       ct.c_int)(
-                      ("pcap_set_protocol", dll), (
+                      ("pcap_set_protocol_linux", dll), (
                       (1, "pcap"),
                       (1, "protocol"),))
 except: pass

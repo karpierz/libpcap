@@ -205,16 +205,6 @@ class bpf_insn(ct.Structure):
     ("k",    bpf_u_int32),
 ]
 
-# Auxiliary data, for use when interpreting a filter intended for the
-# Linux kernel when the kernel rejects the filter (requiring us to
-# run it in userland).  It contains VLAN tag information.
-
-# class bpf_aux_data(ct.Structure):
-#     _fields_ = [
-#     ("vlan_tag_present", ct.c_ushort),
-#     ("vlan_tag",         ct.c_ushort),
-# ]
-
 #
 # Structure for "pcap.compile()", "pcap.setfilter()", etc..
 #
@@ -246,19 +236,6 @@ bpf_filter   = CFUNC(ct.c_uint,
                      (1, "buffer"),
                      (1, "wirelen"),
                      (1, "buflen"),))
-
-# bpf_filter_with_aux_data = CFUNC(ct.c_uint,
-#                      ct.POINTER(bpf_insn),
-#                      ct.POINTER(ct.c_ubyte),
-#                      ct.c_uint,
-#                      ct.c_uint,
-#                      ct.POINTER(bpf_aux_data))(
-#                      ("bpf_filter_with_aux_data", dll), (
-#                      (1, "insn"),
-#                      (1, "buffer"),
-#                      (1, "wirelen"),
-#                      (1, "buflen"),
-#                      (1, "aux_data"),))
 
 bpf_validate = CFUNC(ct.c_int,
                      ct.POINTER(bpf_insn),

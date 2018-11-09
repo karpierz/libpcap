@@ -91,9 +91,39 @@ def ifprint(d): # pcap_if_t*
         print("\tDescription: {!s}".format(d.description.decode("utf-8")))
 
     flags = []
-    if d.flags & pcap.PCAP_IF_UP:       flags.append("UP")
-    if d.flags & pcap.PCAP_IF_RUNNING:  flags.append("RUNNING")
-    if d.flags & pcap.PCAP_IF_LOOPBACK: flags.append("LOOPBACK")
+    flag  = ""
+    if d.flags & pcap.PCAP_IF_UP:
+        if flag: flags.append(flag)
+        flag = "UP"
+    if d.flags & pcap.PCAP_IF_RUNNING:
+        if flag: flags.append(flag)
+        flag = "RUNNING"
+    if d.flags & pcap.PCAP_IF_LOOPBACK:
+        if flag: flags.append(flag)
+        flag = "LOOPBACK"
+    if d.flags & pcap.PCAP_IF_WIRELESS:
+        if flag: flags.append(flag)
+        flag = "WIRELESS"
+    conn_status = d.flags & pcap.PCAP_IF_CONNECTION_STATUS
+    if d.flags & pcap.PCAP_IF_WIRELESS:
+        if conn_status == pcap.PCAP_IF_CONNECTION_STATUS_UNKNOWN:
+            flag += " (association status unknown)"
+        elif conn_status == pcap.PCAP_IF_CONNECTION_STATUS_CONNECTED:
+            flag += " (associated)"
+        elif conn_status == pcap.PCAP_IF_CONNECTION_STATUS_DISCONNECTED:
+            flag += " (not associated)"
+        elif conn_status == pcap.PCAP_IF_CONNECTION_STATUS_NOT_APPLICABLE:
+            pass
+    else:
+        if conn_status == pcap.PCAP_IF_CONNECTION_STATUS_UNKNOWN:
+            flag += " (connection status unknown)"
+        elif conn_status == pcap.PCAP_IF_CONNECTION_STATUS_CONNECTED:
+            flag += " (connected)"
+        elif conn_status == pcap.PCAP_IF_CONNECTION_STATUS_DISCONNECTED:
+            flag += " (disconnected)"
+        elif conn_status == pcap.PCAP_IF_CONNECTION_STATUS_NOT_APPLICABLE:
+            pass
+    if flag: flags.append(flag)
     print("\tFlags: {}".format(", ".join(flags)))
 
     a = d.addresses

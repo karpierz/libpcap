@@ -48,7 +48,7 @@
 #
 # See
 #
-#    http://www.tcpdump.org/linktypes.html
+#    https://www.tcpdump.org/linktypes.html
 #
 # for detailed descriptions of some of these link-layer header types.
 
@@ -220,7 +220,7 @@ else:
 # between platforms; don't use those values for new DLT_ types
 # other than the corresponding DLT_ types.
 
-# This is for Linux cooked sockets.
+# Linux cooked sockets.
 
 DLT_LINUX_SLL = 113
 
@@ -723,15 +723,31 @@ DLT_AX25_KISS = 202
 
 DLT_LAPD = 203
 
-# Variants of various link-layer headers, with a one-byte direction
-# pseudo-header prepended - zero means "received by this host",
-# non-zero (any non-zero value) means "sent by this host" - as per
-# Will Barker <w.barker@zen.co.uk>.
+# PPP, with a one-byte direction pseudo-header prepended - zero means
+# "received by this host", non-zero (any non-zero value) means "sent by
+# this host" - as per Will Barker <w.barker@zen.co.uk>.
 
-DLT_PPP_WITH_DIR    = 204  # PPP - don't confuse with DLT_PPP_WITH_DIRECTION
-DLT_C_HDLC_WITH_DIR = 205  # Cisco HDLC
-DLT_FRELAY_WITH_DIR = 206  # Frame Relay
-DLT_LAPB_WITH_DIR   = 207  # LAPB
+DLT_PPP_WITH_DIR    = 204  # Don't confuse with DLT_PPP_WITH_DIRECTION
+
+# Cisco HDLC, with a one-byte direction pseudo-header prepended - zero
+# means "received by this host", non-zero (any non-zero value) means
+# "sent by this host" - as per Will Barker <w.barker@zen.co.uk>.
+
+DLT_C_HDLC_WITH_DIR = 205
+
+# Frame Relay, with a one-byte direction pseudo-header prepended - zero
+# means "received by this host" (DCE -> DTE), non-zero (any non-zero
+# value) means "sent by this host" (DTE -> DCE) - as per Will Barker
+# <w.barker@zen.co.uk>.
+
+DLT_FRELAY_WITH_DIR = 206
+
+# LAPB, with a one-byte direction pseudo-header prepended - zero means
+# "received by this host" (DCE -> DTE), non-zero (any non-zero value)
+# means "sent by this host" (DTE -> DCE)- as per Will Barker
+# <w.barker@zen.co.uk>.
+
+DLT_LAPB_WITH_DIR   = 207
 
 # 208 is reserved for an as-yet-unspecified proprietary link-layer
 # type, as requested by Will Barker.
@@ -1224,13 +1240,40 @@ DLT_ETHERNET_MPACKET = 274
 
 DLT_DISPLAYPORT_AUX = 275
 
+# Linux cooked sockets v2.
+
+DLT_LINUX_SLL2 = 276
+
+# Sercos Monitor, per Manuel Jacob <manuel.jacob at steinbeis-stg.de>
+
+DLT_SERCOS_MONITOR = 277
+
+# OpenVizsla http://openvizsla.org is open source USB analyzer hardware.
+# It consists of FPGA with attached USB phy and FTDI chip for streaming
+# the data to the host PC.
+#
+# Current OpenVizsla data encapsulation format is described here:
+# https://github.com/matwey/libopenvizsla/wiki/OpenVizsla-protocol-description
+
+DLT_OPENVIZSLA = 278
+
+# The Elektrobit High Speed Capture and Replay (EBHSCR) protocol is produced
+# by a PCIe Card for interfacing high speed automotive interfaces.
+#
+# The specification for this frame format can be found at:
+#   http://www.elektrobit.com/ebhscr
+#
+# for Guenter.Ebermann at elektrobit.com
+
+DLT_EBHSCR = 279
+
 # In case the code that includes this file (directly or indirectly)
 # has also included OS files that happen to define DLT_MATCHING_MAX,
 # with a different value (perhaps because that OS hasn't picked up
 # the latest version of our DLT definitions), we undefine the
 # previous value of DLT_MATCHING_MAX.
 
-DLT_MATCHING_MAX = 275  # highest value in the "matching" range # available from v.1.8.1
+DLT_MATCHING_MAX = 279  # highest value in the "matching" range # available from v.1.8.1
 
 # DLT and savefile link type values are split into a class and
 # a member of that class.  A class value of 0 indicates a regular

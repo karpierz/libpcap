@@ -173,4 +173,4 @@ License
 Authors
 =======
 
-* Adam Karpierz <python@python.pl>
+* Adam Karpierz <adam@karpierz.net>

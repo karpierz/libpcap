@@ -49,7 +49,7 @@ def main(argv):
     program_name = os.path.basename(argv[0])
 
     try:
-        opts, args = getopt.getopt(argv[1:], "dF:m:Os:")
+        opts, args = getopt.getopt(argv[1:], "dF:gm:Os:")
     except getopt.GetoptError:
         usage()
 
@@ -57,13 +57,8 @@ def main(argv):
         return 1
 
     have_fcode = False
-    if defined("BDEBUG"):
-        # if optimizer debugging is enabled, output DOT graph
-        # `dflag=4' is equivalent to -dddd to follow -d/-dd/-ddd
-        # convention in tcpdump command line
-        dflag = 4
-    else:
-        dflag = 1
+    dflag = 1
+    gflag = 0
     infile = None
     netmask = pcap.PCAP_NETMASK_UNKNOWN
     Oflag = 1
@@ -71,6 +66,11 @@ def main(argv):
     for op, optarg in opts:
         if op == '-d':
             dflag += 1
+        elif op == 'g':
+            if defined("BDEBUG"):
+                gflag += 1
+            else:
+                error("libpcap and filtertest not built with optimizer debugging enabled")
         elif op == '-F':
             infile = optarg
         elif op == '-O':
@@ -154,8 +154,12 @@ def usage():
     global program_name
     print("{}, with {!s}".format(program_name,
           pcap.lib_version().decode("utf-8")), file=sys.stderr)
-    print("Usage: {} [-dO] [ -F file ] [ -m netmask] [ -s snaplen ] dlt "
-          "[ expression ]".format(program_name), file=sys.stderr)
+    if defined("BDEBUG"):
+        print("Usage: {} [-dgO] [ -F file ] [ -m netmask] [ -s snaplen ] dlt "
+              "[ expression ]".format(program_name), file=sys.stderr)
+    else:
+        print("Usage: {} [-dO] [ -F file ] [ -m netmask] [ -s snaplen ] dlt "
+              "[ expression ]".format(program_name), file=sys.stderr)
     print("e.g. ./{} EN10MB host 192.168.1.1".format(program_name),
           file=sys.stderr)
     sys.exit(1)

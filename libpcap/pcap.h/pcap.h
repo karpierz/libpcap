@@ -125,6 +125,7 @@ typedef struct pcap_addr pcap_addr_t;
  * of the flags used in the printout phases of tcpdump.
  * Many fields here are 32 bit ints so compilers won't insert unwanted
  * padding; these files need to be interchangeable across architectures.
+ * Documentation: https://www.tcpdump.org/manpages/pcap-savefile.5.txt.
  *
  * Do not change the layout of this structure, in any way (this includes
  * changes that only affect the length of fields in this structure).
@@ -162,8 +163,8 @@ struct pcap_file_header {
 	bpf_u_int32 magic;
 	u_short version_major;
 	u_short version_minor;
-	bpf_int32 thiszone;	/* gmt to local correction */
-	bpf_u_int32 sigfigs;	/* accuracy of timestamps */
+	bpf_int32 thiszone;	/* gmt to local correction; this is always 0 */
+	bpf_u_int32 sigfigs;	/* accuracy of timestamps; this is always 0 */
 	bpf_u_int32 snaplen;	/* max length saved portion of each pkt */
 	bpf_u_int32 linktype;	/* data link type (LINKTYPE_*) */
 };
@@ -348,7 +349,7 @@ PCAP_API const char *pcap_tstamp_type_val_to_name(int);
 PCAP_API const char *pcap_tstamp_type_val_to_description(int);
 
 #ifdef __linux__
-PCAP_API int	pcap_set_protocol(pcap_t *, int);
+PCAP_API int	pcap_set_protocol_linux(pcap_t *, int);
 #endif
 
 /*
@@ -511,20 +512,6 @@ PCAP_API void	pcap_freealldevs(pcap_if_t *);
  * On Windows, the string is constructed at run time.
  */
 PCAP_API const char *pcap_lib_version(void);
-
-/*
- * On at least some versions of NetBSD and QNX, we don't want to declare
- * bpf_filter() here, as it's also be declared in <net/bpf.h>, with a
- * different signature, but, on other BSD-flavored UN*Xes, it's not
- * declared in <net/bpf.h>, so we *do* want to declare it here, so it's
- * declared when we build pcap-bpf.c.
- */
-#if !defined(__NetBSD__) && !defined(__QNX__)
-  PCAP_API u_int	bpf_filter(const struct bpf_insn *, const u_char *, u_int, u_int);
-#endif
-PCAP_API int	bpf_validate(const struct bpf_insn *f, int len);
-PCAP_API char	*bpf_image(const struct bpf_insn *, int);
-PCAP_API void	bpf_dump(const struct bpf_program *, int);
 
 #if defined(_WIN32)
 

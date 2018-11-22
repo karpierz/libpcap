@@ -126,7 +126,7 @@ Installation
 
 Prerequisites:
 
-+ Python 2.7 or higher or 3.4 or higher
++ Python 2.7 or Python 3.4 or later
 
   * http://www.python.org/
   * 2.7 and 3.6 with LIBPCAP 1.8.1 are primary test environments.

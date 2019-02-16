@@ -1,4 +1,4 @@
-# Copyright (c) 2016-2018, Adam Karpierz
+# Copyright (c) 2016-2019, Adam Karpierz
 # Licensed under the BSD license
 # http://opensource.org/licenses/BSD-3-Clause
 
@@ -1267,13 +1267,24 @@ DLT_OPENVIZSLA = 278
 
 DLT_EBHSCR = 279
 
+# The http://fd.io vpp graph dispatch tracer produces pcap trace files
+# in the format documented here:
+# https://fdio-vpp.readthedocs.io/en/latest/gettingstarted/developers/vnet.html#graph-dispatcher-pcap-tracing
+
+DLT_VPP_DISPATCH = 280
+
+# Broadcom Ethernet switches (ROBO switch) 4 bytes proprietary tagging format.
+
+DLT_DSA_TAG_BRCM         = 281
+DLT_DSA_TAG_BRCM_PREPEND = 282
+
 # In case the code that includes this file (directly or indirectly)
 # has also included OS files that happen to define DLT_MATCHING_MAX,
 # with a different value (perhaps because that OS hasn't picked up
 # the latest version of our DLT definitions), we undefine the
 # previous value of DLT_MATCHING_MAX.
 
-DLT_MATCHING_MAX = 279  # highest value in the "matching" range # available from v.1.8.1
+DLT_MATCHING_MAX = 282  # highest value in the "matching" range # available from v.1.8.1
 
 # DLT and savefile link type values are split into a class and
 # a member of that class.  A class value of 0 indicates a regular

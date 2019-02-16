@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2016-2018, Adam Karpierz
+# Copyright (c) 2016-2019, Adam Karpierz
 # Licensed under the BSD license
 # http://opensource.org/licenses/BSD-3-Clause
 
 # Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000
-#   The Regents of the University of California.  All rights reserved.
+#  The Regents of the University of California.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that: (1) source code distributions
@@ -71,7 +71,6 @@ def main(argv):
         else:
             error("{}: pcap.can_set_rfmon failed: {!s}",
                   device, statustostr(status).decode("utf-8", "ignore"))
-        return 1
 
     print("{}: Monitor mode {} be set".format(
           device, "can" if status else "cannot"))

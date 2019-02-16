@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2016-2018, Adam Karpierz
+# Copyright (c) 2016-2019, Adam Karpierz
 # Licensed under the BSD license
 # http://opensource.org/licenses/BSD-3-Clause
 
@@ -91,39 +91,33 @@ def ifprint(d): # pcap_if_t*
         print("\tDescription: {!s}".format(d.description.decode("utf-8")))
 
     flags = []
-    flag  = ""
     if d.flags & pcap.PCAP_IF_UP:
-        if flag: flags.append(flag)
-        flag = "UP"
+        flags.append("UP")
     if d.flags & pcap.PCAP_IF_RUNNING:
-        if flag: flags.append(flag)
-        flag = "RUNNING"
+        flags.append("RUNNING")
     if d.flags & pcap.PCAP_IF_LOOPBACK:
-        if flag: flags.append(flag)
-        flag = "LOOPBACK"
+        flags.append("LOOPBACK")
     if d.flags & pcap.PCAP_IF_WIRELESS:
-        if flag: flags.append(flag)
-        flag = "WIRELESS"
+        flags.append("WIRELESS")
     conn_status = d.flags & pcap.PCAP_IF_CONNECTION_STATUS
     if d.flags & pcap.PCAP_IF_WIRELESS:
         if conn_status == pcap.PCAP_IF_CONNECTION_STATUS_UNKNOWN:
-            flag += " (association status unknown)"
+            flags.append(" (association status unknown)")
         elif conn_status == pcap.PCAP_IF_CONNECTION_STATUS_CONNECTED:
-            flag += " (associated)"
+            flags.append(" (associated)")
         elif conn_status == pcap.PCAP_IF_CONNECTION_STATUS_DISCONNECTED:
-            flag += " (not associated)"
+            flags.append(" (not associated)")
         elif conn_status == pcap.PCAP_IF_CONNECTION_STATUS_NOT_APPLICABLE:
             pass
     else:
         if conn_status == pcap.PCAP_IF_CONNECTION_STATUS_UNKNOWN:
-            flag += " (connection status unknown)"
+            flags.append(" (connection status unknown)")
         elif conn_status == pcap.PCAP_IF_CONNECTION_STATUS_CONNECTED:
-            flag += " (connected)"
+            flags.append(" (connected)")
         elif conn_status == pcap.PCAP_IF_CONNECTION_STATUS_DISCONNECTED:
-            flag += " (disconnected)"
+            flags.append(" (disconnected)")
         elif conn_status == pcap.PCAP_IF_CONNECTION_STATUS_NOT_APPLICABLE:
             pass
-    if flag: flags.append(flag)
     print("\tFlags: {}".format(", ".join(flags)))
 
     a = d.addresses

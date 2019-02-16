@@ -12,11 +12,11 @@ Usage guide:
        make testprogs
 2. Run filtertest to compile BPF expression and produce the CFG as a
    DOT graph, save to output a.txt
-       tests/filtertest -g EN10MB host 192.168.1.1 > a.txt
+       testprogs/filtertest -g EN10MB host 192.168.1.1 > a.txt
 3. Send a.txt to this program's standard input
-       cat a.txt | tests/visopts.py
+       cat a.txt | testprogs/visopts.py
 4. Step 2&3 can be merged:
-       tests/filtertest -g EN10MB host 192.168.1.1 | tests/visopts.py
+       testprogs/filtertest -g EN10MB host 192.168.1.1 | testprogs/visopts.py
 5. The standard output is something like this:
        generated files under directory: /tmp/visopts-W9ekBw
          the directory will be removed when this programs finished.

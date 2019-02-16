@@ -19,6 +19,10 @@ macro(add_test_executable _executable)
     target_link_libraries(${_executable}
       ${ARGN} ${LIBRARY_NAME}_static ${PCAP_LINK_LIBRARIES})
   endif(WIN32)
+  if(NOT "${SANITIZER_FLAGS}" STREQUAL "")
+    set_target_properties(${_executable} PROPERTIES
+        LINK_FLAGS "${SANITIZER_FLAGS}")
+  endif()
   add_dependencies(testprogs ${_executable})
 endmacro()
 
@@ -38,3 +42,5 @@ add_test_executable(threadsignaltest ${CMAKE_THREAD_LIBS_INIT})
 if(NOT WIN32)
   add_test_executable(valgrindtest)
 endif()
+
+add_subdirectory(fuzz)

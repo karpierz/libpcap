@@ -1,4 +1,4 @@
-# Copyright (c) 2016-2018, Adam Karpierz
+# Copyright (c) 2016-2019, Adam Karpierz
 # Licensed under the BSD license
 # http://opensource.org/licenses/BSD-3-Clause
 
@@ -23,7 +23,7 @@ else:
 
     def DLL(*args, **kargs):
         from ctypes import windll, WinDLL
-        windll.kernel32.SetDllDirectoryA(os.path.dirname(DLL_PATH).encode("utf-8"))
+        windll.kernel32.SetDllDirectoryA(os.path.dirname(args[0]).encode("utf-8"))
         try:
             return WinDLL(*args, **kargs)
         finally:

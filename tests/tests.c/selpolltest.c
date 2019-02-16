@@ -52,7 +52,7 @@ The Regents of the University of California.  All rights reserved.\n";
 
 #include "pcap/funcattrs.h"
 
-char *program_name;
+static char *program_name;
 
 /* Forwards */
 static void countme(u_char *, const struct pcap_pkthdr *, const u_char *);
@@ -70,11 +70,12 @@ main(int argc, char **argv)
 	bpf_u_int32 localnet, netmask;
 	register char *cp, *cmdbuf, *device;
 	int doselect, dopoll, dotimeout, dononblock;
-	char *mechanism;
+	const char *mechanism;
 	struct bpf_program fcode;
 	char ebuf[PCAP_ERRBUF_SIZE];
 	pcap_if_t *devlist;
 	int selectable_fd;
+	struct timeval *required_timeout;
 	int status;
 	int packet_count;
 
@@ -152,33 +153,72 @@ main(int argc, char **argv)
 
 	if (pcap_compile(pd, &fcode, cmdbuf, 1, netmask) < 0)
 		error("%s", pcap_geterr(pd));
-
 	if (pcap_setfilter(pd, &fcode) < 0)
 		error("%s", pcap_geterr(pd));
-	if (pcap_get_selectable_fd(pd) == -1)
-		error("pcap_get_selectable_fd() fails");
+
+	if (doselect || dopoll) {
+		/*
+		 * We need either an FD on which to do select()/poll()
+		 * or, if there isn't one, a timeout to use in select()/
+		 * poll().
+		 */
+		selectable_fd = pcap_get_selectable_fd(pd);
+		if (selectable_fd == -1) {
+			printf("Listening on %s, using %s, with a timeout\n",
+			    device, mechanism);
+			required_timeout = pcap_get_required_select_timeout(pd);
+			if (required_timeout == NULL)
+				error("select()/poll() isn't supported on %s, even with a timeout",
+				    device);
+
+			/*
+			 * As we won't be notified by select() or poll()
+			 * that a read can be done, we'll have to periodically
+			 * try reading from the device every time the required
+			 * timeout expires, and we don't want those attempts
+			 * to block if nothing has arrived in that interval,
+			 * so we want to force non-blocking mode.
+			 */
+			dononblock = 1;
+		} else {
+			printf("Listening on %s, using %s\n", device,
+			    mechanism);
+			required_timeout = NULL;
+		}
+	} else
+		printf("Listening on %s, using pcap_dispatch()\n", device);
+
 	if (dononblock) {
 		if (pcap_setnonblock(pd, 1, ebuf) == -1)
 			error("pcap_setnonblock failed: %s", ebuf);
 	}
-	selectable_fd = pcap_get_selectable_fd(pd);
-	printf("Listening on %s\n", device);
 	if (doselect) {
 		for (;;) {
 			fd_set setread, setexcept;
 			struct timeval seltimeout;
 
 			FD_ZERO(&setread);
+			if (selectable_fd != -1) {
 				FD_SET(selectable_fd, &setread);
 				FD_ZERO(&setexcept);
 				FD_SET(selectable_fd, &setexcept);
+			}
 			if (dotimeout) {
 				seltimeout.tv_sec = 0;
-				seltimeout.tv_usec = 1000;
+				if (required_timeout != NULL &&
+				    required_timeout->tv_usec < 1000)
+					seltimeout.tv_usec = required_timeout->tv_usec;
+				else
+					seltimeout.tv_usec = 1000;
+				status = select(selectable_fd + 1, &setread,
+				    NULL, &setexcept, &seltimeout);
+			} else if (required_timeout != NULL) {
+				seltimeout = *required_timeout;
 				status = select(selectable_fd + 1, &setread,
 				    NULL, &setexcept, &seltimeout);
 			} else {
-				status = select(selectable_fd + 1, &setread,
+				status = select((selectable_fd == -1) ?
+				    0 : selectable_fd + 1, &setread,
 				    NULL, &setexcept, NULL);
 			}
 			if (status == -1) {
@@ -207,8 +247,18 @@ main(int argc, char **argv)
 				    (u_char *)&packet_count);
 				if (status < 0)
 					break;
-				printf("%d packets seen, %d packets counted after select returns\n",
-				    status, packet_count);
+				/*
+				 * Don't report this if we're using a
+				 * required timeout and we got no packets,
+				 * because that could be a very short timeout,
+				 * and we don't want to spam the user with
+				 * a ton of "no packets" reports.
+				 */
+				if (status != 0 || packet_count != 0 ||
+				    required_timeout != NULL) {
+					printf("%d packets seen, %d packets counted after select returns\n",
+					    status, packet_count);
+				}
 			}
 		}
 	} else if (dopoll) {
@@ -220,9 +270,12 @@ main(int argc, char **argv)
 			fd.events = POLLIN;
 			if (dotimeout)
 				polltimeout = 1;
+			else if (required_timeout != NULL &&
+			    required_timeout->tv_usec >= 1000)
+				polltimeout = (int)(required_timeout->tv_usec/1000);
 			else
 				polltimeout = -1;
-			status = poll(&fd, 1, polltimeout);
+			status = poll(&fd, (selectable_fd == -1) ? 0 : 1, polltimeout);
 			if (status == -1) {
 				printf("Poll returns error (%s)\n",
 				    strerror(errno));
@@ -258,8 +311,18 @@ main(int argc, char **argv)
 				    (u_char *)&packet_count);
 				if (status < 0)
 					break;
-				printf("%d packets seen, %d packets counted after poll returns\n",
-				    status, packet_count);
+				/*
+				 * Don't report this if we're using a
+				 * required timeout and we got no packets,
+				 * because that could be a very short timeout,
+				 * and we don't want to spam the user with
+				 * a ton of "no packets" reports.
+				 */
+				if (status != 0 || packet_count != 0 ||
+				    required_timeout != NULL) {
+					printf("%d packets seen, %d packets counted after poll returns\n",
+					    status, packet_count);
+				}
 			}
 		}
 	} else {
@@ -294,7 +357,7 @@ main(int argc, char **argv)
 }
 
 static void
-countme(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
+countme(u_char *user, const struct pcap_pkthdr *h _U_, const u_char *sp _U_)
 {
 	int *counterp = (int *)user;
 
@@ -352,7 +415,7 @@ static char *
 copy_argv(register char **argv)
 {
 	register char **p;
-	register u_int len = 0;
+	register size_t len = 0;
 	char *buf;
 	char *src, *dst;
 

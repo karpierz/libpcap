@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2016-2018, Adam Karpierz
+# Copyright (c) 2016-2019, Adam Karpierz
 # Licensed under the BSD license
 # http://opensource.org/licenses/BSD-3-Clause
 
@@ -65,18 +65,18 @@ def main(argv):
     mechanism = None
     dotimeout = False
     dononblock = False
-    for op, optarg in opts:
-        if op == '-i':
+    for opt, optarg in opts:
+        if opt == '-i':
             device = optarg.encode("utf-8")
-        elif op == '-s':
+        elif opt == '-s':
             doselect = True
             mechanism = "select() and pcap_dispatch()"
-        elif op == '-p':
+        elif opt == '-p':
             dopoll = True
             mechanism = "poll() and pcap_dispatch()"
-        elif op == '-t':
+        elif opt == '-t':
             dotimeout = True
-        elif op == '-n':
+        elif opt == '-n':
             dononblock = True
         else:
             usage()
@@ -124,28 +124,46 @@ def main(argv):
 
     if pcap.setfilter(pd, ct.byref(fcode)) < 0:
         error("{!s}", pcap.geterr(pd).decode("utf-8", "ignore"))
-    try:
-        selectable_fd = pcap.get_selectable_fd(pd)
-    except AttributeError:
-        error("pcap.get_selectable_fd is not available on this platform")
-    if selectable_fd == -1:
-        error("pcap.get_selectable_fd() fails")
+
+    if doselect or dopoll:
+        # We need either an FD on which to do select()/poll()
+        # or, if there isn't one, a timeout to use in select()/
+        # poll().
+        try:
+            selectable_fd = pcap.get_selectable_fd(pd)
+        except AttributeError:
+            error("pcap.get_selectable_fd is not available on this platform")
+        if selectable_fd == -1:
+            print("Listening on {!s}, using {}, with a timeout".format(
+                  device.decode("utf-8"), mechanism))
+            try:
+                required_timeout = pcap.get_required_select_timeout(pd)
+            except AttributeError:
+                error("pcap.get_required_select_timeout is not available "
+                      "on this platform")
+            if not required_timeout:
+                error("select()/poll() isn't supported on {!s}, "
+                      "even with a timeout", device.decode("utf-8"))
+            required_timeout = required_timeout[0]
+            # As we won't be notified by select() or poll()
+            # that a read can be done, we'll have to periodically
+            # try reading from the device every time the required
+            # timeout expires, and we don't want those attempts
+            # to block if nothing has arrived in that interval,
+            # so we want to force non-blocking mode.
+            dononblock = True
+        else:
+            print("Listening on {!s}, using {}".format(
+                  device.decode("utf-8"), mechanism))
+            required_timeout = None
+    else:
+        print("Listening on {!s}, using pcap_dispatch()".format(
+              device.decode("utf-8")))
+
     if dononblock:
         if pcap.setnonblock(pd, 1, ebuf) == -1:
             error("pcap.setnonblock failed: {!s}",
                   ebuf.value.decode("utf-8", "ignore"))
-
-
-    if doselect or dopoll:
-
-        # We need either an FD on which to do select()/poll()
-        # or, if there isn't one, a timeout to use in select()/
-        # poll().
-        pass
-
-    selectable_fd = pcap.get_selectable_fd(pd)
-
-    print("Listening on {!s}".format(device.decode("utf-8")))
 
     status = 0
 
@@ -153,7 +171,15 @@ def main(argv):
         while True:
             try:
                 if dotimeout:
-                    seltimeout = 0.001
+                    seltimeout = (0 + (required_timeout.tv_usec
+                                       if required_timeout is not None and
+                                          required_timeout.tv_usec < 1000
+                                       else 1000) / 1000000.0)
+                    rfds, wfds, efds = select.select([selectable_fd], [],
+                                                     [selectable_fd], seltimeout)
+                elif required_timeout is not None:
+                    seltimeout = (required_timeout.tv_sec +
+                                  required_timeout.tv_usec / 1000000.0)
                     rfds, wfds, efds = select.select([selectable_fd], [],
                                                      [selectable_fd], seltimeout)
                 else:
@@ -182,13 +208,26 @@ def main(argv):
                     ct.cast(ct.pointer(packet_count), ct.POINTER(ct.c_ubyte)))
                 if status < 0:
                     break
-                print("{:d} packets seen, {:d} packets counted after "
-                      "select returns".format(status, packet_count.value))
+                # Don't report this if we're using a
+                # required timeout and we got no packets,
+                # because that could be a very short timeout,
+                # and we don't want to spam the user with
+                # a ton of "no packets" reports.
+                if (status != 0 or packet_count.value != 0 or
+                    required_timeout is not None):
+                    print("{:d} packets seen, {:d} packets counted after "
+                          "select returns".format(status, packet_count.value))
     elif dopoll:
         while True:
             poller = select.poll()
             poller.register(selectable_fd, select.POLLIN)
-            polltimeout = 1 if dotimeout else None
+            if dotimeout:
+                polltimeout = 1
+            elif (required_timeout is not None and
+                  required_timeout.tv_usec >= 1000):
+                polltimeout = required_timeout.tv_usec // 1000
+            else:
+                polltimeout = None
             try:
                 events = poller.poll(polltimeout)
             except select.error as exc:
@@ -222,8 +261,15 @@ def main(argv):
                     ct.cast(ct.pointer(packet_count), ct.POINTER(ct.c_ubyte)))
                 if status < 0:
                     break
-                print("{:d} packets seen, {:d} packets counted after "
-                      "poll returns".format(status, packet_count.value))
+                # Don't report this if we're using a
+                # required timeout and we got no packets,
+                # because that could be a very short timeout,
+                # and we don't want to spam the user with
+                # a ton of "no packets" reports.
+                if (status != 0 or packet_count.value != 0 or
+                    required_timeout is not None):
+                    print("{:d} packets seen, {:d} packets counted after "
+                          "poll returns".format(status, packet_count.value))
     else:
         while True:
             packet_count = ct.c_int(0)

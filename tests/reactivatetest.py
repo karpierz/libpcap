@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2016-2018, Adam Karpierz
+# Copyright (c) 2016-2019, Adam Karpierz
 # Licensed under the BSD license
 # http://opensource.org/licenses/BSD-3-Clause
 
@@ -56,7 +56,6 @@ def main(argv):
         if not pd:
             error("Neither lo0 nor lo could be opened: {!s}",
                   ebuf.value.decode("utf-8", "ignore"))
-            return 2
 
     status = pcap.activate(pd)
     if status != pcap.PCAP_ERROR_ACTIVATED:

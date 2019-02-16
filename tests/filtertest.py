@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2016-2018, Adam Karpierz
+# Copyright (c) 2016-2019, Adam Karpierz
 # Licensed under the BSD license
 # http://opensource.org/licenses/BSD-3-Clause
 
 # Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000
-#    The Regents of the University of California.  All rights reserved.
+#  The Regents of the University of California.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that: (1) source code distributions
@@ -33,6 +33,8 @@ import ctypes as ct
 import libpcap as pcap
 from libpcap._platform import is_windows, defined
 
+INT_MAX = sys.maxint if sys.version_info[0] < 3 else int(2147483647)
+
 #ifndef lint
 copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
             "1995, 1996, 1997, 2000\n"\
@@ -40,7 +42,7 @@ copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
             "All rights reserved.\n"
 #endif
 
-MAXIMUM_SNAPLEN = 65535
+MAXIMUM_SNAPLEN = 262144
 
 
 def main(argv):
@@ -58,24 +60,25 @@ def main(argv):
 
     have_fcode = False
     dflag = 1
-    gflag = 0
+    if defined("BDEBUG"):
+        gflag = 0
     infile = None
     netmask = pcap.PCAP_NETMASK_UNKNOWN
     Oflag = 1
-    snaplen = 68
-    for op, optarg in opts:
-        if op == '-d':
+    snaplen = MAXIMUM_SNAPLEN
+    for opt, optarg in opts:
+        if opt == '-d':
             dflag += 1
-        elif op == 'g':
+        elif opt == 'g':
             if defined("BDEBUG"):
                 gflag += 1
             else:
                 error("libpcap and filtertest not built with optimizer debugging enabled")
-        elif op == '-F':
+        elif opt == '-F':
             infile = optarg
-        elif op == '-O':
+        elif opt == '-O':
             Oflag = 0
-        elif op == '-m':  # !!!
+        elif opt == '-m':  # !!!
             # try:
             #     addr = socket.inet_pton(socket.AF_INET, optarg)
             # except socket.error:
@@ -87,15 +90,17 @@ def main(argv):
             #     addr = bpf_u_int32(addr)
             #     netmask = addr
             pass
-        elif op == '-s':
+        elif opt == '-s':
             try:
-                snaplen = int(optarg)
+                long_snaplen = int(optarg)
             except:
                 error("invalid snaplen {}", optarg)
-            if not (0 <= snaplen <= MAXIMUM_SNAPLEN):
+            if not (0 <= long_snaplen <= MAXIMUM_SNAPLEN):
                 error("invalid snaplen {}", optarg)
-            elif snaplen == 0:
+            elif long_snaplen == 0:  # <AK> fix, was: snaplen == 0:
                 snaplen = MAXIMUM_SNAPLEN
+            else:
+                snaplen = long_snaplen
         else:
             usage()
 
@@ -128,7 +133,7 @@ def main(argv):
     have_fcode = True
 
     if not pcap.bpf_validate(fcode.bf_insns, fcode.bf_len):
-        warn("Filter doesn't pass validation")
+        warning("Filter doesn't pass validation")
 
     if defined("BDEBUG"):
         if cmdbuf:
@@ -149,22 +154,6 @@ def main(argv):
     return 0
 
 
-def usage():
-
-    global program_name
-    print("{}, with {!s}".format(program_name,
-          pcap.lib_version().decode("utf-8")), file=sys.stderr)
-    if defined("BDEBUG"):
-        print("Usage: {} [-dgO] [ -F file ] [ -m netmask] [ -s snaplen ] dlt "
-              "[ expression ]".format(program_name), file=sys.stderr)
-    else:
-        print("Usage: {} [-dO] [ -F file ] [ -m netmask] [ -s snaplen ] dlt "
-              "[ expression ]".format(program_name), file=sys.stderr)
-    print("e.g. ./{} EN10MB host 192.168.1.1".format(program_name),
-          file=sys.stderr)
-    sys.exit(1)
-
-
 def read_infile(fname): # bytes
 
     try:
@@ -180,6 +169,15 @@ def read_infile(fname): # bytes
             error("can't stat {!s}: {!s}",
                   fname, pcap.strerror(exc.errno).decode("utf-8", "ignore"))
 
+        # _read(), on Windows, has an unsigned int byte count and an
+        # int return value, so we can't handle a file bigger than
+        # INT_MAX - 1 bytes (and have no reason to do so; a filter *that*
+        # big will take forever to compile).  (The -1 is for the '\0' at
+        # the end of the string.)
+        #
+        if stat.st_size > INT_MAX - 1:
+            error("{!s} is larger than {} bytes; that's too large",
+                  fname, INT_MAX - 1)
         try:
             cp = fd.read()
         except IOError as exc:
@@ -203,6 +201,19 @@ def read_infile(fname): # bytes
     return bytes(cp)
 
 
+def usage():
+
+    global program_name
+    print("{}, with {!s}".format(program_name,
+          pcap.lib_version().decode("utf-8")), file=sys.stderr)
+    print("Usage: {} [-dO] [ -F file ] [ -m netmask] [ -s snaplen ] dlt "
+          "[ expression ]".format(program_name,
+          "g" if defined("BDEBUG") else ""), file=sys.stderr)
+    print("e.g. ./{} EN10MB host 192.168.1.1".format(program_name),
+          file=sys.stderr)
+    sys.exit(1)
+
+
 def error(fmt, *args):
 
     global program_name
@@ -213,7 +224,7 @@ def error(fmt, *args):
     sys.exit(1)
 
 
-def warn(fmt, *args):
+def warning(fmt, *args):
 
     global program_name
     print("{}: WARNING: ".format(program_name), end="", file=sys.stderr)

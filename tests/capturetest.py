@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2016-2018, Adam Karpierz
+# Copyright (c) 2016-2019, Adam Karpierz
 # Licensed under the BSD license
 # http://opensource.org/licenses/BSD-3-Clause
 
@@ -32,19 +32,19 @@ import ctypes as ct
 
 import libpcap as pcap
 
-#ifndef lint
-copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
-            "1995, 1996, 1997, 2000\n"\
-            "The Regents of the University of California.  "\
-            "All rights reserved.\n"
-#endif
+INT_MAX = sys.maxint if sys.version_info[0] < 3 else int(2147483647)
 
 try:
     statustostr = pcap.statustostr
 except AttributeError:
     statustostr = lambda status: str(status).encode("utf-8")
 
-INT_MAX = sys.maxint if sys.version_info[0] < 3 else int(2147483647)
+#ifndef lint
+copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
+            "1995, 1996, 1997, 2000\n"\
+            "The Regents of the University of California.  "\
+            "All rights reserved.\n"
+#endif
 
 
 def main(argv):
@@ -61,14 +61,14 @@ def main(argv):
     immediate = False
     nonblock = 0
     timeout = 1000
-    for op, optarg in opts:
-        if op == '-i':
+    for opt, optarg in opts:
+        if opt == '-i':
             device = optarg.encode("utf-8")
-        elif op == '-m':
+        elif opt == '-m':
             immediate = True
-        elif op == '-n':
+        elif opt == '-n':
             nonblock = 1
-        elif op == '-t':
+        elif opt == '-t':
             try:
                 timeout = int(optarg)
             except:

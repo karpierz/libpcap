@@ -7,7 +7,7 @@ import os
 import ctypes as ct
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
-is_py32bit = sys.maxsize <= 2**32
+is_32bit = (sys.maxsize <= 2**32)
 
 try:
     from ...__config__ import LIBPCAP
@@ -18,7 +18,7 @@ else:
     if os.path.isabs(LIBPCAP):
         DLL_PATH = LIBPCAP
     else:
-        arch = "x86" if is_py32bit else "x64"
+        arch = "x86" if is_32bit else "x64"
         DLL_PATH = os.path.join(this_dir, arch + "_" + LIBPCAP, "wpcap.dll")
 
     def DLL(*args, **kargs):
@@ -32,7 +32,30 @@ else:
 from ctypes  import CFUNCTYPE   as CFUNC
 from _ctypes import FreeLibrary as dlclose
 
-# Taken from the file winsock.h.
+# Taken from the file libpcap's "socket.h"
+
+# Some minor differences between sockets on various platforms.
+# We include whatever sockets are needed for Internet-protocol
+# socket access.
+
+# In Winsock, a socket handle is of type SOCKET.
+SOCKET = ct.c_uint
+
+# In Winsock, the error return if socket() fails is INVALID_SOCKET.
+INVALID_SOCKET = SOCKET(-1).value
+
+# Winsock doesn't have this UN*X type; it's used in the UN*X
+# sockets API.
+#
+# XXX - do we need to worry about UN*Xes so old that *they*
+# don't have it, either?
+socklen_t = ct.c_int
+
+# Winsock doesn't have this POSIX type; it's used for the
+# tv_usec value of struct timeval.
+suseconds_t = ct.c_long
+
+# Taken from the file <winsock.h>
 #
 # struct timeval {
 #     long tv_sec;   /* seconds */
@@ -41,8 +64,8 @@ from _ctypes import FreeLibrary as dlclose
 
 class timeval(ct.Structure):
     _fields_ = [
-    ("tv_sec",  ct.c_long),  # seconds
-    ("tv_usec", ct.c_long),  # microseconds
+    ("tv_sec",  ct.c_long),    # seconds
+    ("tv_usec", suseconds_t),  # microseconds
 ]
 
 class sockaddr(ct.Structure):

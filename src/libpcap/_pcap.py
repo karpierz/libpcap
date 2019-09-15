@@ -73,7 +73,7 @@ intptr_t = (ct.c_int32 if ct.sizeof(ct.c_void_p) == ct.sizeof(ct.c_int32)
 
 from ._platform import is_windows, is_linux, defined
 from ._platform import CFUNC
-from ._platform import timeval, sockaddr
+from ._platform import SOCKET, INVALID_SOCKET, timeval, sockaddr
 from ._dll      import dll
 
 from ._bpf import *
@@ -840,6 +840,13 @@ datalink_val_to_description = CFUNC(ct.c_char_p,
                       ("pcap_datalink_val_to_description", dll), (
                       (1, "dlt"),))
 
+try:  # available from v.1.10.0
+    datalink_val_to_description_or_dlt = CFUNC(ct.c_char_p,
+                          ct.c_int)(
+                          ("pcap_datalink_val_to_description_or_dlt", dll), (
+                          (1, "dlt"),))
+except: pass
+
 snapshot      = CFUNC(ct.c_int,
                       ct.POINTER(pcap_t))(
                       ("pcap_snapshot", dll), (
@@ -894,14 +901,38 @@ try:  # available from v.1.8.1
                       (1, "fname"),))
 except: pass
 
-try:
+if is_windows:
+    try:  # available from v.1.10.0
+        dump_hopen = CFUNC(ct.POINTER(pcap_dumper_t),
+                          ct.POINTER(pcap_t),
+                          intptr_t)(
+                          ("pcap_dump_hopen", dll), (
+                          (1, "pcap"),
+                          (1, "osfd"),))
+
+        # If we're building libpcap, this is an internal routine in sf-pcap.c, so
+        # we must not define it as a macro.
+        #
+        # If we're not building libpcap, given that the version of the C runtime
+        # with which libpcap was built might be different from the version
+        # of the C runtime with which an application using libpcap was built,
+        # and that a FILE structure may differ between the two versions of the
+        # C runtime, calls to _fileno() must use the version of _fileno() in
+        # the C runtime used to open the FILE *, not the version in the C
+        # runtime with which libpcap was built.  (Maybe once the Universal CRT
+        # rules the world, this will cease to be a problem.)
+
+        #@CFUNC(ct.POINTER(pcap_dumper_t), ct.POINTER(pcap_t), ct.POINTER(FILE))
+        def dump_fopen(pcap, fp, libc=ct.cdll.msvcrt):
+            return dump_hopen(pcap, libc._get_osfhandle(libc._fileno(fp)))
+    except: pass
+else:
     dump_fopen = CFUNC(ct.POINTER(pcap_dumper_t),
                       ct.POINTER(pcap_t),
                       ct.POINTER(FILE))(
                       ("pcap_dump_fopen", dll), (
                       (1, "pcap"),
                       (1, "fp"),))
-except: pass
 
 dump_file     = CFUNC(ct.POINTER(FILE),
                       ct.POINTER(pcap_dumper_t))(
@@ -1179,20 +1210,6 @@ else: # UN*X
 # These routines are only present if libpcap has been configured to
 # include remote capture support.
 
-# Some minor differences between UN*X sockets and and Winsock sockets.
-#
-# In Winsock, a socket handle is of type SOCKET; in UN*X, it's
-# a file descriptor, and therefore a signed integer.
-# We define SOCKET, so that it can be used on both platforms.
-if is_windows:
-    SOCKET = ct.c_uint
-else:
-    SOCKET = ct.c_int
-# In Winsock, the error return if socket() fails is INVALID_SOCKET;
-# in UN*X, it's -1.
-# We define INVALID_SOCKET, so that it can be used on both platforms.
-INVALID_SOCKET = SOCKET(-1).value
-
 # The maximum buffer size in which address, port, interface names are kept.
 #
 # In case the adapter name or such is larger than this value, it is truncated.
@@ -1224,6 +1241,9 @@ PCAP_SRC_IFREMOTE = 4  # interface on a remote host, using RPCAP
 # - file://folder/ [lists all the files in the given folder]
 # - rpcap:// [lists all local adapters]
 # - rpcap://host:port/ [lists the devices available on a remote host]
+#
+# In all the above, "rpcaps://" can be substituted for "rpcap://" to enable
+# SSL (if it has been compiled in).
 #
 # Referring to the 'host' and 'port' parameters, they can be either numeric or
 # literal. Since IPv6 is fully supported, these are the allowed formats:
@@ -1562,6 +1582,25 @@ remoteact_accept = CFUNC(SOCKET,
                       (1, "connectinghost"),
                       (1, "auth"),
                       (1, "errbuf"),))
+
+try:  # available from v.1.10.0
+    remoteact_accept_ex = CFUNC(SOCKET,
+                          ct.c_char_p,
+                          ct.c_char_p,
+                          ct.c_char_p,
+                          ct.c_char_p,
+                          ct.POINTER(rmtauth),
+                          ct.c_int,
+                          ct.c_char_p)(
+                          ("pcap_remoteact_accept_ex", dll), (
+                          (1, "address"),
+                          (1, "port"),
+                          (1, "hostlist"),
+                          (1, "connectinghost"),
+                          (1, "auth"),
+                          (1, "uses_ssl"),
+                          (1, "errbuf"),))
+except: pass
 
 remoteact_list = CFUNC(ct.c_int,
                       ct.c_char_p,

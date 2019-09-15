@@ -1,6 +1,6 @@
-# Copyright (c) 2016-2019, Adam Karpierz
-# Licensed under the BSD license
-# http://opensource.org/licenses/BSD-3-Clause
+# Copyright (c) 2016-2019 Adam Karpierz
+# Licensed under the zlib/libpng License
+# http://opensource.org/licenses/zlib/
 
 from __future__ import absolute_import
 

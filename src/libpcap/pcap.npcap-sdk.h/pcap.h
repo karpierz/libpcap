@@ -127,7 +127,6 @@ typedef struct pcap_addr pcap_addr_t;
  * of the flags used in the printout phases of tcpdump.
  * Many fields here are 32 bit ints so compilers won't insert unwanted
  * padding; these files need to be interchangeable across architectures.
- * Documentation: https://www.tcpdump.org/manpages/pcap-savefile.5.txt.
  *
  * Do not change the layout of this structure, in any way (this includes
  * changes that only affect the length of fields in this structure).
@@ -165,8 +164,8 @@ struct pcap_file_header {
 	bpf_u_int32 magic;
 	u_short version_major;
 	u_short version_minor;
-	bpf_int32 thiszone;	/* gmt to local correction; this is always 0 */
-	bpf_u_int32 sigfigs;	/* accuracy of timestamps; this is always 0 */
+	bpf_int32 thiszone;	/* gmt to local correction */
+	bpf_u_int32 sigfigs;	/* accuracy of timestamps */
 	bpf_u_int32 snaplen;	/* max length saved portion of each pkt */
 	bpf_u_int32 linktype;	/* data link type (LINKTYPE_*) */
 };
@@ -471,7 +470,6 @@ PCAP_API void	pcap_free_datalinks(int *);
 PCAP_API int	pcap_datalink_name_to_val(const char *);
 PCAP_API const char *pcap_datalink_val_to_name(int);
 PCAP_API const char *pcap_datalink_val_to_description(int);
-PCAP_API const char *pcap_datalink_val_to_description_or_dlt(int);
 PCAP_API int	pcap_snapshot(pcap_t *);
 PCAP_API int	pcap_is_swapped(pcap_t *);
 PCAP_API int	pcap_major_version(pcap_t *);
@@ -536,6 +534,20 @@ PCAP_API void	pcap_freealldevs(pcap_if_t *);
  * On Windows, the string is constructed at run time.
  */
 PCAP_API const char *pcap_lib_version(void);
+
+/*
+ * On at least some versions of NetBSD and QNX, we don't want to declare
+ * bpf_filter() here, as it's also be declared in <net/bpf.h>, with a
+ * different signature, but, on other BSD-flavored UN*Xes, it's not
+ * declared in <net/bpf.h>, so we *do* want to declare it here, so it's
+ * declared when we build pcap-bpf.c.
+ */
+#if !defined(__NetBSD__) && !defined(__QNX__)
+  PCAP_API u_int	bpf_filter(const struct bpf_insn *, const u_char *, u_int, u_int);
+#endif
+PCAP_API int	bpf_validate(const struct bpf_insn *f, int len);
+PCAP_API char	*bpf_image(const struct bpf_insn *, int);
+PCAP_API void	bpf_dump(const struct bpf_program *, int);
 
 #if defined(_WIN32)
 
@@ -654,9 +666,6 @@ PCAP_API const char *pcap_lib_version(void);
  * - file://folder/ [lists all the files in the given folder]
  * - rpcap:// [lists all local adapters]
  * - rpcap://host:port/ [lists the devices available on a remote host]
- *
- * In all the above, "rpcaps://" can be substituted for "rpcap://" to enable
- * SSL (if it has been compiled in).
  *
  * Referring to the 'host' and 'port' parameters, they can be either numeric or literal. Since
  * IPv6 is fully supported, these are the allowed formats:
@@ -954,9 +963,6 @@ PCAP_API struct pcap_samp *pcap_setsampling(pcap_t *p);
 PCAP_API SOCKET	pcap_remoteact_accept(const char *address, const char *port,
 	    const char *hostlist, char *connectinghost,
 	    struct pcap_rmtauth *auth, char *errbuf);
-PCAP_API SOCKET	pcap_remoteact_accept_ex(const char *address, const char *port,
-	    const char *hostlist, char *connectinghost,
-	    struct pcap_rmtauth *auth, int uses_ssl, char *errbuf);
 PCAP_API int	pcap_remoteact_list(char *hostlist, char sep, int size,
 	    char *errbuf);
 PCAP_API int	pcap_remoteact_close(const char *host, char *errbuf);

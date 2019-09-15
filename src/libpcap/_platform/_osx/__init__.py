@@ -8,7 +8,7 @@ from functools import partial
 import ctypes as ct
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
-is_py32bit = sys.maxsize <= 2**32
+is_32bit = (sys.maxsize <= 2**32)
 
 try:
     from ...__config__ import LIBPCAP
@@ -18,7 +18,7 @@ else:
     if os.path.isabs(LIBPCAP):
         DLL_PATH = LIBPCAP
     else:
-        arch = "x86" if is_py32bit else "x64"
+        arch = "x86" if is_32bit else "x64"
         DLL_PATH = os.path.join(this_dir, arch + "_" + LIBPCAP, "libpcap-1.0.so")
 
 from ctypes  import CDLL      as DLL
@@ -27,7 +27,7 @@ from _ctypes import dlclose
 
 DLL = partial(DLL, mode=ct.RTLD_GLOBAL)
 
-# Taken from the file sys/time.h.
+# Taken from the file <sys/time.h>
 #include <time.h>
 #
 # struct timeval {

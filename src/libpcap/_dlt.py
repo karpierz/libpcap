@@ -692,11 +692,21 @@ DLT_ERF = 197
 
 DLT_RAIF1 = 198
 
-# IPMB packet for IPMI, beginning with the I2C slave address, followed
-# by the netFn and LUN, etc..  Requested by Chanthy Toeung
-# <chanthy.toeung@ca.kontron.com>.
+# IPMB packet for IPMI, beginning with a 2-byte header, followed by
+# the I2C slave address, followed by the netFn and LUN, etc..
+# Requested by Chanthy Toeung <chanthy.toeung@ca.kontron.com>.
+#
+# XXX - this used to be called DLT_IPMB, back when we got the
+# impression from the email thread requesting it that the packet
+# had no extra 2-byte header.  We've renamed it; if anybody used
+# DLT_IPMB and assumed no 2-byte header, this will cause the compile
+# to fail, at which point we'll have to figure out what to do about
+# the two header types using the same DLT_/LINKTYPE_ value.  If that
+# doesn't happen, we'll assume nobody used it and that the redefinition
+# is safe.
 
-DLT_IPMB = 199
+DLT_IPMB         = 199  # only for backward compatibility (can be removed in the future)
+DLT_IPMB_KONTRON = 199
 
 # Juniper-private data link type, as per request from
 # Hannes Gredler <hannes@juniper.net>.
@@ -1278,13 +1288,39 @@ DLT_VPP_DISPATCH = 280
 DLT_DSA_TAG_BRCM         = 281
 DLT_DSA_TAG_BRCM_PREPEND = 282
 
+# IEEE 802.15.4 with pseudo-header and optional meta-data TLVs, PHY payload
+# exactly as it appears in the spec (no padding, no nothing), and FCS if
+# specified by FCS Type TLV;  requested by James Ko <jck@exegin.com>.
+# Specification at https://github.com/jkcko/ieee802.15.4-tap
+
+DLT_IEEE802_15_4_TAP = 283
+
+# Marvell (Ethertype) Distributed Switch Architecture proprietary tagging format.
+
+DLT_DSA_TAG_DSA  = 284
+DLT_DSA_TAG_EDSA = 285
+
+# Payload of lawful intercept packets using the ELEE protocol;
+# http://socket.hr/draft-dfranusic-opsawg-elee-00.xml
+# http://xml2rfc.tools.ietf.org/cgi-bin/xml2rfc.cgi?url=http://socket.hr/draft-dfranusic-opsawg-elee-00.xml&modeAsFormat=html/ascii
+
+DLT_ELEE = 286
+
+# Serial frames transmitted between a host and a Z-Wave chip.
+
+DLT_Z_WAVE_SERIAL = 287
+
+# USB 2.0, 1.1, and 1.0 packets as transmitted over the cable.
+
+DLT_USB_2_0 = 288
+
 # In case the code that includes this file (directly or indirectly)
 # has also included OS files that happen to define DLT_MATCHING_MAX,
 # with a different value (perhaps because that OS hasn't picked up
 # the latest version of our DLT definitions), we undefine the
 # previous value of DLT_MATCHING_MAX.
 
-DLT_MATCHING_MAX = 282  # highest value in the "matching" range # available from v.1.8.1
+DLT_MATCHING_MAX = 288  # highest value in the "matching" range # available from v.1.8.1
 
 # DLT and savefile link type values are split into a class and
 # a member of that class.  A class value of 0 indicates a regular

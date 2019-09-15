@@ -1401,78 +1401,6 @@
 #define DLT_LINUX_SLL2	276
 
 /*
- * Sercos Monitor, per Manuel Jacob <manuel.jacob at steinbeis-stg.de>
- */
-#define DLT_SERCOS_MONITOR 277
-
-/*
- * OpenVizsla http://openvizsla.org is open source USB analyzer hardware.
- * It consists of FPGA with attached USB phy and FTDI chip for streaming
- * the data to the host PC.
- *
- * Current OpenVizsla data encapsulation format is described here:
- * https://github.com/matwey/libopenvizsla/wiki/OpenVizsla-protocol-description
- *
- */
-#define DLT_OPENVIZSLA	        278
-
-/*
- * The Elektrobit High Speed Capture and Replay (EBHSCR) protocol is produced
- * by a PCIe Card for interfacing high speed automotive interfaces.
- *
- * The specification for this frame format can be found at:
- *   http://www.elektrobit.com/ebhscr
- *
- * for Guenter.Ebermann at elektrobit.com
- *
- */
-#define DLT_EBHSCR	        279
-
-/*
- * The http://fd.io vpp graph dispatch tracer produces pcap trace files
- * in the format documented here:
- * https://fdio-vpp.readthedocs.io/en/latest/gettingstarted/developers/vnet.html#graph-dispatcher-pcap-tracing
- */
-#define DLT_VPP_DISPATCH	280
-
-/*
- * Broadcom Ethernet switches (ROBO switch) 4 bytes proprietary tagging format.
- */
-#define DLT_DSA_TAG_BRCM	281
-#define DLT_DSA_TAG_BRCM_PREPEND	282
-
-/*
- * IEEE 802.15.4 with pseudo-header and optional meta-data TLVs, PHY payload
- * exactly as it appears in the spec (no padding, no nothing), and FCS if
- * specified by FCS Type TLV;  requested by James Ko <jck@exegin.com>.
- * Specification at https://github.com/jkcko/ieee802.15.4-tap
- */
-#define DLT_IEEE802_15_4_TAP    283
-
-/*
- * Marvell (Ethertype) Distributed Switch Architecture proprietary tagging format.
- */
-#define DLT_DSA_TAG_DSA		284
-#define DLT_DSA_TAG_EDSA	285
-
-/*
- * Payload of lawful intercept packets using the ELEE protocol;
- * http://socket.hr/draft-dfranusic-opsawg-elee-00.xml
- * http://xml2rfc.tools.ietf.org/cgi-bin/xml2rfc.cgi?url=http://socket.hr/draft-dfranusic-opsawg-elee-00.xml&modeAsFormat=html/ascii
- */
-#define DLT_ELEE		286
-
-/*
- * Serial frames transmitted between a host and a Z-Wave chip.
- */
-#define DLT_Z_WAVE_SERIAL	287
-
-/*
- * USB 2.0, 1.1, and 1.0 packets as transmitted over the cable.
- */
-#define DLT_USB_2_0		288
-
-/*
  * In case the code that includes this file (directly or indirectly)
  * has also included OS files that happen to define DLT_MATCHING_MAX,
  * with a different value (perhaps because that OS hasn't picked up
@@ -1482,7 +1410,7 @@
 #ifdef DLT_MATCHING_MAX
 #undef DLT_MATCHING_MAX
 #endif
-#define DLT_MATCHING_MAX	288	/* highest value in the "matching" range */
+#define DLT_MATCHING_MAX	276	/* highest value in the "matching" range */
 
 /*
  * DLT and savefile link type values are split into a class and

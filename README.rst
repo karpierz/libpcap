@@ -129,12 +129,12 @@ Prerequisites:
 + Python 2.7 or Python 3.4 or later
 
   * http://www.python.org/
-  * 2.7 and 3.6 with LIBPCAP 1.8.1 are primary test environments.
+  * 2.7 and 3.7 with LIBPCAP 1.8.1 are primary test environments.
 
 + pip and setuptools
 
-  * http://pypi.python.org/pypi/pip
-  * http://pypi.python.org/pypi/setuptools
+  * http://pypi.org/project/pip/
+  * http://pypi.org/project/setuptools/
 
 To install run::
 

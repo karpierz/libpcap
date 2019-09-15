@@ -8,7 +8,7 @@ from functools import partial
 import ctypes as ct
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
-is_py32bit = sys.maxsize <= 2**32
+is_32bit = (sys.maxsize <= 2**32)
 
 try:
     from ...__config__ import LIBPCAP
@@ -18,7 +18,7 @@ else:
     if os.path.isabs(LIBPCAP):
         DLL_PATH = LIBPCAP
     else:
-        arch = "x86" if is_py32bit else "x64"
+        arch = "x86" if is_32bit else "x64"
         DLL_PATH = os.path.join(this_dir, arch + "_" + LIBPCAP, "libpcap-1.0.so")
 
 from ctypes  import CDLL      as DLL
@@ -27,7 +27,28 @@ from _ctypes import dlclose
 
 DLL = partial(DLL, mode=ct.RTLD_GLOBAL)
 
-# Taken from the file sys/time.h.
+# X32 kernel interface is 64-bit.
+if False:#if defined __x86_64__ && defined __ILP32__
+    # quad_t is also 64 bits.
+    time_t = suseconds_t = ct.c_longlong
+else:
+    time_t = suseconds_t = ct.c_long
+#endif
+
+# Taken from the file libpcap's "socket.h"
+
+# Some minor differences between sockets on various platforms.
+# We include whatever sockets are needed for Internet-protocol
+# socket access.
+
+# In UN*X, a socket handle is a file descriptor, and therefore
+# a signed integer.
+SOCKET = ct.c_int
+
+# In UN*X, the error return if socket() fails is -1.
+INVALID_SOCKET = SOCKET(-1).value
+
+# Taken from the file <sys/time.h>
 #include <time.h>
 #
 # struct timeval {

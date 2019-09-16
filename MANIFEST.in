@@ -7,11 +7,12 @@ graft docs
 prune docs/_build
 
 graft src
+prune src/libpcap/pcap.h
+prune src/libpcap/pcap.npcap-sdk.h
 
-graft samples
+graft examples
 
 graft tests
+prune tests/tests.c
 
-prune build
-prune dist
 global-exclude *.py[co] __pycache__

@@ -1,11 +1,11 @@
 Changelog
 =========
 
-1.10.0b4 (2019-09-15)
+1.10.0b5 (2019-09-16)
 ---------------------
 - Upgrade to the latest libpcap API 1.10.0
 - Upgrade npcap's libpcap dll-s to the 0.996
-- Minor setup improvements.
+- Minor setup fixes and improvements.
 
 1.10.0b3 (2019-02-15)
 ---------------------

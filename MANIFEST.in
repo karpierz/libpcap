@@ -18,5 +18,6 @@ graft examples
 
 graft tests
 prune tests/tests.c
+exclude tests/_info_.txt tests/_report_.txt
 
 global-exclude *.py[co] __pycache__

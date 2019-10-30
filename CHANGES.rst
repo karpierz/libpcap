@@ -1,6 +1,10 @@
 Changelog
 =========
 
+1.10.0b6 (2019-10-24)
+---------------------
+- Setup update and cleanup.
+
 1.10.0b5 (2019-09-16)
 ---------------------
 - Upgrade to the latest libpcap API 1.10.0

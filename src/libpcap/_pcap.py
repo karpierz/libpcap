@@ -1,6 +1,6 @@
 # Copyright (c) 2016-2019, Adam Karpierz
 # Licensed under the BSD license
-# http://opensource.org/licenses/BSD-3-Clause
+# https://opensource.org/licenses/BSD-3-Clause/
 
 # Copyright (c) 1993, 1994, 1995, 1996, 1997
 #    The Regents of the University of California.  All rights reserved.

@@ -6,14 +6,14 @@ Python binding for the *libpcap* C library.
 Overview
 ========
 
-| Python *libpcap* module is a low-level binding for *libpcap* C library.
+| Python *|package|* module is a low-level binding for *libpcap* C library.
 | It is an effort to allow python programs full access to the API provided
   by the well known *libpcap* Unix C library and by its implementations
   provided under Win32 systems by such packet capture systems as:
-  `WinPcap <http://www.winpcap.org>`__,
+  `WinPcap <https://www.winpcap.org/>`__,
   `Npcap <https://nmap.org/npcap/>`__
 |
-| *libpcap* is a lightweight Python package, based on the *ctypes* library.
+| *|package|* is a lightweight Python package, based on the *ctypes* library.
 | It is fully compliant implementation of the original C *libpcap* from
   1.0.0 up to 1.9.0 API and the *WinPcap*'s 4.1.3 libpcap (1.0.0rel0b) API
   by implementing whole its functionality in a clean Python instead of C.
@@ -117,7 +117,7 @@ Current versions can be found at: https://www.tcpdump.org
 Requirements
 ============
 
-- | It is fully independent package.
+- | It is a fully independent package.
   | All necessary things are installed during the normal installation process.
 - ATTENTION: currently works and tested only for Windows.
 
@@ -126,34 +126,46 @@ Installation
 
 Prerequisites:
 
-+ Python 2.7 or Python 3.4 or later
++ Python 2.7 or Python 3.5 or later
 
-  * http://www.python.org/
+  * https://www.python.org/
   * 2.7 and 3.7 with LIBPCAP 1.8.1 are primary test environments.
 
 + pip and setuptools
 
-  * http://pypi.org/project/pip/
-  * http://pypi.org/project/setuptools/
+  * https://pypi.org/project/pip/
+  * https://pypi.org/project/setuptools/
 
-To install run::
+To install run:
 
-    python -m pip install --upgrade libpcap
+.. parsed-literal::
+
+    python -m pip install --upgrade |package|
 
 Development
 ===========
 
-Visit `development page <https://github.com/karpierz/libpcap>`__
+Visit `development page`_.
 
 Installation from sources:
 
-Clone the `sources <https://github.com/karpierz/libpcap>`__ and run::
+clone the sources:
 
-    python -m pip install ./libpcap
+.. parsed-literal::
 
-or on development mode::
+    git clone |respository| |package|
 
-    python -m pip install --editable ./libpcap
+and run:
+
+.. parsed-literal::
+
+    python -m pip install ./|package|
+
+or on development mode:
+
+.. parsed-literal::
+
+    python -m pip install --editable ./|package|
 
 Prerequisites:
 
@@ -167,10 +179,14 @@ License
   | Copyright (c) 2016-2019, Adam Karpierz
   |
   | Licensed under the BSD license
-  | http://opensource.org/licenses/BSD-3-Clause
-  | Please refer to the LICENSE file.
+  | https://opensource.org/licenses/BSD-3-Clause/
+  | Please refer to the accompanying LICENSE file.
 
 Authors
 =======
 
 * Adam Karpierz <adam@karpierz.net>
+
+.. |package| replace:: libpcap
+.. |respository| replace:: https://github.com/karpierz/|package|.git
+.. _development page: https://github.com/karpierz/|package|/

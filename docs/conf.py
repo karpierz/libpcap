@@ -93,6 +93,11 @@ html_static_path = ['_static']
 
 # -- Extension configuration -------------------------------------------------
 
+# -- Options for autodoc extension -------------------------------------------
+
+autoclass_content = 'both'
+autodoc_member_order = 'bysource'
+
 # -- Options for apidoc extension --------------------------------------------
 
 apidoc_separate_modules = True

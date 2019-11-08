@@ -6,14 +6,14 @@ Python binding for the *libpcap* C library.
 Overview
 ========
 
-| Python *|package|* module is a low-level binding for *libpcap* C library.
+| Python |package_bold| module is a low-level binding for *libpcap* C library.
 | It is an effort to allow python programs full access to the API provided
   by the well known *libpcap* Unix C library and by its implementations
   provided under Win32 systems by such packet capture systems as:
   `WinPcap <https://www.winpcap.org/>`__,
   `Npcap <https://nmap.org/npcap/>`__
 |
-| *|package|* is a lightweight Python package, based on the *ctypes* library.
+| |package_bold| is a lightweight Python package, based on the *ctypes* library.
 | It is fully compliant implementation of the original C *libpcap* from
   1.0.0 up to 1.9.0 API and the *WinPcap*'s 4.1.3 libpcap (1.0.0rel0b) API
   by implementing whole its functionality in a clean Python instead of C.
@@ -171,7 +171,7 @@ Prerequisites:
 
 + Development is strictly based on *tox*. To install it run::
 
-    python -m pip install tox
+    python -m pip install --upgrade tox
 
 License
 =======
@@ -188,5 +188,6 @@ Authors
 * Adam Karpierz <adam@karpierz.net>
 
 .. |package| replace:: libpcap
-.. |respository| replace:: https://github.com/karpierz/|package|.git
-.. _development page: https://github.com/karpierz/|package|/
+.. |package_bold| replace:: **libpcap**
+.. |respository| replace:: https://github.com/karpierz/libpcap.git
+.. _development page: https://github.com/karpierz/libpcap/

@@ -182,13 +182,11 @@ def main(argv):
 
 @pcap.pcap_handler
 def countme(arg, hdr, pkt):
-
     counterp = ct.cast(arg, ct.POINTER(ct.c_int))
     counterp[0] += 1
 
 
 def usage():
-
     global program_name
     print("Usage: {} [ -mn ] [ -i interface ] [ -t timeout] "
           "[expression]".format(program_name), file=sys.stderr)
@@ -196,7 +194,6 @@ def usage():
 
 
 def error(fmt, *args):
-
     global program_name
     print("{}: ".format(program_name), end="", file=sys.stderr)
     print(fmt.format(*args), end="", file=sys.stderr)
@@ -206,7 +203,6 @@ def error(fmt, *args):
 
 
 def warning(fmt, *args):
-
     global program_name
     print("{}: WARNING: ".format(program_name), end="", file=sys.stderr)
     print(fmt.format(*args), end="", file=sys.stderr)

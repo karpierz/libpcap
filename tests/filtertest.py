@@ -202,7 +202,6 @@ def read_infile(fname): # bytes
 
 
 def usage():
-
     global program_name
     print("{}, with {!s}".format(program_name,
           pcap.lib_version().decode("utf-8")), file=sys.stderr)
@@ -215,7 +214,6 @@ def usage():
 
 
 def error(fmt, *args):
-
     global program_name
     print("{}: ".format(program_name), end="", file=sys.stderr)
     print(fmt.format(*args), end="", file=sys.stderr)
@@ -225,7 +223,6 @@ def error(fmt, *args):
 
 
 def warning(fmt, *args):
-
     global program_name
     print("{}: WARNING: ".format(program_name), end="", file=sys.stderr)
     print(fmt.format(*args), end="", file=sys.stderr)

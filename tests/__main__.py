@@ -13,7 +13,6 @@ from . import test_dir
 
 
 def test_suite(names=None, omit=("filtertest", "findalldevstest")):
-
     from . import __name__ as pkg_name
     from . import __path__ as pkg_path
     import unittest
@@ -27,7 +26,6 @@ def test_suite(names=None, omit=("filtertest", "findalldevstest")):
 
 
 def main(argv=sys.argv):
-
     print("Running tests", "\n", file=sys.stderr)
     try:
         tests = test_suite(argv[1:] or None)

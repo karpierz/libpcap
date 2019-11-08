@@ -171,10 +171,8 @@ output = [None] * IPTOSBUFFERS
 which  = 0
 
 def iptos(inp): # pcap.bpf_u_int32 inp
-
     global output
     global which
-
     p = ct.cast(ct.pointer(inp), ct.POINTER(ct.c_ubyte))
     which = 0 if (which + 1) == IPTOSBUFFERS else (which + 1)
     output[which] = "{:d}.{:d}.{:d}.{:d}".format(p[0], p[1], p[2], p[3])

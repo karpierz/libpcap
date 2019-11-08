@@ -74,7 +74,6 @@ def main(argv):
 
 
 def error(fmt, *args):
-
     global program_name
     print("{}: ".format(program_name), end="", file=sys.stderr)
     print(fmt.format(*args), end="", file=sys.stderr)

@@ -47,7 +47,7 @@ copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
 # pcap_t.
 
 
-def main(argv):
+def main(argv=sys.argv):
 
     global program_name
     program_name = os.path.basename(sys.argv[0])
@@ -324,4 +324,4 @@ def warning(fmt, *args):
         print(file=sys.stderr)
 
 
-sys.exit(main(sys.argv) or 0)
+sys.exit(main() or 0)

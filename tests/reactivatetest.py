@@ -42,7 +42,7 @@ except AttributeError:
     statustostr = lambda status: str(status).encode("utf-8")
 
 
-def main(argv):
+def main(argv=sys.argv):
 
     global program_name
     program_name = os.path.basename(argv[0])
@@ -80,4 +80,4 @@ def error(fmt, *args):
     sys.exit(1)
 
 
-sys.exit(main(sys.argv) or 0)
+sys.exit(main() or 0)

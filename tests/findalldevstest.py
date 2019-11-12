@@ -14,7 +14,7 @@ import libpcap as pcap
 from libpcap._platform import sockaddr_in, sockaddr_in6
 
 
-def main(argv):
+def main(argv=sys.argv):
 
     global program_name
     program_name = os.path.basename(argv[0])
@@ -174,4 +174,4 @@ def iptos(inp): # pcap.bpf_u_int32 inp
     return output[which]
 
 
-sys.exit(main(sys.argv) or 0)
+sys.exit(main() or 0)

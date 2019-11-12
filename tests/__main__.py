@@ -1,8 +1,6 @@
-# Copyright (c) 2016-2019 Adam Karpierz
-# Licensed under the zlib/libpng License
+# Copyright (c) 2016-2019, Adam Karpierz
+# Licensed under the BSD license
 # https://opensource.org/licenses/BSD-3-Clause/
-
-from __future__ import absolute_import, print_function
 
 import unittest
 import sys
@@ -27,11 +25,8 @@ def test_suite(names=None, omit=("filtertest", "findalldevstest")):
 
 def main(argv=sys.argv):
     print("Running tests", "\n", file=sys.stderr)
-    try:
-        tests = test_suite(argv[1:] or None)
-        result = unittest.TextTestRunner(verbosity=2).run(tests)
-    finally:
-        pass
+    tests = test_suite(argv[1:] or None)
+    result = unittest.TextTestRunner(verbosity=2).run(tests)
     sys.exit(0 if result.wasSuccessful() else 1)
 
 

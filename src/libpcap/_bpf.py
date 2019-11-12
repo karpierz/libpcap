@@ -48,8 +48,6 @@
 # so moving that stuff to <pcap/pcap.h> would break the build for some
 # programs.
 
-from __future__ import absolute_import
-
 import ctypes as ct
 
 from ._platform import defined

@@ -2,8 +2,6 @@
 # Licensed under the BSD license
 # https://opensource.org/licenses/BSD-3-Clause/
 
-from __future__ import absolute_import
-
 
 def make_config(cfg_name):
 

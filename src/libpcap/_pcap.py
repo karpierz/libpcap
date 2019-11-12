@@ -64,8 +64,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from __future__ import absolute_import
-
 import os
 import ctypes as ct
 intptr_t = (ct.c_int32 if ct.sizeof(ct.c_void_p) == ct.sizeof(ct.c_int32)
@@ -194,9 +192,9 @@ class pkthdr(ct.Structure):
 
 class stat(ct.Structure): pass
 _fields_ = [
-    ("ps_recv",    ct.c_uint),  # number of packets received
-    ("ps_drop",    ct.c_uint),  # number of packets dropped
-    ("ps_ifdrop",  ct.c_uint),  # drops by interface -- only supported on some platforms
+    ("ps_recv",   ct.c_uint),  # number of packets received
+    ("ps_drop",   ct.c_uint),  # number of packets dropped
+    ("ps_ifdrop", ct.c_uint),  # drops by interface -- only supported on some platforms
 ]
 if is_windows:
     _fields_ += [
@@ -1298,7 +1296,7 @@ PCAP_OPENFLAG_PROMISCUOUS = 0x00000001
 
 PCAP_OPENFLAG_DATATX_UDP = 0x00000002
 
-# Specifies wheether the remote probe will capture its own generated
+# Specifies whether the remote probe will capture its own generated
 # traffic.
 #
 # In case the remote probe uses the same interface to capture traffic

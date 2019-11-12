@@ -23,8 +23,6 @@
 # WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 # MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-from __future__ import absolute_import, division, print_function
-
 import sys
 import os
 import getopt
@@ -33,7 +31,7 @@ import ctypes as ct
 import libpcap as pcap
 from libpcap._platform import is_windows, defined
 
-INT_MAX = sys.maxint if sys.version_info[0] < 3 else int(2147483647)
+INT_MAX = int(2147483647)
 
 #ifndef lint
 copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\

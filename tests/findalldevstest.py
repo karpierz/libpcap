@@ -4,14 +4,9 @@
 # Licensed under the BSD license
 # https://opensource.org/licenses/BSD-3-Clause/
 
-from __future__ import absolute_import, division, print_function
-
 import sys
 import os
 import socket
-if sys.version_info.major <= 2:
-    import win_inet_pton
-    input = raw_input
 from getpass import getpass
 import ctypes as ct
 

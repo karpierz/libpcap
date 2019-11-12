@@ -1,8 +1,6 @@
-# Copyright (c) 2016-2019 Adam Karpierz
-# Licensed under the zlib/libpng License
+# Copyright (c) 2016-2019, Adam Karpierz
+# Licensed under the BSD license
 # https://opensource.org/licenses/BSD-3-Clause/
-
-from __future__ import absolute_import
 
 from os import path
 from setuptools import setup

@@ -1,19 +1,24 @@
 Changelog
 =========
 
-1.10.0b6 (2019-10-24)
+1.10.0b6 (2019-11-12)
 ---------------------
+- Drop support for Python 2.
+- Drop support for Python 3.4.
+- Add support for Python 3.8.
+- Upgrade to the latest libpcap API 1.10.0-PRE
+- Establishing npcap's libpcap as default backend.
 - Setup update and cleanup.
 
 1.10.0b5 (2019-09-16)
 ---------------------
-- Upgrade to the latest libpcap API 1.10.0
+- Upgrade to the latest libpcap API 1.10.0-PRE
 - Upgrade npcap's libpcap dll-s to the 0.996
 - Minor setup fixes and improvements.
 
 1.10.0b3 (2019-02-15)
 ---------------------
-- Upgrade to the latest libpcap API 1.10.0
+- Upgrade to the latest libpcap API 1.10.0-PRE
 - Upgrade npcap's libpcap dll-s to the 0.99rc9
 - Update required setuptools version.
 - Minor setup improvements.
@@ -21,7 +26,7 @@ Changelog
 
 1.10.0b1 (2018-11-08)
 ---------------------
-- Upgrade to the latest libpcap API 1.10.0
+- Upgrade to the latest libpcap API 1.10.0-PRE
 - Upgrade npcap's libpcap dll-s to the 0.99rc7
 - Update required setuptools version.
 

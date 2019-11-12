@@ -19,7 +19,7 @@ else:
         DLL_PATH = LIBPCAP
     else:
         arch = "x86" if is_32bit else "x64"
-        DLL_PATH = os.path.join(this_dir, arch + "_" + LIBPCAP, "libpcap-1.0.so")
+        DLL_PATH = os.path.join(this_dir, arch + "_" + LIBPCAP, "libpcap-1.0.dylib")
 
 from ctypes  import CDLL      as DLL
 from ctypes  import CFUNCTYPE as CFUNC

@@ -23,8 +23,6 @@
 # WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 # MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-from __future__ import absolute_import, division, print_function
-
 import sys
 import os
 import getopt
@@ -32,7 +30,7 @@ import ctypes as ct
 
 import libpcap as pcap
 
-INT_MAX = sys.maxint if sys.version_info[0] < 3 else int(2147483647)
+INT_MAX = int(2147483647)
 
 try:
     statustostr = pcap.statustostr

@@ -12,6 +12,7 @@ is_32bit = (sys.maxsize <= 2**32)
 
 try:
     from ...__config__ import LIBPCAP
+    LIBPCAP = "tcpdump"  # !!! temporary !!!
 except ImportError:
     DLL_PATH = "???"
 else:
@@ -19,7 +20,7 @@ else:
         DLL_PATH = LIBPCAP
     else:
         arch = "x86" if is_32bit else "x64"
-        DLL_PATH = os.path.join(this_dir, arch + "_" + LIBPCAP, "libpcap-1.0.so")
+        DLL_PATH = os.path.join(this_dir, arch + "_" + LIBPCAP, "libpcap.so")
 
 from ctypes  import CDLL      as DLL
 from ctypes  import CFUNCTYPE as CFUNC

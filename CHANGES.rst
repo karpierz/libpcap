@@ -8,6 +8,7 @@ Changelog
 - Add support for Python 3.8.
 - Upgrade to the latest libpcap API 1.10.0-PRE
 - Establishing npcap's libpcap as default backend.
+- Adding (as attempt) of tcpdump's libpcap.so (1.8.1, x64).
 - Setup update and cleanup.
 
 1.10.0b5 (2019-09-16)

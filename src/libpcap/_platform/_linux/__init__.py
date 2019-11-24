@@ -97,7 +97,7 @@ class sockaddr_in(ct.Structure):
                      (ct.sizeof(sockaddr) -
                       ct.sizeof(sa_family_t) -
                       ct.sizeof(in_port_t) -
-                      ct.sizeof(in_addr))),
+                      ct.sizeof(in_addr)))),
 ]
 
 # IPv6 AF_INET6 sockets:

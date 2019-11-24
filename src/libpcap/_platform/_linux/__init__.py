@@ -23,6 +23,7 @@ except ImportError:
 if os.path.isabs(LIBPCAP):
     DLL_PATH = LIBPCAP
 else:
+    LIBPCAP = "tcpdump"  # !!! temporary? !!!
     DLL_PATH = os.path.join(arch_dir, LIBPCAP, "libpcap.so")
 
 from ctypes  import CDLL as DLL

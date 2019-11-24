@@ -1490,7 +1490,8 @@ RPCAP_HOSTLIST_SIZE = 1024
 # For opening a remote capture, pcap.open() is currently the only
 # API available.
 #
-open          = CFUNC(ct.POINTER(pcap_t),
+try:  #ifdef ENABLE_REMOTE
+    open      = CFUNC(ct.POINTER(pcap_t),
                       ct.c_char_p,
                       ct.c_int,
                       ct.c_int,
@@ -1504,8 +1505,10 @@ open          = CFUNC(ct.POINTER(pcap_t),
                       (1, "read_timeout"),
                       (1, "auth"),
                       (1, "errbuf"),))
+except: pass
 
-createsrcstr  = CFUNC(ct.c_int,
+try:  #ifdef ENABLE_REMOTE
+    createsrcstr = CFUNC(ct.c_int,
                       ct.c_char_p,
                       ct.c_int,
                       ct.c_char_p,
@@ -1519,8 +1522,10 @@ createsrcstr  = CFUNC(ct.c_int,
                       (1, "port"),
                       (1, "name"),
                       (1, "errbuf"),))
+except: pass
 
-parsesrcstr   = CFUNC(ct.c_int,
+try:  #ifdef ENABLE_REMOTE
+    parsesrcstr = CFUNC(ct.c_int,
                       ct.c_char_p,
                       ct.POINTER(ct.c_int),
                       ct.c_char_p,
@@ -1534,6 +1539,7 @@ parsesrcstr   = CFUNC(ct.c_int,
                       (1, "port"),
                       (1, "name"),
                       (1, "errbuf"),))
+except: pass
 
 # This routine can scan a directory for savefiles, list local capture
 # devices, or list capture devices on a remote machine running an RPCAP
@@ -1553,7 +1559,8 @@ parsesrcstr   = CFUNC(ct.c_int,
 # For listing remote capture devices, pcap.findalldevs_ex() is currently
 # the only API available.
 #
-findalldevs_ex = CFUNC(ct.c_int,
+try:  #ifdef ENABLE_REMOTE
+    findalldevs_ex = CFUNC(ct.c_int,
                       ct.c_char_p,
                       ct.POINTER(rmtauth),
                       ct.POINTER(ct.POINTER(pcap_if_t)),
@@ -1563,15 +1570,19 @@ findalldevs_ex = CFUNC(ct.c_int,
                       (1, "auth"),
                       (1, "alldevs"),
                       (1, "errbuf"),))
+except: pass
 
 # New functions.
 
-setsampling   = CFUNC(ct.POINTER(samp),
+try:  #ifdef ENABLE_REMOTE
+    setsampling = CFUNC(ct.POINTER(samp),
                       ct.POINTER(pcap_t))(
                       ("pcap_setsampling", dll), (
                       (1, "pcap"),))
+except: pass
 
-remoteact_accept = CFUNC(SOCKET,
+try:  #ifdef ENABLE_REMOTE
+    remoteact_accept = CFUNC(SOCKET,
                       ct.c_char_p,
                       ct.c_char_p,
                       ct.c_char_p,
@@ -1585,27 +1596,30 @@ remoteact_accept = CFUNC(SOCKET,
                       (1, "connectinghost"),
                       (1, "auth"),
                       (1, "errbuf"),))
-
-try:  # available from v.1.10.0
-    remoteact_accept_ex = CFUNC(SOCKET,
-                          ct.c_char_p,
-                          ct.c_char_p,
-                          ct.c_char_p,
-                          ct.c_char_p,
-                          ct.POINTER(rmtauth),
-                          ct.c_int,
-                          ct.c_char_p)(
-                          ("pcap_remoteact_accept_ex", dll), (
-                          (1, "address"),
-                          (1, "port"),
-                          (1, "hostlist"),
-                          (1, "connectinghost"),
-                          (1, "auth"),
-                          (1, "uses_ssl"),
-                          (1, "errbuf"),))
 except: pass
 
-remoteact_list = CFUNC(ct.c_int,
+try:  #ifdef ENABLE_REMOTE
+      # available from v.1.10.0
+    remoteact_accept_ex = CFUNC(SOCKET,
+                      ct.c_char_p,
+                      ct.c_char_p,
+                      ct.c_char_p,
+                      ct.c_char_p,
+                      ct.POINTER(rmtauth),
+                      ct.c_int,
+                      ct.c_char_p)(
+                      ("pcap_remoteact_accept_ex", dll), (
+                      (1, "address"),
+                      (1, "port"),
+                      (1, "hostlist"),
+                      (1, "connectinghost"),
+                      (1, "auth"),
+                      (1, "uses_ssl"),
+                      (1, "errbuf"),))
+except: pass
+
+try:  #ifdef ENABLE_REMOTE
+    remoteact_list = CFUNC(ct.c_int,
                       ct.c_char_p,
                       ct.c_char,
                       ct.c_int,
@@ -1615,15 +1629,20 @@ remoteact_list = CFUNC(ct.c_int,
                       (1, "sep"),
                       (1, "size"),
                       (1, "errbuf"),))
+except: pass
 
-remoteact_close = CFUNC(ct.c_int,
+try:  #ifdef ENABLE_REMOTE
+    remoteact_close = CFUNC(ct.c_int,
                       ct.c_char_p,
                       ct.c_char_p)(
                       ("pcap_remoteact_close", dll), (
                       (1, "host"),
                       (1, "errbuf"),))
+except: pass
 
-remoteact_cleanup = CFUNC(None)(
+try:  #ifdef ENABLE_REMOTE
+    remoteact_cleanup = CFUNC(None)(
                       ("pcap_remoteact_cleanup", dll),)
+except: pass
 
 # eof

@@ -24,13 +24,16 @@ def defined(varname, _getframe=sys._getframe):
 del sys, os, platform
 
 if is_windows:
-    from ._windows import DLL_PATH, DLL, CFUNC, dlclose
-    from ._windows import SOCKET, INVALID_SOCKET, timeval, sockaddr, sockaddr_in, sockaddr_in6
+    from ._windows import DLL_PATH, DLL, dlclose, CFUNC
+    from ._windows import timeval, SOCKET, INVALID_SOCKET
+    from ._windows import sockaddr, in_addr, sockaddr_in, in6_addr, sockaddr_in6
 elif is_linux:
-    from ._linux   import DLL_PATH, DLL, CFUNC, dlclose
-    from ._linux   import SOCKET, INVALID_SOCKET, timeval, sockaddr, sockaddr_in, sockaddr_in6
+    from ._linux   import DLL_PATH, DLL, dlclose, CFUNC
+    from ._linux   import timeval, SOCKET, INVALID_SOCKET
+    from ._linux   import sockaddr, in_addr, sockaddr_in, in6_addr, sockaddr_in6
 elif is_osx:
-    from ._osx     import DLL_PATH, DLL, CFUNC, dlclose
-    from ._osx     import SOCKET, INVALID_SOCKET, timeval, sockaddr, sockaddr_in, sockaddr_in6
+    from ._osx     import DLL_PATH, DLL, dlclose, CFUNC
+    from ._osx     import timeval, SOCKET, INVALID_SOCKET
+    from ._osx     import sockaddr, in_addr, sockaddr_in, in6_addr, sockaddr_in6
 else:
     raise ImportError("unsupported platform")

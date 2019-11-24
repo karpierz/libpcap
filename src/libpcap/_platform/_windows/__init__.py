@@ -8,19 +8,15 @@ import ctypes as ct
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 is_32bit = (sys.maxsize <= 2**32)
+arch     = "x86" if is_32bit else "x64"
+arch_dir = os.path.join(this_dir, arch)
 
 try:
     from ...__config__ import LIBPCAP
 except ImportError:
-    DLL_PATH = "C:/Windows/System32/wpcap.dll"
+    LIBPCAP = "C:/Windows/System32/wpcap.dll"
     from ctypes import WinDLL as DLL
 else:
-    if os.path.isabs(LIBPCAP):
-        DLL_PATH = LIBPCAP
-    else:
-        arch = "x86" if is_32bit else "x64"
-        DLL_PATH = os.path.join(this_dir, arch + "_" + LIBPCAP, "wpcap.dll")
-
     def DLL(*args, **kargs):
         from ctypes import windll, WinDLL
         windll.kernel32.SetDllDirectoryA(os.path.dirname(args[0]).encode("utf-8"))
@@ -29,8 +25,30 @@ else:
         finally:
             windll.kernel32.SetDllDirectoryA(None)
 
-from ctypes  import CFUNCTYPE   as CFUNC
+if os.path.isabs(LIBPCAP):
+    DLL_PATH = LIBPCAP
+else:
+    DLL_PATH = os.path.join(arch_dir, LIBPCAP, "wpcap.dll")
+
 from _ctypes import FreeLibrary as dlclose
+from ctypes  import CFUNCTYPE   as CFUNC
+
+# Winsock doesn't have this POSIX type; it's used for the
+# tv_usec value of struct timeval.
+suseconds_t = ct.c_long
+
+# Taken from the file <winsock.h>
+#
+# struct timeval {
+#     long tv_sec;   /* seconds */
+#     long tv_usec;  /* and microseconds */
+# };
+
+class timeval(ct.Structure):
+    _fields_ = [
+    ("tv_sec",  ct.c_long),    # seconds
+    ("tv_usec", suseconds_t),  # microseconds
+]
 
 # Taken from the file libpcap's "socket.h"
 
@@ -51,23 +69,6 @@ INVALID_SOCKET = SOCKET(-1).value
 # don't have it, either?
 socklen_t = ct.c_int
 
-# Winsock doesn't have this POSIX type; it's used for the
-# tv_usec value of struct timeval.
-suseconds_t = ct.c_long
-
-# Taken from the file <winsock.h>
-#
-# struct timeval {
-#     long tv_sec;   /* seconds */
-#     long tv_usec;  /* and microseconds */
-# };
-
-class timeval(ct.Structure):
-    _fields_ = [
-    ("tv_sec",  ct.c_long),    # seconds
-    ("tv_usec", suseconds_t),  # microseconds
-]
-
 class sockaddr(ct.Structure):
     _fields_ = [
     ("sa_family", ct.c_short),
@@ -77,36 +78,23 @@ class sockaddr(ct.Structure):
     ("__pad2",    ct.c_ulong),
 ]
 
+# POSIX.1g specifies this type name for the `sa_family' member.
+sa_family_t = ct.c_short
+
+# Type to represent a port.
+in_port_t = ct.c_ushort
+
 # IPv4 AF_INET sockets:
-
-"""
-typedef struct in_addr {
-  union
-  {
-    struct
-    {
-      u_char s_b1,s_b2,s_b3,s_b4;
-    } S_un_b;
-
-    struct
-    {
-      u_short s_w1,s_w2;
-    } S_un_w;
-
-    u_long S_addr;
-  } S_un;
-};
-"""
 
 class in_addr(ct.Union):
     _fields_ = [
-    ("s_addr", ct.c_uint32),  # ct.c_ulong
+    ("s_addr", ct.c_uint32), # ct.c_ulong
 ]
 
 class sockaddr_in(ct.Structure):
     _fields_ = [
-    ("sin_family", ct.c_short),       # e.g. AF_INET, AF_INET6
-    ("sin_port",   ct.c_ushort),      # e.g. htons(3490)
+    ("sin_family", sa_family_t),      # e.g. AF_INET, AF_INET6
+    ("sin_port",   in_port_t),        # e.g. htons(3490)
     ("sin_addr",   in_addr),          # see struct in_addr, above
     ("sin_zero",   (ct.c_char * 8)),  # padding, zero this if you want to
 ]
@@ -115,14 +103,16 @@ class sockaddr_in(ct.Structure):
 
 class in6_addr(ct.Union):
     _fields_ = [
-    ("s6_addr",   (ct.c_ubyte * 16)),
+    ("s6_addr",   (ct.c_uint8 * 16)),
+    ("s6_addr16", (ct.c_uint16 * 8)),
+    ("s6_addr32", (ct.c_uint32 * 4)),
 ]
 
 class sockaddr_in6(ct.Structure):
     _fields_ = [
-    ('sin6_family',   ct.c_short),   # address family, AF_INET6
-    ('sin6_port',     ct.c_ushort),  # port number, Network Byte Order
-    ('sin6_flowinfo', ct.c_ulong),   # IPv6 flow information
-    ('sin6_addr',     in6_addr),     # IPv6 address
-    ('sin6_scope_id', ct.c_ulong),   # Scope ID
+    ("sin6_family",   sa_family_t),  # address family, AF_INET6
+    ("sin6_port",     in_port_t),    # port number, Network Byte Order
+    ("sin6_flowinfo", ct.c_ulong),   # IPv6 flow information
+    ("sin6_addr",     in6_addr),     # IPv6 address
+    ("sin6_scope_id", ct.c_ulong),   # Scope ID
 ]

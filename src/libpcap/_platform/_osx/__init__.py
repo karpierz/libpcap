@@ -9,23 +9,34 @@ import ctypes as ct
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 is_32bit = (sys.maxsize <= 2**32)
+arch     = "x86" if is_32bit else "x64"
+arch_dir = os.path.join(this_dir, arch)
+
+raise NotImplementedError("This OS is not supported yet!")
 
 try:
     from ...__config__ import LIBPCAP
 except ImportError:
-    DLL_PATH = "???"
-else:
-    if os.path.isabs(LIBPCAP):
-        DLL_PATH = LIBPCAP
-    else:
-        arch = "x86" if is_32bit else "x64"
-        DLL_PATH = os.path.join(this_dir, arch + "_" + LIBPCAP, "libpcap-1.0.dylib")
+    LIBPCAP = "tcpdump"  # !!! temporary? !!!
 
-from ctypes  import CDLL      as DLL
-from ctypes  import CFUNCTYPE as CFUNC
+if os.path.isabs(LIBPCAP):
+    DLL_PATH = LIBPCAP
+else:
+    DLL_PATH = os.path.join(arch_dir, LIBPCAP, "libpcap-1.0.dylib")
+
+from ctypes  import CDLL as DLL
 from _ctypes import dlclose
+from ctypes  import CFUNCTYPE as CFUNC
 
 DLL = partial(DLL, mode=ct.RTLD_GLOBAL)
+
+# X32 kernel interface is 64-bit.
+if False:#if defined __x86_64__ && defined __ILP32__
+    # quad_t is also 64 bits.
+    time_t = suseconds_t = ct.c_longlong
+else:
+    time_t = suseconds_t = ct.c_long
+#endif
 
 # Taken from the file <sys/time.h>
 #include <time.h>
@@ -39,13 +50,4 @@ class timeval(ct.Structure):
     _fields_ = [
     ("tv_sec",  time_t),       # seconds
     ("tv_usec", suseconds_t),  # microseconds
-]
-
-class sockaddr(ct.Structure):
-    _fields_ = [
-    ("sa_family", ct.c_short),
-    ("__pad1",    ct.c_ushort),
-    ("ipv4_addr", ct.c_byte * 4),
-    ("ipv6_addr", ct.c_byte * 16),
-    ("__pad2",    ct.c_ulong),
 ]

@@ -1,11 +1,12 @@
 Changelog
 =========
 
-1.10.0b7 (2019-11-24)
+1.10.0b8 (2019-11-24)
 ---------------------
 - Upgrade to the latest libpcap API 1.10.0-PRE
 - Upgrade for Linux: tcpdump's libpcap.so v.1.8.1 x64.
-- Setup cleanup.
+- Fix for missing data structures for Linux patform.
+- Cleanup.
 
 1.10.0b6 (2019-11-14)
 ---------------------

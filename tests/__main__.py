@@ -4,20 +4,21 @@
 
 import unittest
 import sys
-import os
 import logging
 
 from . import test_dir
 
+log = logging.getLogger(__name__)
 
-def test_suite(names=None, omit=("filtertest", "findalldevstest")):
+
+def test_suite(names=None, omit=()):
     from . import __name__ as pkg_name
     from . import __path__ as pkg_path
     import unittest
     import pkgutil
     if names is None:
         names = [name for _, name, _ in pkgutil.iter_modules(pkg_path)
-                 if name != "__main__" and name not in omit]
+                 if name.startswith("test_") and name not in omit]
     names = [".".join((pkg_name, name)) for name in names]
     tests = unittest.defaultTestLoader.loadTestsFromNames(names)
     return tests

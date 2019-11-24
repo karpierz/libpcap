@@ -4,11 +4,9 @@
 
 
 def make_config(cfg_name):
-
     import sys
     import os.path
     from runpy import run_path
-
     fglobals = sys._getframe(1).f_globals
     fglobals.pop("make_config", None)
     cfg_path = os.path.join(os.path.dirname(fglobals["__file__"]), cfg_name)

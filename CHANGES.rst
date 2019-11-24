@@ -1,6 +1,12 @@
 Changelog
 =========
 
+1.10.0b7 (2019-11-24)
+---------------------
+- Upgrade to the latest libpcap API 1.10.0-PRE
+- Upgrade for Linux: tcpdump's libpcap.so v.1.8.1 x64.
+- Setup cleanup.
+
 1.10.0b6 (2019-11-14)
 ---------------------
 - Drop support for Python 2.
@@ -8,7 +14,7 @@ Changelog
 - Add support for Python 3.8.
 - Upgrade to the latest libpcap API 1.10.0-PRE
 - Establishing npcap's libpcap as default backend.
-- Adding (as attempt) of tcpdump's libpcap.so (1.8.1, x64).
+- Initial support for Linux (tcpdump's libpcap.so v.1.8.1 x64).
 - Setup update and cleanup.
 
 1.10.0b5 (2019-09-16)
@@ -78,10 +84,6 @@ Changelog
 1.0.0b3 (2017-08-28)
 --------------------
 - Third beta release.
-
-1.0.0b2 (2017-08-28)
---------------------
-- Second beta release.
 
 1.0.0b1 (2017-08-27)
 --------------------

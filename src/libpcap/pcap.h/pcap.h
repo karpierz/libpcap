@@ -360,8 +360,7 @@ PCAP_API int	pcap_set_protocol_linux(pcap_t *, int);
  *
  * A system that supports PCAP_TSTAMP_HOST is offering time stamps
  * provided by the host machine, rather than by the capture device,
- * but not committing to any characteristics of the time stamp;
- * it will not offer any of the PCAP_TSTAMP_HOST_ subtypes.
+ * but not committing to any characteristics of the time stamp.
  *
  * PCAP_TSTAMP_HOST_LOWPREC is a time stamp, provided by the host machine,
  * that's low-precision but relatively cheap to fetch; it's normally done
@@ -369,10 +368,15 @@ PCAP_API int	pcap_set_protocol_linux(pcap_t *, int);
  * fetch from system calls.
  *
  * PCAP_TSTAMP_HOST_HIPREC is a time stamp, provided by the host machine,
- * that's high-precision; it might be more expensive to fetch.  It might
- * or might not be synchronized with the system clock, and might have
+ * that's high-precision; it might be more expensive to fetch.  It is
+ * synchronized with the system clock.
+ *
+ * PCAP_TSTAMP_HOST_HIPREC_UNSYNCED is a time stamp, provided by the host
+ * machine, that's high-precision; it might be more expensive to fetch.
+ * It is not synchronized with the system clock, and might have
  * problems with time stamps for packets received on different CPUs,
- * depending on the platform.
+ * depending on the platform.  It might be more likely to be strictly
+ * monotonic than PCAP_TSTAMP_HOST_HIPREC.
  *
  * PCAP_TSTAMP_ADAPTER is a high-precision time stamp supplied by the
  * capture device; it's synchronized with the system clock.
@@ -392,11 +396,12 @@ PCAP_API int	pcap_set_protocol_linux(pcap_t *, int);
  * the packet is received by the network adapter, due to batching
  * of interrupts for packet arrival, queueing delays, etc..
  */
-#define PCAP_TSTAMP_HOST		0	/* host-provided, unknown characteristics */
-#define PCAP_TSTAMP_HOST_LOWPREC	1	/* host-provided, low precision */
-#define PCAP_TSTAMP_HOST_HIPREC		2	/* host-provided, high precision */
-#define PCAP_TSTAMP_ADAPTER		3	/* device-provided, synced with the system clock */
-#define PCAP_TSTAMP_ADAPTER_UNSYNCED	4	/* device-provided, not synced with the system clock */
+#define PCAP_TSTAMP_HOST			0	/* host-provided, unknown characteristics */
+#define PCAP_TSTAMP_HOST_LOWPREC		1	/* host-provided, low precision, synced with the system clock */
+#define PCAP_TSTAMP_HOST_HIPREC			2	/* host-provided, high precision, synced with the system clock */
+#define PCAP_TSTAMP_ADAPTER			3	/* device-provided, synced with the system clock */
+#define PCAP_TSTAMP_ADAPTER_UNSYNCED		4	/* device-provided, not synced with the system clock */
+#define PCAP_TSTAMP_HOST_HIPREC_UNSYNCED	5	/* host-provided, high precision, not synced with the system clock */
 
 /*
  * Time stamp resolution types.
@@ -525,7 +530,7 @@ PCAP_API void	pcap_freealldevs(pcap_if_t *);
  * version string directly.
  *
  * On at least some UNIXes, if you import data from a shared library into
- * an program, the data is bound into the program binary, so if the string
+ * a program, the data is bound into the program binary, so if the string
  * in the version of the library with which the program was linked isn't
  * the same as the string in the version of the library with which the
  * program is being run, various undesirable things may happen (warnings,
@@ -787,7 +792,7 @@ PCAP_API const char *pcap_lib_version(void);
 #define RPCAP_RMTAUTH_PWD 1
 
 /*
- * This structure keeps the information needed to autheticate the user
+ * This structure keeps the information needed to authenticate the user
  * on a remote machine.
  *
  * The remote machine can either grant or refuse the access according

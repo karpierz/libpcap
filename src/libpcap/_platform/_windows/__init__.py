@@ -5,25 +5,43 @@
 import sys
 import os
 import ctypes as ct
+from ctypes.util import find_library
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 is_32bit = (sys.maxsize <= 2**32)
 arch     = "x86" if is_32bit else "x64"
 arch_dir = os.path.join(this_dir, arch)
 
+def _DLL(*args, **kargs):
+    from ctypes import windll, WinDLL
+    windll.kernel32.SetDllDirectoryA(os.path.dirname(args[0]).encode("utf-8"))
+    try:
+        return WinDLL(*args, **kargs)
+    finally:
+        windll.kernel32.SetDllDirectoryA(None)
+
 try:
     from ...__config__ import LIBPCAP
 except ImportError:
-    LIBPCAP = "C:/Windows/System32/wpcap.dll"
-    from ctypes import WinDLL as DLL
+    if find_library(os.path.join("npcap", "wpcap")):
+        LIBPCAP = "npcap"
+    else:
+        LIBPCAP = find_library("wpcap")
+        if not LIBPCAP:
+            raise OSError("Cannot find wpcap.dll library")
+        from ctypes import WinDLL as DLL
 else:
-    def DLL(*args, **kargs):
-        from ctypes import windll, WinDLL
-        windll.kernel32.SetDllDirectoryA(os.path.dirname(args[0]).encode("utf-8"))
-        try:
-            return WinDLL(*args, **kargs)
-        finally:
-            windll.kernel32.SetDllDirectoryA(None)
+    DLL = _DLL
+
+if LIBPCAP == "npcap":
+    LIBPCAP = find_library(os.path.join("npcap", "wpcap"))
+    if not LIBPCAP:
+        raise OSError("Cannot find npcap/wpcap.dll library")
+    npcap_dir = os.path.dirname(LIBPCAP)
+    ct.windll.kernel32.SetDllDirectoryA(npcap_dir.encode("utf-8"))
+    ct.cdll.LoadLibrary(os.path.join(npcap_dir, "Packet.dll"))
+    del npcap_dir
+    DLL = _DLL
 
 if os.path.isabs(LIBPCAP):
     DLL_PATH = LIBPCAP

@@ -6,6 +6,7 @@ import sys
 import os
 from functools import partial
 import ctypes as ct
+from ctypes.util import find_library
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 is_32bit = (sys.maxsize <= 2**32)

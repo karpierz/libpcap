@@ -1,22 +1,17 @@
 Changelog
 =========
 
-1.10.0b8 (2019-11-24)
----------------------
-- Upgrade to the latest libpcap API 1.10.0-PRE
-- | Upgrade for Linux:
-  | tcpdump's libpcap.so v.1.9.1 x64 (with remote capture support).
-- Fix for missing data structures for Linux patform.
-- Cleanup.
-
-1.10.0b6 (2019-11-14)
+1.10.0b9 (2019-11-27)
 ---------------------
 - Drop support for Python 2.
 - Drop support for Python 3.4.
 - Add support for Python 3.8.
 - Upgrade to the latest libpcap API 1.10.0-PRE
-- Establishing npcap's libpcap as default backend.
-- Initial support for Linux (tcpdump's libpcap.so v.1.8.1 x64).
+- Establishing npcap as default backend.
+- Internal npcap's dll-s have been removed due to ev. license problems.
+- | Add support for Linux x64:
+  | add internal tcpdump's libpcap.so v.1.9.1 with remote capture support.
+  | system's tcpdump's libpcap.so can also be used (via libpcap.libpcap.cfg).
 - Setup update and cleanup.
 
 1.10.0b5 (2019-09-16)

@@ -6,6 +6,7 @@ import sys
 import os
 from functools import partial
 import ctypes as ct
+from ctypes.util import find_library
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 is_32bit = (sys.maxsize <= 2**32)
@@ -18,12 +19,14 @@ if is_32bit:
 try:
     from ...__config__ import LIBPCAP
 except ImportError:
-    LIBPCAP = "tcpdump"  # !!! temporary? !!!
+    LIBPCAP = find_library("pcap")
+    if not LIBPCAP:
+        raise OSError("Cannot find libpcap.so library")
 
 if os.path.isabs(LIBPCAP):
     DLL_PATH = LIBPCAP
 else:
-    LIBPCAP = "tcpdump"  # !!! temporary? !!!
+    LIBPCAP = "tcpdump"  # only internal tcpdump is available
     DLL_PATH = os.path.join(arch_dir, LIBPCAP, "libpcap.so")
 
 from ctypes  import CDLL as DLL

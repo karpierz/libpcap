@@ -3,9 +3,9 @@ Changelog
 
 1.10.0b9 (2019-11-27)
 ---------------------
-- Drop support for Python 2.
-- Drop support for Python 3.4.
 - Add support for Python 3.8.
+- Drop support for Python 3.4.
+- Drop support for Python 2.
 - Upgrade to the latest libpcap API 1.10.0-PRE
 - Establishing npcap as default backend.
 - Internal npcap's dll-s have been removed due to ev. license problems.

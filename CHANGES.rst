@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.10.0b10 (2020-01-16)
+----------------------
+- Added ReadTheDocs config file.
+- Setup update.
+
 1.10.0b9 (2019-11-27)
 ---------------------
 - Add support for Python 3.8.

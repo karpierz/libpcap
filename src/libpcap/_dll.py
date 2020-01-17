@@ -1,6 +1,6 @@
-# Copyright (c) 2016-2019, Adam Karpierz
+# Copyright (c) 2016-2020, Adam Karpierz
 # Licensed under the BSD license
-# https://opensource.org/licenses/BSD-3-Clause/
+# https://opensource.org/licenses/BSD-3-Clause
 
 from ._platform import DLL_PATH, DLL, dlclose
 

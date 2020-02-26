@@ -417,7 +417,7 @@ DLT_SCCP           = 142  # SCCP, without pseudo-header or MTP2 or MTP3
 
 DLT_DOCSIS = 143
 
-# Linux-IrDA packets. Protocol defined at http://www.irda.org.
+# Linux-IrDA packets. Protocol defined at https://www.irda.org.
 # Those packets include IrLAP headers and above (IrLMP...), but
 # don't include Phy framing (SOF/EOF/CRC & byte stuffing), because Phy
 # framing can be handled by the hardware and depend on the bitrate.
@@ -548,7 +548,7 @@ DLT_JUNIPER_PIC_PEER = 174
 
 # Link types requested by Gregor Maier <gregor@endace.com> of Endace
 # Measurement Systems.  They add an ERF header (see
-# http://www.endace.com/support/EndaceRecordFormat.pdf) in front of
+# https://www.endace.com/support/EndaceRecordFormat.pdf) in front of
 # the link-layer header.
 
 DLT_ERF_ETH = 175  # Ethernet
@@ -674,7 +674,7 @@ DLT_IEEE802_15_4_WITHFCS = 195
 DLT_IEEE802_15_4         = DLT_IEEE802_15_4_WITHFCS
 
 # Various link-layer types, with a pseudo-header, for SITA
-# (http://www.sita.aero/); requested by Fulko Hew (fulko.hew@gmail.com).
+# (https://www.sita.aero/); requested by Fulko Hew (fulko.hew@gmail.com).
 
 DLT_SITA = 196
 
@@ -771,7 +771,7 @@ DLT_IPMB_LINUX = 209
 DLT_FLEXRAY = 210
 
 # Media Oriented Systems Transport (MOST) bus for multimedia
-# transport - http://www.mostcooperation.com/ - as requested
+# transport - https://www.mostcooperation.com/ - as requested
 # by Hannes Kaelber <hannes.kaelber@x2e.de>.
 
 DLT_MOST = 211
@@ -940,16 +940,16 @@ DLT_IEEE802_15_4_NOFCS = 230
 
 # Raw D-Bus:
 #
-#    http://www.freedesktop.org/wiki/Software/dbus
+#    https://www.freedesktop.org/wiki/Software/dbus
 #
 # messages:
 #
-#    http://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-messages
+#    https://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-messages
 #
 # starting with the endianness flag, followed by the message type, etc.,
 # but without the authentication handshake before the message sequence:
 #
-#    http://dbus.freedesktop.org/doc/dbus-specification.html#auth-protocol
+#    https://dbus.freedesktop.org/doc/dbus-specification.html#auth-protocol
 #
 # Requested by Martin Vidner <martin@vidner.net>.
 
@@ -965,7 +965,7 @@ DLT_JUNIPER_FIBRECHANNEL = 234
 # DVB-CI (DVB Common Interface for communication between a PC Card
 # module and a DVB receiver).  See
 #
-#    http://www.kaiser.cx/pcap-dvbci.html
+#    https://www.kaiser.cx/pcap-dvbci.html
 #
 # for the specification.
 #
@@ -1221,9 +1221,9 @@ DLT_TI_LLN_SNIFFER = 269
 DLT_LORATAP = 270
 
 # per: Stefanha at gmail.com for
-#   http://lists.sandelman.ca/pipermail/tcpdump-workers/2017-May/000772.html
+#   https://lists.sandelman.ca/pipermail/tcpdump-workers/2017-May/000772.html
 # and: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/uapi/linux/vsockmon.h
-# for: http://qemu-project.org/Features/VirtioVsock
+# for: https://qemu-project.org/Features/VirtioVsock
 
 DLT_VSOCK = 271
 
@@ -1233,7 +1233,7 @@ DLT_NORDIC_BLE = 272
 
 # Excentis DOCSIS 3.1 RF sniffer (XRA-31)
 #   per: bruno.verstuyft at excentis.com
-#        http://www.xra31.com/xra-header
+#        https://www.xra31.com/xra-header
 
 DLT_DOCSIS31_XRA31 = 273
 
@@ -1269,13 +1269,13 @@ DLT_OPENVIZSLA = 278
 # by a PCIe Card for interfacing high speed automotive interfaces.
 #
 # The specification for this frame format can be found at:
-#   http://www.elektrobit.com/ebhscr
+#   https://www.elektrobit.com/ebhscr
 #
 # for Guenter.Ebermann at elektrobit.com
 
 DLT_EBHSCR = 279
 
-# The http://fd.io vpp graph dispatch tracer produces pcap trace files
+# The https://fd.io vpp graph dispatch tracer produces pcap trace files
 # in the format documented here:
 # https://fdio-vpp.readthedocs.io/en/latest/gettingstarted/developers/vnet.html#graph-dispatcher-pcap-tracing
 
@@ -1299,8 +1299,8 @@ DLT_DSA_TAG_DSA  = 284
 DLT_DSA_TAG_EDSA = 285
 
 # Payload of lawful intercept packets using the ELEE protocol;
-# http://socket.hr/draft-dfranusic-opsawg-elee-00.xml
-# http://xml2rfc.tools.ietf.org/cgi-bin/xml2rfc.cgi?url=http://socket.hr/draft-dfranusic-opsawg-elee-00.xml&modeAsFormat=html/ascii
+# https://socket.hr/draft-dfranusic-opsawg-elee-00.xml
+# https://xml2rfc.tools.ietf.org/cgi-bin/xml2rfc.cgi?url=https://socket.hr/draft-dfranusic-opsawg-elee-00.xml&modeAsFormat=html/ascii
 
 DLT_ELEE = 286
 

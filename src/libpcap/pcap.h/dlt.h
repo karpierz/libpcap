@@ -136,7 +136,7 @@
 #define DLT_PFSYNC	18
 #endif
 
-#define DLT_ATM_CLIP	19	/* Linux Classical-IP over ATM */
+#define DLT_ATM_CLIP	19	/* Linux Classical IP over ATM */
 
 /*
  * Apparently Redback uses this for its SmartEdge 400/800.  I hope
@@ -817,8 +817,11 @@
  * PPP, with a one-byte direction pseudo-header prepended - zero means
  * "received by this host", non-zero (any non-zero value) means "sent by
  * this host" - as per Will Barker <w.barker@zen.co.uk>.
+ *
+ * Don't confuse this with DLT_PPP_WITH_DIRECTION, which is an old
+ * name for what is now called DLT_PPP_PPPD.
  */
-#define DLT_PPP_WITH_DIR	204	/* Don't confuse with DLT_PPP_WITH_DIRECTION */
+#define DLT_PPP_WITH_DIR	204
 
 /*
  * Cisco HDLC, with a one-byte direction pseudo-header prepended - zero
@@ -1473,6 +1476,11 @@
 #define DLT_USB_2_0		288
 
 /*
+ * ATSC Link-Layer Protocol (A/330) packets.
+ */
+#define DLT_ATSC_ALP		289
+
+/*
  * In case the code that includes this file (directly or indirectly)
  * has also included OS files that happen to define DLT_MATCHING_MAX,
  * with a different value (perhaps because that OS hasn't picked up
@@ -1482,7 +1490,7 @@
 #ifdef DLT_MATCHING_MAX
 #undef DLT_MATCHING_MAX
 #endif
-#define DLT_MATCHING_MAX	288	/* highest value in the "matching" range */
+#define DLT_MATCHING_MAX	289	/* highest value in the "matching" range */
 
 /*
  * DLT and savefile link type values are split into a class and

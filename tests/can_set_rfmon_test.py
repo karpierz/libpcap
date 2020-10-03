@@ -85,4 +85,4 @@ def error(fmt, *args):
     sys.exit(1)
 
 
-sys.exit(main() or 0)
+sys.exit(main())

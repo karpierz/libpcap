@@ -198,7 +198,7 @@ typedef struct pcap_addr pcap_addr_t;
  *
  * Then supply the changes by forking the branch at
  *
- *	https://github.com/the-tcpdump-group/libpcap/issues
+ *	https://github.com/the-tcpdump-group/libpcap/tree/master
  *
  * and issuing a pull request, so that future versions of libpcap and
  * programs that use it (such as tcpdump) will be able to read your new
@@ -245,7 +245,7 @@ typedef enum {
 struct pcap_pkthdr {
 	struct timeval ts;	/* time stamp */
 	bpf_u_int32 caplen;	/* length of portion present */
-	bpf_u_int32 len;	/* length this packet (off wire) */
+	bpf_u_int32 len;	/* length of this packet (off wire) */
 };
 
 /*
@@ -363,6 +363,26 @@ typedef void (*pcap_handler)(u_char *, const struct pcap_pkthdr *,
  * the netmask is.
  */
 #define PCAP_NETMASK_UNKNOWN	0xffffffff
+
+/*
+ * Initialize pcap.  If this isn't called, pcap is initialized to
+ * a mode source-compatible and binary-compatible with older versions
+ * that lack this routine.
+ */
+
+/*
+ * Initialization options.
+ * All bits not listed here are reserved for expansion.
+ *
+ * On UNIX-like systems, the local character encoding is assumed to be
+ * UTF-8, so no character encoding transformations are done.
+ *
+ * On Windows, the local character encoding is the local ANSI code page.
+ */
+#define PCAP_CHAR_ENC_LOCAL	0x00000000U	/* strings are in the local character encoding */
+#define PCAP_CHAR_ENC_UTF_8	0x00000001U	/* strings are in UTF-8 */
+
+PCAP_API int	pcap_init(unsigned int, char *);
 
 /*
  * We're deprecating pcap_lookupdev() for various reasons (not
@@ -528,7 +548,19 @@ PCAP_API int	pcap_bufsize(pcap_t *);
 
 /* XXX */
 PCAP_API FILE	*pcap_file(pcap_t *);
+#ifdef _WIN32
+/*
+ * This probably shouldn't have been kept in WinPcap; most if not all
+ * UN*X code that used it won't work on Windows.  We deprecate it; if
+ * anybody really needs access to whatever HANDLE may be associated
+ * with a pcap_t (there's no guarantee that there is one), we can add
+ * a Windows-only pcap_handle() API that returns the HANDLE.
+ */
+PCAP_API int	pcap_fileno(pcap_t *)
+PCAP_DEPRECATED(pcap_fileno, "use 'pcap_handle'");
+#else /* _WIN32 */
 PCAP_API int	pcap_fileno(pcap_t *);
+#endif /* _WIN32 */
 
 #ifdef _WIN32
   PCAP_API int	pcap_wsockinit(void);

@@ -64,14 +64,12 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import os
 import ctypes as ct
-intptr_t = (ct.c_int32 if ct.sizeof(ct.c_void_p) == ct.sizeof(ct.c_int32)
-            else ct.c_int64)
+intptr_t = (ct.c_int32 if ct.sizeof(ct.c_void_p) == ct.sizeof(ct.c_int32) else ct.c_int64)
 
 from ._platform import is_windows, is_linux, defined
 from ._platform import CFUNC
-from ._platform import SOCKET, INVALID_SOCKET, timeval, sockaddr
+from ._platform import timeval, SOCKET, INVALID_SOCKET, sockaddr
 from ._dll      import dll
 
 from ._bpf import *
@@ -134,7 +132,7 @@ pcap_dumper_t = pcap_dumper
 #
 # Then supply the changes by forking the branch at
 #
-#    https://github.com/the-tcpdump-group/libpcap/issues
+#    https://github.com/the-tcpdump-group/libpcap/tree/master
 #
 # and issuing a pull request, so that future versions of libpcap and
 # programs that use it (such as tcpdump) will be able to read your new
@@ -183,7 +181,7 @@ class pkthdr(ct.Structure):
     _fields_ = [
     ("ts",     timeval),      # time stamp
     ("caplen", bpf_u_int32),  # length of portion present
-    ("len",    bpf_u_int32),  # length this packet (off wire)
+    ("len",    bpf_u_int32),  # length of this packet (off wire)
 ]
 
 #
@@ -311,6 +309,30 @@ PCAP_WARNING_TSTAMP_TYPE_NOTSUP = 3  # the requested time stamp type is not supp
 
 PCAP_NETMASK_UNKNOWN = 0xFFFFFFFF  # available from v.1.8.1
 
+# Initialize pcap.  If this isn't called, pcap is initialized to
+# a mode source-compatible and binary-compatible with older versions
+# that lack this routine.
+
+# Initialization options.
+# All bits not listed here are reserved for expansion.
+#
+# On UNIX-like systems, the local character encoding is assumed to be
+# UTF-8, so no character encoding transformations are done.
+#
+# On Windows, the local character encoding is the local ANSI code page.
+
+PCAP_CHAR_ENC_LOCAL = 0x00000000  # strings are in the local character encoding
+PCAP_CHAR_ENC_UTF_8 = 0x00000001  # strings are in UTF-8
+
+try:  # available from v.1.10.0
+    init = CFUNC(ct.c_int,
+                 ct.c_uint,
+                 ct.c_char_p)(
+                 ("pcap_init", dll), (
+                 (1, "pcap"),
+                 (1, "rfmon"),))
+except: pass
+
 # Time stamp types.
 # available from v.1.8.1
 # Not all systems and interfaces will necessarily support all of these.
@@ -376,7 +398,7 @@ PCAP_TSTAMP_PRECISION_NANO  = 1  # use timestamps with nanosecond precision
 # reasons (not thread-safe, can behave weirdly with WinPcap).
 # Callers should use  pcap.findalldevs() and use the first device.
 #
-#PCAP_DEPRECATED(pcap_lookupdev, "use 'pcap.findalldevs' and use the first device")
+# PCAP_DEPRECATED(pcap_lookupdev, "use 'pcap.findalldevs' and use the first device")
 #
 lookupdev     = CFUNC(ct.c_char_p,
                       ct.c_char_p)(
@@ -887,6 +909,15 @@ fileno        = CFUNC(ct.c_int,
                       ct.POINTER(pcap_t))(
                       ("pcap_fileno", dll), (
                       (1, "pcap"),))
+if is_windows:
+    # This probably shouldn't have been kept in WinPcap; most if not all
+    # UN*X code that used it won't work on Windows.  We deprecate it; if
+    # anybody really needs access to whatever HANDLE may be associated
+    # with a pcap_t (there's no guarantee that there is one), we can add
+    # a Windows-only pcap_handle() API that returns the HANDLE.
+    #
+    # PCAP_DEPRECATED(pcap_fileno, "use 'pcap_handle'")
+    pass
 
 dump_open     = CFUNC(ct.POINTER(pcap_dumper_t),
                       ct.POINTER(pcap_t),

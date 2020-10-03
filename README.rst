@@ -126,7 +126,7 @@ Installation
 
 Prerequisites:
 
-+ Python 3.5 or higher
++ Python 3.6 or higher
 
   * https://www.python.org/
   * 3.7 with C LIBPCAP 1.8.1 is a primary test environment.
@@ -138,34 +138,12 @@ Prerequisites:
 
 To install run:
 
-.. parsed-literal::
+  .. parsed-literal::
 
     python -m pip install --upgrade |package|
 
 Development
 ===========
-
-Visit `development page`_.
-
-Installation from sources:
-
-clone the sources:
-
-.. parsed-literal::
-
-    git clone |respository| |package|
-
-and run:
-
-.. parsed-literal::
-
-    python -m pip install ./|package|
-
-or on development mode:
-
-.. parsed-literal::
-
-    python -m pip install --editable ./|package|
 
 Prerequisites:
 
@@ -173,11 +151,32 @@ Prerequisites:
 
     python -m pip install --upgrade tox
 
+Visit `development page`_.
+
+Installation from sources:
+
+clone the sources:
+
+  .. parsed-literal::
+
+    git clone |respository| |package|
+
+and run:
+
+  .. parsed-literal::
+
+    python -m pip install ./|package|
+
+or on development mode:
+
+  .. parsed-literal::
+
+    python -m pip install --editable ./|package|
+
 License
 =======
 
   | Copyright (c) 2016-2020, Adam Karpierz
-  |
   | Licensed under the BSD license
   | https://opensource.org/licenses/BSD-3-Clause
   | Please refer to the accompanying LICENSE file.
@@ -191,3 +190,4 @@ Authors
 .. |package_bold| replace:: **libpcap**
 .. |respository| replace:: https://github.com/karpierz/libpcap.git
 .. _development page: https://github.com/karpierz/libpcap/
+.. _PyPI record: https://pypi.org/project/libpcap/

@@ -18,7 +18,7 @@ prune src/libpcap/pcap.npcap-sdk.h
 
 graft tests
 prune tests/tests.c
-exclude tests/_info_.txt tests/_report_.txt
+exclude tests/_info_.txt tests/_report_*.txt
 
 global-exclude .build .build.*
 global-exclude *.py[cod] __pycache__

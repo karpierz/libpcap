@@ -228,4 +228,4 @@ def warning(fmt, *args):
         print(file=sys.stderr)
 
 
-sys.exit(main() or 0)
+sys.exit(main())

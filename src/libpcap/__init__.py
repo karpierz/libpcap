@@ -3,5 +3,5 @@
 # https://opensource.org/licenses/BSD-3-Clause
 
 from . import __config__ ; del __config__
-from .__about__ import * ; del __about__
-from ._pcap import *
+from .__about__ import * ; del __about__  # noqa
+from ._pcap     import * ; del _pcap      # noqa

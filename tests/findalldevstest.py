@@ -174,4 +174,4 @@ def iptos(inp): # pcap.bpf_u_int32 inp
     return output[which]
 
 
-sys.exit(main() or 0)
+sys.exit(main())

@@ -125,7 +125,7 @@ if (defined("__OpenBSD__") or defined("__NetBSD__") or
     defined("__DragonFly__") or defined("__APPLE__")):
     DLT_PFSYNC = 18
 
-DLT_ATM_CLIP = 19  # Linux Classical-IP over ATM
+DLT_ATM_CLIP = 19  # Linux Classical IP over ATM
 
 # Apparently Redback uses this for its SmartEdge 400/800.  I hope
 # nobody else decided to use it, too.
@@ -734,8 +734,11 @@ DLT_LAPD = 203
 # PPP, with a one-byte direction pseudo-header prepended - zero means
 # "received by this host", non-zero (any non-zero value) means "sent by
 # this host" - as per Will Barker <w.barker@zen.co.uk>.
+#
+# Don't confuse this with DLT_PPP_WITH_DIRECTION, which is an old
+# name for what is now called DLT_PPP_PPPD.
 
-DLT_PPP_WITH_DIR    = 204  # Don't confuse with DLT_PPP_WITH_DIRECTION
+DLT_PPP_WITH_DIR = 204
 
 # Cisco HDLC, with a one-byte direction pseudo-header prepended - zero
 # means "received by this host", non-zero (any non-zero value) means
@@ -755,7 +758,7 @@ DLT_FRELAY_WITH_DIR = 206
 # means "sent by this host" (DTE -> DCE)- as per Will Barker
 # <w.barker@zen.co.uk>.
 
-DLT_LAPB_WITH_DIR   = 207
+DLT_LAPB_WITH_DIR = 207
 
 # 208 is reserved for an as-yet-unspecified proprietary link-layer
 # type, as requested by Will Barker.
@@ -1312,13 +1315,17 @@ DLT_Z_WAVE_SERIAL = 287
 
 DLT_USB_2_0 = 288
 
+# ATSC Link-Layer Protocol (A/330) packets.
+
+DLT_ATSC_ALP = 289
+
 # In case the code that includes this file (directly or indirectly)
 # has also included OS files that happen to define DLT_MATCHING_MAX,
 # with a different value (perhaps because that OS hasn't picked up
 # the latest version of our DLT definitions), we undefine the
 # previous value of DLT_MATCHING_MAX.
 
-DLT_MATCHING_MAX = 288  # highest value in the "matching" range # available from v.1.8.1
+DLT_MATCHING_MAX = 289  # highest value in the "matching" range # available from v.1.8.1
 
 # DLT and savefile link type values are split into a class and
 # a member of that class.  A class value of 0 indicates a regular

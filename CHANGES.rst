@@ -1,6 +1,13 @@
 Changelog
 =========
 
+1.10.0b11 (2020-09-23)
+----------------------
+- Add support for Python 3.9.
+- Drop support for Python 3.5.
+- Removing dependence on atpublic.
+- General update and cleanup.
+
 1.10.0b10 (2020-01-16)
 ----------------------
 - Added ReadTheDocs config file.

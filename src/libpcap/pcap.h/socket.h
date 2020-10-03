@@ -51,9 +51,6 @@
   /*
    * Winsock doesn't have this UN*X type; it's used in the UN*X
    * sockets API.
-   *
-   * XXX - do we need to worry about UN*Xes so old that *they*
-   * don't have it, either?
    */
   typedef int socklen_t;
 

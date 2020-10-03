@@ -82,9 +82,6 @@ INVALID_SOCKET = SOCKET(-1).value
 
 # Winsock doesn't have this UN*X type; it's used in the UN*X
 # sockets API.
-#
-# XXX - do we need to worry about UN*Xes so old that *they*
-# don't have it, either?
 socklen_t = ct.c_int
 
 class sockaddr(ct.Structure):

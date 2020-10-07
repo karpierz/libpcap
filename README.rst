@@ -10,8 +10,8 @@ Overview
 | It is an effort to allow python programs full access to the API provided
   by the well known *libpcap* Unix C library and by its implementations
   provided under Win32 systems by such packet capture systems as:
-  `WinPcap <https://www.winpcap.org/>`__,
-  `Npcap <https://nmap.org/npcap/>`__
+  `Npcap <https://nmap.org/npcap/>`__,
+  `WinPcap <https://www.winpcap.org/>`__
 |
 | |package_bold| is a lightweight Python package, based on the *ctypes* library.
 | It is fully compliant implementation of the original C *libpcap* from
@@ -22,6 +22,23 @@ Overview
 
   | `Main pcap man page <https://www.tcpdump.org/manpages/pcap.3pcap.html>`__,
   | `(MORE pcap man pages) <https://www.tcpdump.org/manpages/>`__
+
+|package_bold| uses the underlying *libpcap* C shared library as specified in
+libpcap.cfg (system's libpcap shared library is the default), but there is also
+ability to specify it programmatically by one of the following ways:
+
+.. code:: python
+
+  import libpcap
+  libpcap.config(LIBPCAP=None)       # system's libpcap library will be use
+  # or
+  libpcap.config(LIBPCAP="npcap")
+  # or
+  libpcap.config(LIBPCAP="wpcap")    # included wpcap library will be use
+  # or
+  libpcap.config(LIBPCAP="tcpdump")  # included tcpdump library will be use
+  # or                               # (currently works only for Linux x64)
+  libpcap.config(LIBPCAP="libpcap shared library absolute path")
 
 About original LIBPCAP:
 -----------------------

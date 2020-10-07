@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.10.0b12 (2020-10-05)
+----------------------
+- Ability to specify the backend programmatically.
+- Establishing system's libpcap as default backend.
+
 1.10.0b11 (2020-09-23)
 ----------------------
 - Add support for Python 3.9.

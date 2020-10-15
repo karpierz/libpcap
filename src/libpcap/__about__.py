@@ -10,7 +10,7 @@ __title__        = "libpcap"
 __summary__      = "Python binding for the libpcap C library."
 __uri__          = "https://pypi.org/project/libpcap/"
 __version_info__ = type("version_info", (), dict(major=1, minor=10, micro=0,
-                        releaselevel="beta", serial=12))
+                        releaselevel="beta", serial=13))
 __version__      = "{0.major}.{0.minor}.{0.micro}{1}{2}".format(__version_info__,
                    dict(alpha="a", beta="b", candidate="rc", final="",
                         post=".post", dev=".dev")[__version_info__.releaselevel],

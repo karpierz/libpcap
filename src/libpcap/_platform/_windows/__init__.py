@@ -28,7 +28,7 @@ except ImportError:
     else:
         LIBPCAP = find_library("wpcap")
         if not LIBPCAP:
-            raise OSError("Cannot find wpcap.dll library")
+            raise OSError("Cannot find wpcap.dll library") from None
         from ctypes import WinDLL as DLL
 else:
     DLL = _DLL

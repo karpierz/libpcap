@@ -21,7 +21,7 @@ try:
 except ImportError:
     LIBPCAP = find_library("pcap")
     if not LIBPCAP:
-        raise OSError("Cannot find libpcap.so library")
+        raise OSError("Cannot find libpcap.so library") from None
 
 if os.path.isabs(LIBPCAP):
     DLL_PATH = LIBPCAP

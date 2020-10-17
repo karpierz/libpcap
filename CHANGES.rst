@@ -1,29 +1,19 @@
 Changelog
 =========
 
-1.10.0b13 (2020-10-16)
-----------------------
-- Fixed a critical setup bug (thank you very much msrst@Github!).
-
-1.10.0b12 (2020-10-05)
-----------------------
-- Ability to specify the backend programmatically.
-- Establishing system's libpcap as default backend.
-
-1.10.0b11 (2020-09-23)
+1.10.0b14 (2020-10-17)
 ----------------------
 - Add support for Python 3.9.
 - Drop support for Python 3.5.
 - Removing dependence on atpublic.
+- Ability to specify the backend programmatically.
+- Establishing system's libpcap as default backend.
+- Fixed a critical setup bug (thank you very much msrst@Github!).
 - General update and cleanup.
+- Fixed docs setup.
 
 1.10.0b10 (2020-01-16)
 ----------------------
-- Added ReadTheDocs config file.
-- Setup update.
-
-1.10.0b9 (2019-11-27)
----------------------
 - Add support for Python 3.8.
 - Drop support for Python 3.4.
 - Drop support for Python 2.
@@ -33,6 +23,7 @@ Changelog
 - | Add support for Linux x64:
   | add internal tcpdump's libpcap.so v.1.9.1 with remote capture support.
   | system's tcpdump's libpcap.so can also be used (via libpcap.libpcap.cfg).
+- Added ReadTheDocs config file.
 - Setup update and cleanup.
 
 1.10.0b5 (2019-09-16)

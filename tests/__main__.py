@@ -25,7 +25,7 @@ def test_suite(names=None, omit=()):
 
 
 def main(argv=sys.argv):
-    print("Running tests", "\n", file=sys.stderr)
+    print("Running tests\n", file=sys.stderr)
     tests = test_suite(argv[1:] or None)
     result = unittest.TextTestRunner(verbosity=2).run(tests)
     return 0 if result.wasSuccessful() else 1

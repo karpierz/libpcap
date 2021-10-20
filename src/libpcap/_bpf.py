@@ -1,4 +1,4 @@
-# Copyright (c) 2016-2020, Adam Karpierz
+# Copyright (c) 2016-2021, Adam Karpierz
 # Licensed under the BSD license
 # https://opensource.org/licenses/BSD-3-Clause
 
@@ -54,6 +54,10 @@ from ._platform import defined
 from ._platform import CFUNC
 from ._dll      import dll
 
+# Link-layer type codes.
+#
+from ._dlt import *
+
 # BSD style release date
 
 BPF_RELEASE = 199606
@@ -71,10 +75,6 @@ if defined("__NetBSD__"):
 else:
     BPF_ALIGNMENT = ct.sizeof(bpf_int32)
 BPF_WORDALIGN = lambda x: ((x + (BPF_ALIGNMENT - 1)) & ~(BPF_ALIGNMENT - 1))
-
-# Link-layer type codes.
-#
-from ._dlt import *
 
 # The instruction encodings.
 #
@@ -213,9 +213,14 @@ class bpf_program(ct.Structure):
     ("bf_insns", ct.POINTER(bpf_insn)),
 ]
 
-#
 # Macros for insn array initializers.
 #
+# In case somebody's included <linux/filter.h>, or something else that
+# gives the kernel's definitions of BPF statements, get rid of its
+# definitions, so we can supply ours instead.  If some kernel's
+# definitions aren't *binary-compatible* with what BPF has had
+# since it first sprung from the brows of Van Jacobson and Steve
+# McCanne, that kernel should be fixed.
 
 BPF_STMT = lambda code, k:         (ct.c_ushort(code), 0,  0,  k)
 BPF_JUMP = lambda code, k, jt, jf: (ct.c_ushort(code), jt, jf, k)
@@ -224,37 +229,45 @@ BPF_JUMP = lambda code, k, jt, jf: (ct.c_ushort(code), jt, jf, k)
 # Exported functions
 #
 
-bpf_filter   = CFUNC(ct.c_uint,
-                     ct.POINTER(bpf_insn),
-                     ct.POINTER(ct.c_ubyte),
-                     ct.c_uint,
-                     ct.c_uint)(
-                     ("bpf_filter", dll), (
-                     (1, "insn"),
-                     (1, "buffer"),
-                     (1, "wirelen"),
-                     (1, "buflen"),))
+try:  # PCAP_AVAILABLE_0_4
+    bpf_filter   = CFUNC(ct.c_uint,
+                         ct.POINTER(bpf_insn),
+                         ct.POINTER(ct.c_ubyte),
+                         ct.c_uint,
+                         ct.c_uint)(
+                         ("bpf_filter", dll), (
+                         (1, "insn"),
+                         (1, "buffer"),
+                         (1, "wirelen"),
+                         (1, "buflen"),))
+except: pass
 
-bpf_validate = CFUNC(ct.c_int,
-                     ct.POINTER(bpf_insn),
-                     ct.c_int)(
-                     ("bpf_validate", dll), (
-                     (1, "insn"),
-                     (1, "len"),))
+try:  # PCAP_AVAILABLE_0_6
+    bpf_validate = CFUNC(ct.c_int,
+                         ct.POINTER(bpf_insn),
+                         ct.c_int)(
+                         ("bpf_validate", dll), (
+                         (1, "insn"),
+                         (1, "len"),))
+except: pass
 
-bpf_image    = CFUNC(ct.c_char_p,
-                     ct.POINTER(bpf_insn),
-                     ct.c_int)(
-                     ("bpf_image", dll), (
-                     (1, "insn"),
-                     (1, "len"),))
+try:  # PCAP_AVAILABLE_0_4
+    bpf_image    = CFUNC(ct.c_char_p,
+                         ct.POINTER(bpf_insn),
+                         ct.c_int)(
+                         ("bpf_image", dll), (
+                         (1, "insn"),
+                         (1, "len"),))
+except: pass
 
-bpf_dump     = CFUNC(None,
-                     ct.POINTER(bpf_program),
-                     ct.c_int)(
-                     ("bpf_dump", dll), (
-                     (1, "prog"),
-                     (1, "option"),))
+try:  # PCAP_AVAILABLE_0_6
+    bpf_dump     = CFUNC(None,
+                         ct.POINTER(bpf_program),
+                         ct.c_int)(
+                         ("bpf_dump", dll), (
+                         (1, "prog"),
+                         (1, "option"),))
+except: pass
 
 #
 # Number of scratch memory words (for BPF_LD|BPF_MEM and BPF_ST).

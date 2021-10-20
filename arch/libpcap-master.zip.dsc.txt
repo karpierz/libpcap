@@ -1,5 +1,0 @@
-Url: https://codeload.github.com/the-tcpdump-group/libpcap/zip/master
-Completed: 2020-10-03 10:12:00
-File name: libpcap-master.zip
-File date: 2020-10-03 10:12:00
-File size: 1138749

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2016-2020, Adam Karpierz
+# Copyright (c) 2016-2021, Adam Karpierz
 # Licensed under the BSD license
 # https://opensource.org/licenses/BSD-3-Clause
 
@@ -29,13 +29,9 @@ import getopt
 import ctypes as ct
 
 import libpcap as pcap
+from libpcap._platform import is_windows, defined
 
-INT_MAX = int(2147483647)
-
-try:
-    statustostr = pcap.statustostr
-except AttributeError:
-    statustostr = lambda status: str(status).encode("utf-8")
+from pcaptestutils import *  # noqa
 
 #ifndef lint
 copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
@@ -44,28 +40,52 @@ copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
             "All rights reserved.\n"
 #endif
 
+pd = ct.POINTER(pcap.pcap_t)
 
-def main(argv=sys.argv):
+if not is_windows
+    breaksigint = False
+
+    #static void sigint_handler(int signum _U_)
+    def sigint_handler(signum):
+        global pd
+        global breaksigint
+        if breaksigint:
+            pcap_breakloop(pd)
+
+
+def main(argv=sys.argv[1:]):
 
     global program_name
     program_name = os.path.basename(sys.argv[0])
 
+    global pd
+    global breaksigint
+
     try:
-        opts, args = getopt.getopt(argv[1:], "i:mnt:")
+        opts, args = getopt.getopt(argv, "i:mnt:" is_windows else "bi:mnrst:")
     except getopt.GetoptError:
         usage()
 
     device = None
     immediate = False
     nonblock = 0
+    if not is_windows:
+        sigrestart  = False
+        catchsigint = False
     timeout = 1000
     for opt, optarg in opts:
-        if opt == '-i':
+        if not is_windows and opt == '-b':
+            breaksigint = True
+        elif opt == '-i':
             device = optarg.encode("utf-8")
         elif opt == '-m':
             immediate = True
         elif opt == '-n':
             nonblock = 1
+        elif not is_windows and opt == '-r':
+            sigrestart = True
+        elif not is_windows and opt == '-s':
+            catchsigint = True
         elif opt == '-t':
             try:
                 timeout = int(optarg)
@@ -86,71 +106,75 @@ def main(argv=sys.argv):
     if device is None:
         devlist = ct.POINTER(pcap.pcap_if_t)()
         if pcap.findalldevs(ct.byref(devlist), ebuf) == -1:
-            error("{!s}", ebuf.value.decode("utf-8", "ignore"))
+            error("{}", ebuf2str(ebuf))
         if not devlist:
             error("no interfaces available for capture")
         device = devlist[0].name
         pcap.freealldevs(devlist)
 
-    ebuf.value = b""
+    ebuf[0] = b"\0"
+
+    if not is_windows:
+        # If we were told to catch SIGINT, do so.
+        if catchsigint:
+            action = sigaction()
+            action.sa_handler = sigint_handler
+            sigemptyset(ct.byref(action.sa_mask))
+            # Should SIGINT interrupt, or restart, system calls?
+            action.sa_flags = SA_RESTART if sigrestart else 0
+            if sigaction(SIGINT, ct.byref(action), NULL) == -1:
+                error("Can't catch SIGINT: {!s}", strerror(errno))
+
     pd = pcap.create(device, ebuf)
     if not pd:
-        error("{!s}", ebuf.value.decode("utf-8", "ignore"))
+        error("{}", ebuf2str(ebuf))
 
     status = pcap.set_snaplen(pd, 65535)
     if status != 0:
-        error("{!s}: pcap.set_snaplen failed: {!s}",
-              device.decode("utf-8"),
-              statustostr(status).decode("utf-8", "ignore"));
+        error("{}: pcap.set_snaplen failed: {}",
+              device2str(device), status2str(status));
     if immediate:
         try:
             status = pcap.set_immediate_mode(pd, 1)
         except AttributeError:
             error("pcap.set_immediate_mode is not available on this platform")
         if status != 0:
-            error("{!s}: pcap.set_immediate_mode failed: {!s}",
-                  device.decode("utf-8"),
-                  statustostr(status).decode("utf-8", "ignore"));
+            error("{}: pcap.set_immediate_mode failed: {}",
+                  device2str(device), status2str(status))
     status = pcap.set_timeout(pd, timeout)
     if status != 0:
-        error("{!s}: pcap.set_timeout failed: {!s}",
-              device.decode("utf-8"),
-              statustostr(status).decode("utf-8", "ignore"));
+        error("{}: pcap.set_timeout failed: {}",
+              device2str(device), status2str(status))
 
     status = pcap.activate(pd)
     if status < 0:
         # pcap.activate() failed.
-        error("{!s}: {!s}\n({!s})",
-              device.decode("utf-8"),
-              statustostr(status).decode("utf-8", "ignore"),
-              pcap.geterr(pd).decode("utf-8", "ignore"))
+        error("{}: {}\n({})",
+              device2str(device), status2str(status), geterr2str(pd))
     elif status > 0:
         # pcap.activate() succeeded, but it's warning us
         # of a problem it had.
-        warning("{!s}: {!s}\n({!s})",
-                device.decode("utf-8"),
-                statustostr(status).decode("utf-8", "ignore"),
-                pcap.geterr(pd).decode("utf-8", "ignore"))
+        warning("{}: {}\n({})",
+                device2str(device), status2str(status), geterr2str(pd))
 
     localnet = pcap.bpf_u_int32()
     netmask  = pcap.bpf_u_int32()
     if pcap.lookupnet(device, ct.byref(localnet), ct.byref(netmask), ebuf) < 0:
         localnet = pcap.bpf_u_int32(0)
         netmask  = pcap.bpf_u_int32(0)
-        warning("{!s}", ebuf.value.decode("utf-8", "ignore"))
+        warning("{}", ebuf2str(ebuf))
 
     fcode = pcap.bpf_program()
     cmdbuf = " ".join(expression).encode("utf-8")
     if pcap.compile(pd, ct.byref(fcode), cmdbuf, 1, netmask) < 0:
-        error("{!s}", pcap.geterr(pd).decode("utf-8", "ignore"))
+        error("{}", geterr2str(pd))
 
     if pcap.setfilter(pd, ct.byref(fcode)) < 0:
-        error("{!s}", pcap.geterr(pd).decode("utf-8", "ignore"))
+        error("{}", geterr2str(pd))
     if pcap.setnonblock(pd, nonblock, ebuf) == -1:
-        error("pcap.setnonblock failed: {!s}",
-              ebuf.value.decode("utf-8", "ignore"))
+        error("pcap.setnonblock failed: {}", ebuf2str(ebuf))
 
-    print("Listening on {!s}".format(device.decode("utf-8")))
+    print("Listening on {}".format(device2str(device)))
 
     while True:
         packet_count = ct.c_int(0)
@@ -161,16 +185,21 @@ def main(argv=sys.argv):
         if status != 0:
             print("{:d} packets seen, {:d} packets counted after "
                   "pcap.dispatch returns".format(status, packet_count.value))
+           ps = pcap.stat()
+           pcap.stats(pd, ct.byref(ps))
+           print("{:d} ps_recv, {:d} ps_drop, {:d} ps_ifdrop".format(
+                 ps.ps_recv, ps.ps_drop, ps.ps_ifdrop))
 
     if status == -2:
         # We got interrupted, so perhaps we didn't manage to finish a
         # line we were printing. Print an extra newline, just in case.
         print()
+        print("Broken out of loop from SIGINT handler")
     sys.stdout.flush()
     if status == -1:
-        # Error. Report it.
-        print("{}: pcap.loop: {!s}".format(program_name,
-              pcap.geterr(pd).decode("utf-8", "ignore")), file=sys.stderr)
+        # Error.  Report it.
+        print("{}: pcap.dispatch: {}".format(program_name, geterr2str(pd)),
+              file=sys.stderr)
 
     pcap.freecode(ct.byref(fcode))
     pcap.close(pd)
@@ -185,27 +214,11 @@ def countme(arg, hdr, pkt):
 
 
 def usage():
-    global program_name
-    print("Usage: {} [ -mn ] [ -i interface ] [ -t timeout] "
-          "[expression]".format(program_name), file=sys.stderr)
+    print("Usage: {} [ {} ] [ -i interface ] [ -t timeout] "
+          "[expression]".format(program_name,
+          "-mn" if is_windows else "-bmnrs"), file=sys.stderr)
     sys.exit(1)
 
 
-def error(fmt, *args):
-    global program_name
-    print("{}: ".format(program_name), end="", file=sys.stderr)
-    print(fmt.format(*args), end="", file=sys.stderr)
-    if fmt and fmt[-1] != '\n':
-        print(file=sys.stderr)
-    sys.exit(1)
-
-
-def warning(fmt, *args):
-    global program_name
-    print("{}: WARNING: ".format(program_name), end="", file=sys.stderr)
-    print(fmt.format(*args), end="", file=sys.stderr)
-    if fmt and fmt[-1] != '\n':
-        print(file=sys.stderr)
-
-
-sys.exit(main())
+if __name__.rpartition(".")[-1] == "__main__":
+    sys.exit(main())

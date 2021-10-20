@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2016-2020, Adam Karpierz
+# Copyright (c) 2016-2021, Adam Karpierz
 # Licensed under the BSD license
 # https://opensource.org/licenses/BSD-3-Clause
 
@@ -13,24 +13,25 @@ import ctypes as ct
 import libpcap as pcap
 from libpcap._platform import sockaddr_in, sockaddr_in6
 
+from pcaptestutils import *  # noqa
 
-def main(argv=sys.argv):
+
+def main(argv=sys.argv[1:]):
 
     global program_name
-    program_name = os.path.basename(argv[0])
+    program_name = os.path.basename(sys.argv[0])
+
+    source = argv[0].encode("utf-8") if len(argv) >= 1 else None
 
     exit_status = 0
 
-    alldevs = ct.POINTER(pcap.pcap_if_t)()
     errbuf  = ct.create_string_buffer(pcap.PCAP_ERRBUF_SIZE + 1)
+    alldevs = ct.POINTER(pcap.pcap_if_t)()
 
     #ifdef ENABLE_REMOTE
-    if len(argv) >= 2:
-        source = argv[1]
-        if pcap.findalldevs_ex(source, NULL, ct.byref(alldevs), errbuf) == -1:
-
+    if source is not None:
+        if pcap.findalldevs_ex(source, None, ct.byref(alldevs), errbuf) == -1:
             # OK, try it with a user name and password.
-
             username = input("User name: ")
             if not username:
                 exit_status = 1
@@ -42,32 +43,46 @@ def main(argv=sys.argv):
             auth.username = username
             auth.password = password
             if pcap.findalldevs_ex(source, ct.byref(auth), ct.byref(alldevs), errbuf) == -1:
-                print("Error in pcap.findalldevs: {!s}".format(
-                      errbuf.value.decode("utf-8", "ignore")), file=sys.stderr)
+                print("Error in pcap.findalldevs: {}".format(ebuf2str(errbuf)),
+                      file=sys.stderr)
                 exit_status = 1
                 return exit_status
     else:
     #endif
         if pcap.findalldevs(ct.byref(alldevs), errbuf) == -1:
-            print("Error in pcap.findalldevs: {!s}".format(
-                  errbuf.value.decode("utf-8", "ignore")), file=sys.stderr)
+            print("Error in pcap.findalldevs: {}".format(ebuf2str(errbuf)),
+                  file=sys.stderr)
             exit_status = 1
             return exit_status
 
-    d = alldevs
-    while d:
-        d = d.contents
-        if not ifprint(d):
+    pdev = alldevs
+    while pdev:
+        dev = pdev.contents
+        if not ifprint(dev):
             exit_status = 2
-        d = d.next
+        pdev = dev.next
 
     if alldevs:
+        device = alldevs[0].name
         net  = pcap.bpf_u_int32()
         mask = pcap.bpf_u_int32()
-        if pcap.lookupnet(alldevs[0].name, ct.byref(net), ct.byref(mask), errbuf) < 0:
-            print("Error in pcap.lookupnet: {!s}".format(
-                  errbuf.value.decode("utf-8", "ignore")), file=sys.stderr)
-            exit_status = 2
+        if pcap.lookupnet(device, ct.byref(net), ct.byref(mask), errbuf) < 0:
+            # XXX - this doesn't distinguish between "a real error
+            # occurred" and "this interface doesn't *have* an IPv4
+            # address".  The latter shouldn't be treated as an error.
+            #
+            # We look for the interface name, followed by a colon and
+            # a space, and, if we find it,w e see if what follows it
+            # is "no IPv4 address assigned".
+            devnamelen = len(device)
+            if (errbuf[:devnamelen] == device[:devnamelen] and
+                errbuf[devnamelen:devnamelen+2] == b": " and
+                errbuf[devnamelen+2:] == b"no IPv4 address assigned"):
+                print("Preferred device is not on an IPv4 network")
+            else:
+                print("Error in pcap.lookupnet: {}".format(ebuf2str(errbuf)),
+                      file=sys.stderr)
+                exit_status = 2
         else:
             print("Preferred device is on network: {}/{}".format(
                   iptos(net), iptos(mask)))
@@ -77,25 +92,25 @@ def main(argv=sys.argv):
     return exit_status
 
 
-def ifprint(d): # pcap_if_t*
+def ifprint(dev: pcap.pcap_if_t):
 
     status = True  # success
 
-    print("{!s}".format(d.name.decode("utf-8")))
-    if d.description:
-        print("\tDescription: {!s}".format(d.description.decode("utf-8")))
+    print("{}".format(dev.name.decode("utf-8")))
+    if dev.description:
+        print("\tDescription: {}".format(dev.description.decode("utf-8")))
 
     flags = []
-    if d.flags & pcap.PCAP_IF_UP:
+    if dev.flags & pcap.PCAP_IF_UP:
         flags.append("UP")
-    if d.flags & pcap.PCAP_IF_RUNNING:
+    if dev.flags & pcap.PCAP_IF_RUNNING:
         flags.append("RUNNING")
-    if d.flags & pcap.PCAP_IF_LOOPBACK:
+    if dev.flags & pcap.PCAP_IF_LOOPBACK:
         flags.append("LOOPBACK")
-    if d.flags & pcap.PCAP_IF_WIRELESS:
+    if dev.flags & pcap.PCAP_IF_WIRELESS:
         flags.append("WIRELESS")
-    conn_status = d.flags & pcap.PCAP_IF_CONNECTION_STATUS
-    if d.flags & pcap.PCAP_IF_WIRELESS:
+    conn_status = dev.flags & pcap.PCAP_IF_CONNECTION_STATUS
+    if dev.flags & pcap.PCAP_IF_WIRELESS:
         if conn_status == pcap.PCAP_IF_CONNECTION_STATUS_UNKNOWN:
             flags.append(" (association status unknown)")
         elif conn_status == pcap.PCAP_IF_CONNECTION_STATUS_CONNECTED:
@@ -115,16 +130,17 @@ def ifprint(d): # pcap_if_t*
             pass
     print("\tFlags: {}".format(", ".join(flags)))
 
-    a = d.addresses
-    while a:
-        a = a.contents
+    pa = dev.addresses
+    while pa:
+        a = pa.contents
 
         addr      = a.addr
         netmask   = a.netmask
         broadaddr = a.broadaddr
         dstaddr   = a.dstaddr
         if not addr:
-            print("\tWarning: a.addr is NULL, skipping this address.", file=sys.stderr)
+            print("\tWarning: a.addr is NULL, skipping this address.",
+                  file=sys.stderr)
             status = False
         else:
             if addr.contents.sa_family == socket.AF_INET:
@@ -152,7 +168,7 @@ def ifprint(d): # pcap_if_t*
             else:
                 print("\tAddress Family: Unknown ({:d})".format(addr.contents.sa_family))
 
-        a = a.next
+        pa = a.next
 
     print()
     return status
@@ -165,7 +181,7 @@ IPTOSBUFFERS = 12
 output = [None] * IPTOSBUFFERS
 which  = 0
 
-def iptos(inp): # pcap.bpf_u_int32 inp
+def iptos(inp: pcap.bpf_u_int32):
     global output
     global which
     p = ct.cast(ct.pointer(inp), ct.POINTER(ct.c_ubyte))
@@ -174,4 +190,5 @@ def iptos(inp): # pcap.bpf_u_int32 inp
     return output[which]
 
 
-sys.exit(main())
+if __name__.rpartition(".")[-1] == "__main__":
+    sys.exit(main())

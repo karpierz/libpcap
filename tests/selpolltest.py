@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2016-2020, Adam Karpierz
+# Copyright (c) 2016-2021, Adam Karpierz
 # Licensed under the BSD license
 # https://opensource.org/licenses/BSD-3-Clause
 
@@ -26,10 +26,11 @@
 import sys
 import os
 import getopt
-import select
 import ctypes as ct
 
 import libpcap as pcap
+
+from pcaptestutils import *  # noqa
 
 #ifndef lint
 copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
@@ -38,22 +39,28 @@ copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
             "All rights reserved.\n"
 #endif
 
+def select(rlist, wlist, xlist, timeout=None):
+    import select
+    if timeout is None:
+        return select.select(rlist, wlist, xlist)
+    else:
+        return select.select(rlist, wlist, xlist, timeout)
+
 
 # Tests how select() and poll() behave on the selectable file descriptor
-# for a pcap_t.
+# for a pcap.pcap_t.
 #
 # This would be significantly different on Windows, as it'd test
 # how WaitForMultipleObjects() would work on the event handle for a
-# pcap_t.
+# pcap.pcap_t.
 
-
-def main(argv=sys.argv):
+def main(argv=sys.argv[1:]):
 
     global program_name
-    program_name = os.path.basename(sys.argv[0])
+    program_name = os.path.basename(sys.sys.argv[0])
 
     try:
-        opts, args = getopt.getopt(argv[1:], "i:sptn")
+        opts, args = getopt.getopt(argv, "i:sptnq")
     except getopt.GetoptError:
         usage()
 
@@ -63,19 +70,22 @@ def main(argv=sys.argv):
     mechanism = None
     dotimeout = False
     dononblock = False
+    quiet = False
     for opt, optarg in opts:
         if opt == '-i':
             device = optarg.encode("utf-8")
         elif opt == '-s':
             doselect = True
-            mechanism = "select() and pcap_dispatch()"
+            mechanism = "select() and pcap.dispatch()"
         elif opt == '-p':
             dopoll = True
-            mechanism = "poll() and pcap_dispatch()"
+            mechanism = "poll() and pcap.dispatch()"
         elif opt == '-t':
             dotimeout = True
         elif opt == '-n':
             dononblock = True
+        elif opt == '-q':
+            quiet = True
         else:
             usage()
 
@@ -95,34 +105,36 @@ def main(argv=sys.argv):
     if device is None:
         devlist = ct.POINTER(pcap.pcap_if_t)()
         if pcap.findalldevs(ct.byref(devlist), ebuf) == -1:
-            error("{!s}", ebuf.value.decode("utf-8", "ignore"))
+            error("{}", ebuf2str(ebuf))
         if not devlist:
             error("no interfaces available for capture")
         device = devlist[0].name
         pcap.freealldevs(devlist)
 
-    ebuf.value = b""
+    ebuf[0] = b"\0"
+
     pd = pcap.open_live(device, 65535, 0, 1000, ebuf)
     if not pd:
-        error("{!s}", ebuf.value.decode("utf-8", "ignore"))
+        error("{}", ebuf2str(ebuf))
     elif ebuf.value:
-        warning("{!s}", ebuf.value.decode("utf-8", "ignore"))
+        warning("{}", ebuf2str(ebuf))
 
     localnet = pcap.bpf_u_int32()
     netmask  = pcap.bpf_u_int32()
     if pcap.lookupnet(device, ct.byref(localnet), ct.byref(netmask), ebuf) < 0:
         localnet = pcap.bpf_u_int32(0)
         netmask  = pcap.bpf_u_int32(0)
-        warning("{!s}", ebuf.value.decode("utf-8", "ignore"))
+        warning("{}", ebuf2str(ebuf))
 
     fcode = pcap.bpf_program()
     cmdbuf = " ".join(expression).encode("utf-8")
     if pcap.compile(pd, ct.byref(fcode), cmdbuf, 1, netmask) < 0:
-        error("{!s}", pcap.geterr(pd).decode("utf-8", "ignore"))
+        error("{}", geterr2str(pd))
 
     if pcap.setfilter(pd, ct.byref(fcode)) < 0:
-        error("{!s}", pcap.geterr(pd).decode("utf-8", "ignore"))
+        error("{}", geterr2str(pd))
 
+    selectable_fd = -1
     if doselect or dopoll:
         # We need either an FD on which to do select()/poll()
         # or, if there isn't one, a timeout to use in select()/
@@ -132,16 +144,16 @@ def main(argv=sys.argv):
         except AttributeError:
             error("pcap.get_selectable_fd is not available on this platform")
         if selectable_fd == -1:
-            print("Listening on {!s}, using {}, with a timeout".format(
-                  device.decode("utf-8"), mechanism))
+            print("Listening on {}, using {}, with a timeout".format(
+                  device2str(device), mechanism))
             try:
                 required_timeout = pcap.get_required_select_timeout(pd)
             except AttributeError:
                 error("pcap.get_required_select_timeout is not available "
                       "on this platform")
             if not required_timeout:
-                error("select()/poll() isn't supported on {!s}, "
-                      "even with a timeout", device.decode("utf-8"))
+                error("select()/poll() isn't supported on {}, "
+                      "even with a timeout", device2str(device))
             required_timeout = required_timeout[0]
             # As we won't be notified by select() or poll()
             # that a read can be done, we'll have to periodically
@@ -151,55 +163,51 @@ def main(argv=sys.argv):
             # so we want to force non-blocking mode.
             dononblock = True
         else:
-            print("Listening on {!s}, using {}".format(
-                  device.decode("utf-8"), mechanism))
+            print("Listening on {}, using {}".format(
+                  device2str(device), mechanism))
             required_timeout = None
     else:
-        print("Listening on {!s}, using pcap_dispatch()".format(
-              device.decode("utf-8")))
+        print("Listening on {}, using pcap.dispatch()".format(
+              device2str(device)))
 
     if dononblock:
         if pcap.setnonblock(pd, 1, ebuf) == -1:
-            error("pcap.setnonblock failed: {!s}",
-                  ebuf.value.decode("utf-8", "ignore"))
+            error("pcap.setnonblock failed: {}", ebuf2str(ebuf))
 
     status = 0
 
     if doselect:
         while True:
             try:
+                required_timeout = pcap.get_required_select_timeout(pd)
                 if dotimeout:
                     seltimeout = (0 + (required_timeout.tv_usec
                                        if required_timeout is not None and
                                           required_timeout.tv_usec < 1000
                                        else 1000) / 1000000.0)
-                    rfds, wfds, efds = select.select([selectable_fd], [],
-                                                     [selectable_fd], seltimeout)
                 elif required_timeout is not None:
                     seltimeout = (required_timeout.tv_sec +
                                   required_timeout.tv_usec / 1000000.0)
-                    rfds, wfds, efds = select.select([selectable_fd], [],
-                                                     [selectable_fd], seltimeout)
                 else:
-                    rfds, wfds, efds = select.select([selectable_fd], [],
-                                                     [selectable_fd])
+                    seltimeout = None
+                rfds, wfds, efds = select([selectable_fd], [],
+                                          [selectable_fd], seltimeout)
             except select.error as exc:
-                print("Select returns error ({})".format(exc.args[1]))
+                print("Select returns error ({})".format(exc.strerror))
             else:
-                if selectable_fd == -1:
-                    if status != 0:
-                        print("Select returned a descriptor")
-                else:
-                    print("Select timed out: "
-                          if not rfds and not wfds and not efds else
-                          "Select returned a descriptor: ", end="")
-                    print("readable, "
-                          if selectable_fd in rfds else
-                          "not readable, ", end="")
-                    print("exceptional condition"
-                          if selectable_fd in efds else
-                          "no exceptional condition", end="")
-                    print()
+                if not quiet:
+                    if not rfds and not wfds and not efds:
+                        print("Select timed out: ", end="")
+                        print()  # <AK>: missing
+                    else:
+                        print("Select returned a descriptor: ", end="")
+                        print("readable, "
+                              if selectable_fd in rfds else
+                              "not readable, ", end="")
+                        print("exceptional condition"
+                              if selectable_fd in efds else
+                              "no exceptional condition", end="")
+                        print()
 
                 packet_count = ct.c_int(0)
                 status = pcap.dispatch(pd, -1, countme,
@@ -219,6 +227,7 @@ def main(argv=sys.argv):
         while True:
             poller = select.poll()
             poller.register(selectable_fd, select.POLLIN)
+            required_timeout = pcap.get_required_select_timeout(pd)
             if dotimeout:
                 polltimeout = 1
             elif (required_timeout is not None and
@@ -229,12 +238,9 @@ def main(argv=sys.argv):
             try:
                 events = poller.poll(polltimeout)
             except select.error as exc:
-                print("Poll returns error ({})".format(exc.args[1]))
+                print("Poll returns error ({})".format(exc.strerror))
             else:
-                if selectable_fd == -1:
-                    if status != 0:
-                        print("Poll returned a descriptor")
-                else:
+                if not quiet:
                     if not events:
                         print("Poll timed out")
                     else:
@@ -256,7 +262,8 @@ def main(argv=sys.argv):
 
                 packet_count = ct.c_int(0)
                 status = pcap.dispatch(pd, -1, countme,
-                    ct.cast(ct.pointer(packet_count), ct.POINTER(ct.c_ubyte)))
+                                       ct.cast(ct.pointer(packet_count),
+                                               ct.POINTER(ct.c_ubyte)))
                 if status < 0:
                     break
                 # Don't report this if we're using a
@@ -272,7 +279,8 @@ def main(argv=sys.argv):
         while True:
             packet_count = ct.c_int(0)
             status = pcap.dispatch(pd, -1, countme,
-                ct.cast(ct.pointer(packet_count), ct.POINTER(ct.c_ubyte)))
+                                   ct.cast(ct.pointer(packet_count),
+                                           ct.POINTER(ct.c_ubyte)))
             if status < 0:
                 break
             print("{:d} packets seen, {:d} packets counted after "
@@ -284,9 +292,9 @@ def main(argv=sys.argv):
         print()
     sys.stdout.flush()
     if status == -1:
-        # Error. Report it.
-        print("{}: pcap.loop: {!s}".format(program_name,
-              pcap.geterr(pd).decode("utf-8", "ignore")), file=sys.stderr)
+        # Error.  Report it.
+        print("{}: pcap.dispatch: {}".format(program_name, geterr2str(pd)),
+              file=sys.stderr)
 
     pcap.freecode(ct.byref(fcode))
     pcap.close(pd)
@@ -301,27 +309,10 @@ def countme(arg, hdr, pkt):
 
 
 def usage():
-    global program_name
-    print("Usage: {} [ -sptn ] [ -i interface ] "
+    print("Usage: {} [ -sptnq ] [ -i interface ] "
           "[expression]".format(program_name), file=sys.stderr)
     sys.exit(1)
 
 
-def error(fmt, *args):
-    global program_name
-    print("{}: ".format(program_name), end="", file=sys.stderr)
-    print(fmt.format(*args), end="", file=sys.stderr)
-    if fmt and fmt[-1] != '\n':
-        print(file=sys.stderr)
-    sys.exit(1)
-
-
-def warning(fmt, *args):
-    global program_name
-    print("{}: WARNING: ".format(program_name), end="", file=sys.stderr)
-    print(fmt.format(*args), end="", file=sys.stderr)
-    if fmt and fmt[-1] != '\n':
-        print(file=sys.stderr)
-
-
-sys.exit(main())
+if __name__.rpartition(".")[-1] == "__main__":
+    sys.exit(main())

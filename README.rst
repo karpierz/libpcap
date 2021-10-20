@@ -12,7 +12,11 @@ Overview
   provided under Win32 systems by such packet capture systems as:
   `Npcap <https://nmap.org/npcap/>`__,
   `WinPcap <https://www.winpcap.org/>`__
-|
+
+`PyPI record`_.
+
+`Documentation`_.
+
 | |package_bold| is a lightweight Python package, based on the *ctypes* library.
 | It is fully compliant implementation of the original C *libpcap* from
   1.0.0 up to 1.9.0 API and the *WinPcap*'s 4.1.3 libpcap (1.0.0rel0b) API
@@ -193,7 +197,7 @@ or on development mode:
 License
 =======
 
-  | Copyright (c) 2016-2020, Adam Karpierz
+  | Copyright (c) 2016-2021, Adam Karpierz
   | Licensed under the BSD license
   | https://opensource.org/licenses/BSD-3-Clause
   | Please refer to the accompanying LICENSE file.
@@ -206,5 +210,6 @@ Authors
 .. |package| replace:: libpcap
 .. |package_bold| replace:: **libpcap**
 .. |respository| replace:: https://github.com/karpierz/libpcap.git
-.. _development page: https://github.com/karpierz/libpcap/
+.. _development page: https://github.com/karpierz/libpcap
 .. _PyPI record: https://pypi.org/project/libpcap/
+.. _Documentation: https://libpcap.readthedocs.io/

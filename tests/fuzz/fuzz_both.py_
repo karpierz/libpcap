@@ -1,0 +1,100 @@
+#!/usr/bin/env python
+
+# Copyright (c) 2016-2021, Adam Karpierz
+# Licensed under the BSD license
+# https://opensource.org/licenses/BSD-3-Clause
+
+#include <fcntl.h>
+#include <errno.h>
+
+import ctypes as ct
+
+import libpcap as pcap
+
+outfile = None
+
+def fuzz_openFile(name: str):
+    global outfile
+    if outfile is not None:
+        outfile.close()
+    outfile = open(name, "wt")
+
+static int bufferToFile(const char * name, const uint8_t *Data, size_t Size):
+{
+    FILE * fd;
+    if (remove(name) != 0) {
+        if (errno != ENOENT) {
+            printf("failed remove, errno=%d\n", errno)
+            return -1
+        }
+    }
+    fd = open(name, "wb")
+    if (fd == NULL) {
+        print("failed open, errno={}".format(errno))
+        return -2
+    }
+    with fd:
+        if (fwrite (Data, 1, Size, fd) != Size) {
+            return -3
+        }
+
+    return 0
+}
+
+def LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) -> int:
+
+    char errbuf[PCAP_ERRBUF_SIZE];
+    const u_char *pkt;
+    int r;
+    size_t filterSize;
+    char * filter;
+    bpf = pcap.bpf_program()
+
+    # initialize output file
+    if outfile is None:
+        outfile = fopen("/dev/null", "w")
+        if outfile is None:
+            return 0
+
+    if Size < 1:
+        return 0
+
+    filterSize = Data[0]
+    if (Size < 1+filterSize || filterSize == 0):
+        return 0
+
+    # rewrite buffer to a file as libpcap does not have buffer inputs
+    if (bufferToFile("/tmp/fuzz.pcap", Data+1+filterSize, Size-(1+filterSize)) < 0) {
+        return 0
+    }
+
+    # initialize structure
+    pkts = pcap.open_offline("/tmp/fuzz.pcap", errbuf)
+    if not pkts:
+        print("Couldn't open pcap file {}".format(errbuf), file=outfile)
+        return 0
+
+    filter = malloc(filterSize)
+    memcpy(filter, Data + 1, filterSize)
+    # null terminate string
+    filter[filterSize - 1] = 0
+
+    if pcap.compile(pkts, &bpf, filter, 1, pcap.PCAP_NETMASK_UNKNOWN) == 0:
+
+        # loop over packets
+        header = ct.POINTER(pcap_pkthdr)()
+        r = pcap.next_ex(pkts, ct.byref(header), &pkt)
+        while r > 0:
+            # checks filter
+            print(file=outfile, "packet length=%d/%d filter=%d" % (
+                  header->caplen, header->len, pcap.offline_filter(&bpf, header, pkt)))
+            r = pcap.next_ex(pkts, ct.byref(header), &pkt)
+
+        # close structure
+        pcap.close(pkts)
+        pcap.freecode(&bpf)
+    else:
+        pcap.close(pkts)
+    free(filter)
+
+    return 0

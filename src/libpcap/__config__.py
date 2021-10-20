@@ -1,21 +1,6 @@
-# Copyright (c) 2016-2020, Adam Karpierz
+# Copyright (c) 2016-2021, Adam Karpierz
 # Licensed under the BSD license
 # https://opensource.org/licenses/BSD-3-Clause
-
-
-def make_config(cfg_name):
-    import sys
-    from pathlib import Path
-    from runpy import run_path
-    module = sys.modules[__name__]
-    mglobals = module.__dict__
-    mglobals.pop("make_config", None)
-    cfg_path = Path(module.__file__).parent/cfg_name
-    cfg_dict = ({key: val for key, val in run_path(str(cfg_path)).items()
-                 if not key.startswith("__")} if cfg_path.is_file() else {})
-    mglobals.update(cfg_dict)
-    mglobals.pop("__cached__", None)
-    module.__all__ = tuple(cfg_dict.keys())
 
 
 def config(**cfg_dict):
@@ -31,6 +16,22 @@ def config(**cfg_dict):
         if mod_name.startswith(__package__ + ".") and mod_name != __name__:
             del sys.modules[mod_name]
     importlib.reload(sys.modules[__package__])
+
+
+def make_config(cfg_fname, cfg_section=None):
+    import sys
+    from pathlib import Path
+    from runpy import run_path
+    fglobals = sys._getframe(1).f_globals
+    fglobals.pop("make_config", None)
+    fglobals.pop("__builtins__", None)
+    fglobals.pop("__cached__",   None)
+    if cfg_section is None: cfg_section = fglobals["__package__"]
+    cfg_path = Path(fglobals["__file__"]).parent/cfg_fname
+    cfg_dict = ({key: val for key, val in run_path(str(cfg_path)).items()
+                 if not key.startswith("__")} if cfg_path.is_file() else {})
+    fglobals.update(cfg_dict)
+    fglobals["__all__"] = ("config",) + tuple(cfg_dict.keys())
 
 
 make_config("libpcap.cfg")

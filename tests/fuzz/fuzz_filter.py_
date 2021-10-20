@@ -1,0 +1,46 @@
+#!/usr/bin/env python
+
+# Copyright (c) 2016-2021, Adam Karpierz
+# Licensed under the BSD license
+# https://opensource.org/licenses/BSD-3-Clause
+
+import ctypes as ct
+
+import libpcap as pcap
+
+
+def fuzz_openFile(name: str):
+    # do nothing
+    pass
+
+
+def LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) -> int:
+
+    bpf = pcap.bpf_program()
+    char * filter;
+
+    # we need at least 1 byte for linktype
+    if Size < 1:
+        return 0
+
+    # initialize structure snaplen = 65535
+    pkts = pcap.open_dead(Data[Size - 1], 0xFFFF)
+    if not pkts:
+        print("pcap_open_dead failed")
+        return 0
+
+    filter = malloc(Size)
+    memcpy(filter, Data, Size)
+    # null terminate string
+    filter[Size - 1] = 0
+
+    if pcap.compile(pkts, &bpf, filter, 1, pcap.PCAP_NETMASK_UNKNOWN) == 0:
+        pcap.setfilter(pkts, &bpf)
+        pcap.close(pkts)
+        pcap.freecode(&bpf)
+    else:
+        pcap.close(pkts)
+
+    free(filter)
+
+    return 0

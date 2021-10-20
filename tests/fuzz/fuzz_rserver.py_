@@ -1,0 +1,57 @@
+#!/usr/bin/env python
+
+# Copyright (c) 2016-2021, Adam Karpierz
+# Licensed under the BSD license
+# https://opensource.org/licenses/BSD-3-Clause
+
+#include <fcntl.h>
+#include <errno.h>
+#include <stdarg.h>
+
+import ctypes as ct
+
+import libpcap as pcap
+void sock_initfuzz(const uint8_t *Data, size_t Size);
+int daemon_serviceloop(int sockctrl, int isactive, char *passiveClients, int nullAuthAllowed, int uses_ssl);
+
+typedef enum {
+    LOGPRIO_DEBUG,
+    LOGPRIO_INFO,
+    LOGPRIO_WARNING,
+    LOGPRIO_ERROR
+} log_priority;
+
+
+outfile = None
+
+def fuzz_openFile(name: str):
+    global outfile
+    if outfile is not None:
+        outfile.close()
+    outfile = open(name, "wt")
+
+
+def rpcapd_log(log_priority priority, const char *message, ...):
+    va_list ap;
+    va_start(ap, message);
+    print("rpcapd[%d]:", priority, end="", file=outfile)
+    vprint(message, ap, end="", file=outfile)
+    print(file=outfile)
+    va_end(ap);
+
+
+def LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) -> int:
+
+    # initialization
+    if outfile is None:
+        fuzz_openFile("/dev/null")
+
+    sock_initfuzz(Data, Size)
+    sock = socket(AF_INET, SOCK_STREAM, 0)
+    if sock == INVALID_SOCKET:
+        abort()
+
+    # dummy socket, active, null auth allowed, no ssl
+    daemon_serviceloop(sock, 1, malloc(0), 1, 0)
+
+    return 0

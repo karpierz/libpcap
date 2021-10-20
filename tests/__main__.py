@@ -1,4 +1,4 @@
-# Copyright (c) 2016-2020, Adam Karpierz
+# Copyright (c) 2016-2021, Adam Karpierz
 # Licensed under the BSD license
 # https://opensource.org/licenses/BSD-3-Clause
 
@@ -24,9 +24,9 @@ def test_suite(names=None, omit=()):
     return tests
 
 
-def main(argv=sys.argv):
+def main(argv=sys.argv[1:]):
     print("Running tests\n", file=sys.stderr)
-    tests = test_suite(argv[1:] or None)
+    tests = test_suite(argv or None)
     result = unittest.TextTestRunner(verbosity=2).run(tests)
     return 0 if result.wasSuccessful() else 1
 

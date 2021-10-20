@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2016-2020, Adam Karpierz
+# Copyright (c) 2016-2021, Adam Karpierz
 # Licensed under the BSD license
 # https://opensource.org/licenses/BSD-3-Clause
 
 """
-This program parses the output from pcap_compile() to visualize the CFG after
+This program parses the output from pcap.compile() to visualize the CFG after
 each optimize phase.
 
 Usage guide:
@@ -13,7 +13,7 @@ Usage guide:
    and build libpcap & the test programs
        ./configure --enable-optimizer-dbg
        make
-       make testprogs
+       make tests
 2. Run filtertest to compile BPF expression and produce the CFG as a
    DOT graph, save to output a.txt
        tests/filtertest -g EN10MB host 192.168.1.1 > a.txt
@@ -39,7 +39,8 @@ Note:
    access to work.
 """
 
-import sys, os
+import sys
+import os
 import string
 import subprocess
 import json
@@ -229,13 +230,16 @@ html_template = string.Template("""
 </html>
 """)
 
+
 def write_html(expr, gcount, logs):
     logs = map(lambda s: s.strip().replace("\n", "<br/>"), logs)
-
     global html_template
-    html = html_template.safe_substitute(expr=expr.encode("string-escape"), gcount=gcount, logs=json.dumps(logs).encode("string-escape"))
-    with file("expr1.html", "wt") as f:
+    html = html_template.safe_substitute(expr=expr.encode("string-escape"),
+                                         gcount=gcount,
+                                         logs=json.dumps(logs).encode("string-escape"))
+    with open("expr1.html", "wt") as f:
         f.write(html)
+
 
 def render_on_html(infile):
     expr = None
@@ -261,14 +265,16 @@ def render_on_html(infile):
 
         if indot == 2:
             try:
-                p = subprocess.Popen(['dot', '-Tsvg'], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+                p = subprocess.Popen(['dot', '-Tsvg'],
+                                     stdin=subprocess.PIPE,
+                                     stdout=subprocess.PIPE)
             except OSError as ose:
                 print("Failed to run 'dot':", ose)
                 print("(Is Graphviz installed?)")
                 exit(1)
 
             svg = p.communicate(dot)[0]
-            with file("expr1_g%03d.svg" % (gid), "wt") as f:
+            with open("expr1_g%03d.svg" % (gid), "wt") as f:
                 f.write(svg)
 
             logs.append(log)
@@ -286,6 +292,7 @@ def render_on_html(infile):
     write_html(expr, gid - 1, logs)
     return True
 
+
 def run_httpd():
     import SimpleHTTPServer
     import SocketServer
@@ -294,16 +301,23 @@ def run_httpd():
         allow_reuse_address = True
     Handler = SimpleHTTPServer.SimpleHTTPRequestHandler
     httpd = MySocketServer(("localhost", 0), Handler)
-    print("open this link: http://localhost:{}/expr1.html".format(httpd.server_address[1]))
+    print("open this link: http://localhost:{}/expr1.html".format(
+          httpd.server_address[1]))
     try:
         httpd.serve_forever()
-    except KeyboardInterrupt as e:
+    except KeyboardInterrupt:
         pass
 
-def main():
+
+def main(argv=sys.argv[1:]):
     import tempfile
     import atexit
     import shutil
+
+    if '-h' in argv or '--help' in argv:
+        print(__doc__)
+        return 0
+
     os.chdir(tempfile.mkdtemp(prefix="visopts-"))
     atexit.register(shutil.rmtree, os.getcwd())
     print("generated files under directory: {}".format(os.getcwd()))
@@ -311,11 +325,10 @@ def main():
 
     if not render_on_html(sys.stdin):
         return 1
+
     run_httpd()
     return 0
 
-if __name__ == "__main__":
-    if '-h' in sys.argv or '--help' in sys.argv:
-        print(__doc__)
-        exit(0)
+
+if __name__.rpartition(".")[-1] == "__main__":
     exit(main())

@@ -1,10 +1,12 @@
-# Copyright (c) 2016-2020, Adam Karpierz
+# Copyright (c) 2016-2021, Adam Karpierz
 # Licensed under the BSD license
 # https://opensource.org/licenses/BSD-3-Clause
 
 include README.rst
 include CHANGES.rst
 include LICENSE
+include pyproject.toml
+include .readthedocs.yml
 
 prune arch
 
@@ -18,7 +20,8 @@ prune src/libpcap/pcap.npcap-sdk.h
 
 graft tests
 prune tests/tests.c
-exclude tests/_info_.txt tests/_report_*.txt
+prune tests/fuzz
 
-global-exclude .build .build.*
+global-exclude \#* \#*/**
+global-exclude .build .build/** .build.* .build.*/**
 global-exclude *.py[cod] __pycache__

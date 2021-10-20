@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 # Copyright (c) 2016-2021, Adam Karpierz
 # Licensed under the BSD license
 # https://opensource.org/licenses/BSD-3-Clause
@@ -24,12 +22,9 @@
 # MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 import sys
-import os
 import ctypes as ct
 
 import libpcap as pcap
-
-from pcaptestutils import *  # noqa
 
 #ifndef lint
 copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
@@ -38,33 +33,29 @@ copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
             "All rights reserved.\n"
 #endif
 
+INT_MAX = int(2147483647)
 
-def main(argv=sys.argv[1:]):
-
-    global program_name
-    program_name = os.path.basename(sys.argv[0])
-
-    ebuf = ct.create_string_buffer(pcap.PCAP_ERRBUF_SIZE)
-
-    pd = pcap.open_live(b"lo0", 65535, 0, 1000, ebuf)
-    if not pd:
-        pd = pcap.open_live(b"lo", 65535, 0, 1000, ebuf)
-        if not pd:
-            error("Neither lo0 nor lo could be opened: {}", ebuf2str(ebuf))
-
-    status = pcap.activate(pd)
-    if status != pcap.PCAP_ERROR_ACTIVATED:
-        if status == 0:
-            error("pcap.activate() of opened pcap_t succeeded")
-        elif status == pcap.PCAP_ERROR:
-            error("pcap.activate() of opened pcap_t failed with {}, "
-                  "not PCAP_ERROR_ACTIVATED", geterr2str(pd))
-        else:
-            error("pcap.activate() of opened pcap_t failed with {}, "
-                  "not PCAP_ERROR_ACTIVATED", status2str(status))
-
-    return 0
+if hasattr(pcap, "statustostr"):
+    status2str = lambda status: pcap.statustostr(status).decode("utf-8", "ignore")
+else:
+    status2str = lambda status: str(status)
+device2str = lambda device: device.decode("utf-8")
+ebuf2str   = lambda ebuf: ebuf.value.decode("utf-8", "ignore")
+geterr2str = lambda pd: pcap.geterr(pd).decode("utf-8", "ignore")
 
 
-if __name__.rpartition(".")[-1] == "__main__":
-    sys.exit(main())
+def error(fmt, *args):
+    program_name = sys._getframe(1).f_globals["program_name"]
+    print("{}: ".format(program_name), end="", file=sys.stderr)
+    print(fmt.format(*args), end="", file=sys.stderr)
+    if fmt and fmt[-1] != '\n':
+        print(file=sys.stderr)
+    sys.exit(1)
+
+
+def warning(fmt, *args):
+    program_name = sys._getframe(1).f_globals["program_name"]
+    print("{}: WARNING: ".format(program_name), end="", file=sys.stderr)
+    print(fmt.format(*args), end="", file=sys.stderr)
+    if fmt and fmt[-1] != '\n':
+        print(file=sys.stderr)

@@ -1,4 +1,4 @@
-# Copyright (c) 2016-2020, Adam Karpierz
+# Copyright (c) 2016-2021, Adam Karpierz
 # Licensed under the BSD license
 # https://opensource.org/licenses/BSD-3-Clause
 
@@ -425,7 +425,7 @@ DLT_DOCSIS = 143
 # interface (irdaX), but not on a raw serial port.
 # Note the capture is done in "Linux-cooked" mode, so each packet include
 # a fake packet header (struct sll_header). This is because IrDA packet
-# decoding is dependant on the direction of the packet (incomming or
+# decoding is dependent on the direction of the packet (incoming or
 # outgoing).
 # When/if other platform implement IrDA capture, we may revisit the
 # issue and define a real DLT_IRDA...
@@ -511,7 +511,7 @@ DLT_BACNET_MS_TP = 165
 # input packets such as port scans, packets from old lost connections,
 # etc. to force the connection to stay up).
 #
-# The first byte of the PPP header (0xff03) is modified to accomodate
+# The first byte of the PPP header (0xff03) is modified to accommodate
 # the direction - 0x00 = IN, 0x01 = OUT.
 
 DLT_PPP_PPPD = 166
@@ -1246,7 +1246,7 @@ DLT_DOCSIS31_XRA31 = 273
 DLT_ETHERNET_MPACKET = 274
 
 # DisplayPort AUX channel monitoring data as specified by VESA
-# DisplayPort(DP) Standard preceeded by a pseudo-header.
+# DisplayPort(DP) Standard preceded by a pseudo-header.
 #    per dirk.eibach at gdsys.cc
 
 DLT_DISPLAYPORT_AUX = 275
@@ -1319,13 +1319,27 @@ DLT_USB_2_0 = 288
 
 DLT_ATSC_ALP = 289
 
+# Event Tracing for Windows messages.
+
+DLT_ETW = 290
+
+# Hilscher Gesellschaft fuer Systemautomation mbH 
+# netANALYZER NG hardware and software.
+# 
+# The specification for this footer can be found at:
+# https://kb.hilscher.com/x/brDJBw
+#
+# Requested by Jan Adam <jadam@hilscher.com>
+
+DLT_NETANALYZER_NG = 291
+
 # In case the code that includes this file (directly or indirectly)
 # has also included OS files that happen to define DLT_MATCHING_MAX,
 # with a different value (perhaps because that OS hasn't picked up
 # the latest version of our DLT definitions), we undefine the
 # previous value of DLT_MATCHING_MAX.
 
-DLT_MATCHING_MAX = 289  # highest value in the "matching" range # available from v.1.8.1
+DLT_MATCHING_MAX = 291  # highest value in the "matching" range # available from v.1.8.1
 
 # DLT and savefile link type values are split into a class and
 # a member of that class.  A class value of 0 indicates a regular

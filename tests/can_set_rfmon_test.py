@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2016-2020, Adam Karpierz
+# Copyright (c) 2016-2021, Adam Karpierz
 # Licensed under the BSD license
 # https://opensource.org/licenses/BSD-3-Clause
 
@@ -29,6 +29,8 @@ import ctypes as ct
 
 import libpcap as pcap
 
+from pcaptestutils import *  # noqa
+
 #ifndef lint
 copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
             "1995, 1996, 1997, 2000\n"\
@@ -36,27 +38,23 @@ copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
             "All rights reserved.\n"
 #endif
 
-try:
-    statustostr = pcap.statustostr
-except AttributeError:
-    statustostr = lambda status: str(status).encode("utf-8")
-
 
 def main(argv=sys.argv):
 
     global program_name
-    program_name = os.path.basename(argv[0])
+    program_name = os.path.basename(sys.argv[0])
 
     if len(argv) != 2:
         print("Usage: {} <device>".format(program_name), file=sys.stderr)
         return 2
 
-    device = argv[1]
+    device = argv[1].encode("utf-8")
 
     ebuf = ct.create_string_buffer(pcap.PCAP_ERRBUF_SIZE)
-    pd = pcap.create(device.encode("utf-8"), ebuf)
+
+    pd = pcap.create(device, ebuf)
     if not pd:
-        error("{!s}", ebuf.value.decode("utf-8", "ignore"))
+        error("{}", ebuf2str(ebuf))
 
     try:
         status = pcap.can_set_rfmon(pd)
@@ -64,25 +62,17 @@ def main(argv=sys.argv):
         error("pcap.can_set_rfmon is not available on this platform")
     if status < 0:
         if status == pcap.PCAP_ERROR:
-            error("{}: pcap.can_set_rfmon failed: {!s}",
-                  device, pcap.geterr(pd).decode("utf-8", "ignore"))
+            error("{}: pcap.can_set_rfmon failed: {}",
+                  device2str(device), geterr2str(pd))
         else:
-            error("{}: pcap.can_set_rfmon failed: {!s}",
-                  device, statustostr(status).decode("utf-8", "ignore"))
+            error("{}: pcap.can_set_rfmon failed: {}",
+                  device2str(device), status2str(status))
 
     print("{}: Monitor mode {} be set".format(
-          device, "can" if status else "cannot"))
+          device2str(device), "can" if status else "cannot"))
 
     return 0
 
 
-def error(fmt, *args):
-    global program_name
-    print("{}: ".format(program_name), end="", file=sys.stderr)
-    print(fmt.format(*args), end="", file=sys.stderr)
-    if fmt and fmt[-1] != '\n':
-        print(file=sys.stderr)
-    sys.exit(1)
-
-
-sys.exit(main())
+if __name__.rpartition(".")[-1] == "__main__":
+    sys.exit(main())

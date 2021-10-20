@@ -49,12 +49,6 @@
   #include <ws2tcpip.h>
 
   /*
-   * Winsock doesn't have this UN*X type; it's used in the UN*X
-   * sockets API.
-   */
-  typedef int socklen_t;
-
-  /*
    * Winsock doesn't have this POSIX type; it's used for the
    * tv_usec value of struct timeval.
    */

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2016-2020, Adam Karpierz
+# Copyright (c) 2016-2021, Adam Karpierz
 # Licensed under the BSD license
 # https://opensource.org/licenses/BSD-3-Clause
 
@@ -31,7 +31,7 @@ import ctypes as ct
 import libpcap as pcap
 from libpcap._platform import is_windows, defined
 
-INT_MAX = int(2147483647)
+from pcaptestutils import *  # noqa
 
 #ifndef lint
 copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
@@ -43,13 +43,13 @@ copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
 MAXIMUM_SNAPLEN = 262144
 
 
-def main(argv=sys.argv):
+def main(argv=sys.argv[1:]):
 
     global program_name
-    program_name = os.path.basename(argv[0])
+    program_name = os.path.basename(sys.argv[0])
 
     try:
-        opts, args = getopt.getopt(argv[1:], "dF:gm:Os:")
+        opts, args = getopt.getopt(argv, "dF:gm:Os:")
     except getopt.GetoptError:
         usage()
 
@@ -85,7 +85,7 @@ def main(argv=sys.argv):
             #     elif r == -1:
             #         error("invalid netmask {}: {}", optarg, pcap_strerror(errno))
             # else: # elif r == 1:
-            #     addr = bpf_u_int32(addr)
+            #     addr = pcap.bpf_u_int32(addr)
             #     netmask = addr
             pass
         elif opt == '-s':
@@ -113,7 +113,7 @@ def main(argv=sys.argv):
         try:
             dlt = int(dlt_name)
         except:
-            error("invalid data link type {!s}", dlt_name)
+            error("invalid data link type {}", dlt_name)
 
     if infile:
         cmdbuf = read_infile(infile)
@@ -127,7 +127,7 @@ def main(argv=sys.argv):
 
     fcode = pcap.bpf_program()
     if pcap.compile(pd, ct.byref(fcode), cmdbuf, Oflag, netmask) < 0:
-        error("{!s}", pcap.geterr(pd).decode("utf-8", "ignore"))
+        error("{}", geterr2str(pd))
     have_fcode = True
 
     if not pcap.bpf_validate(fcode.bf_insns, fcode.bf_len):
@@ -152,19 +152,19 @@ def main(argv=sys.argv):
     return 0
 
 
-def read_infile(fname): # bytes
+def read_infile(fname: str) -> bytes: 
 
     try:
         fd = open(fname, "rb")
     except IOError as exc:
-        error("can't open {!s}: {!s}",
+        error("can't open {}: {}",
               fname, pcap.strerror(exc.errno).decode("utf-8", "ignore"))
 
     with fd:
         try:
             stat = os.fstat(fd.fileno())
         except IOError as exc:
-            error("can't stat {!s}: {!s}",
+            error("can't stat {}: {}",
                   fname, pcap.strerror(exc.errno).decode("utf-8", "ignore"))
 
         # _read(), on Windows, has an unsigned int byte count and an
@@ -174,17 +174,17 @@ def read_infile(fname): # bytes
         # the end of the string.)
         #
         if stat.st_size > INT_MAX - 1:
-            error("{!s} is larger than {} bytes; that's too large",
+            error("{} is larger than {} bytes; that's too large",
                   fname, INT_MAX - 1)
         try:
             cp = fd.read()
         except IOError as exc:
-            error("read {!s}: {!s}",
+            error("read {}: {}",
                   fname, pcap.strerror(exc.errno).decode("utf-8", "ignore"))
 
     lcp = len(cp)
     if lcp != stat.st_size:
-        error("short read {!s} ({:d} != {:d})", fname, lcp, stat.st_size)
+        error("short read {} ({:d} != {:d})", fname, lcp, stat.st_size)
 
     cp = bytearray(cp)
     # replace "# comment" with spaces
@@ -200,10 +200,9 @@ def read_infile(fname): # bytes
 
 
 def usage():
-    global program_name
-    print("{}, with {!s}".format(program_name,
+    print("{}, with {}".format(program_name,
           pcap.lib_version().decode("utf-8")), file=sys.stderr)
-    print("Usage: {} [-dO] [ -F file ] [ -m netmask] [ -s snaplen ] dlt "
+    print("Usage: {} [-d{}O] [ -F file ] [ -m netmask] [ -s snaplen ] dlt "
           "[ expression ]".format(program_name,
           "g" if defined("BDEBUG") else ""), file=sys.stderr)
     print("e.g. ./{} EN10MB host 192.168.1.1".format(program_name),
@@ -211,21 +210,5 @@ def usage():
     sys.exit(1)
 
 
-def error(fmt, *args):
-    global program_name
-    print("{}: ".format(program_name), end="", file=sys.stderr)
-    print(fmt.format(*args), end="", file=sys.stderr)
-    if fmt and fmt[-1] != '\n':
-        print(file=sys.stderr)
-    sys.exit(1)
-
-
-def warning(fmt, *args):
-    global program_name
-    print("{}: WARNING: ".format(program_name), end="", file=sys.stderr)
-    print(fmt.format(*args), end="", file=sys.stderr)
-    if fmt and fmt[-1] != '\n':
-        print(file=sys.stderr)
-
-
-sys.exit(main())
+if __name__.rpartition(".")[-1] == "__main__":
+    sys.exit(main())

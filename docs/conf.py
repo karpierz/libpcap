@@ -4,14 +4,29 @@
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
-from os import path
-from io import open
-from glob import glob
+import re
+from pathlib import Path
+from setuptools.config import read_configuration
+from packaging import version
 
-top_dir = path.dirname(path.dirname(path.abspath(__file__)))
-with open(glob(path.join(top_dir, "src/*/__about__.py"))[0],
-          encoding="utf-8") as f:
-    class about: exec(f.read(), None)
+top_dir = Path(__file__).resolve().parents[1]
+metadata = read_configuration(top_dir/"setup.cfg",
+                              ignore_option_errors=True)["metadata"]
+copyr_patt = r"^\s*__copyright__\s*=\s*"
+class about:
+    __title__      = metadata["name"]
+    __summary__    = metadata.get("description")
+    __uri__        = metadata.get("url")
+    __version__    = str(version.parse(metadata["version"]))
+    __author__     = metadata.get("author")
+    __maintainer__ = metadata.get("maintainer")
+    __email__      = metadata.get("author_email")
+    __license__    = metadata.get("license")
+    __copyright__  = eval(next((re.split(copyr_patt, line)[1] for line in
+                                next(top_dir.glob("src/**/__about__.py"))
+                                .open("rt", encoding="utf-8")
+                                if re.split(copyr_patt, line)[1:]), "None"))
+del read_configuration, version, metadata, copyr_patt
 
 def setup(app):
     pass
@@ -41,7 +56,7 @@ release = about.__version__
 
 # If your documentation needs a minimal Sphinx version, state it here.
 #
-needs_sphinx = '2.0.1'
+needs_sphinx = '3.4.3'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -55,6 +70,8 @@ extensions = [
    #'sphinx.ext.coverage',
     'sphinx.ext.ifconfig',
     'sphinx.ext.napoleon',
+    'sphinx_tabs.tabs',
+    'sphinxcontrib.spelling',
 ]
 
 # Needed for e.g. linkcheck builder

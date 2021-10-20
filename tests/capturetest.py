@@ -29,7 +29,7 @@ import getopt
 import ctypes as ct
 
 import libpcap as pcap
-from libpcap._platform import is_windows, defined
+from libpcap._platform import is_windows
 
 from pcaptestutils import *  # noqa
 
@@ -42,7 +42,7 @@ copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
 
 pd = ct.POINTER(pcap.pcap_t)
 
-if not is_windows
+if not is_windows:
     breaksigint = False
 
     #static void sigint_handler(int signum _U_)
@@ -62,7 +62,7 @@ def main(argv=sys.argv[1:]):
     global breaksigint
 
     try:
-        opts, args = getopt.getopt(argv, "i:mnt:" is_windows else "bi:mnrst:")
+        opts, args = getopt.getopt(argv, "i:mnt:" if is_windows else "bi:mnrst:")
     except getopt.GetoptError:
         usage()
 

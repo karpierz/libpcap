@@ -185,10 +185,10 @@ def main(argv=sys.argv[1:]):
         if status != 0:
             print("{:d} packets seen, {:d} packets counted after "
                   "pcap.dispatch returns".format(status, packet_count.value))
-           ps = pcap.stat()
-           pcap.stats(pd, ct.byref(ps))
-           print("{:d} ps_recv, {:d} ps_drop, {:d} ps_ifdrop".format(
-                 ps.ps_recv, ps.ps_drop, ps.ps_ifdrop))
+            ps = pcap.stat()
+            pcap.stats(pd, ct.byref(ps))
+            print("{:d} ps_recv, {:d} ps_drop, {:d} ps_ifdrop".format(
+                  ps.ps_recv, ps.ps_drop, ps.ps_ifdrop))
 
     if status == -2:
         # We got interrupted, so perhaps we didn't manage to finish a

@@ -1,7 +1,7 @@
 Changelog
 =========
 
-1.11.0b1 (2021-10-20)
+1.11.0b2 (2021-11-10)
 ---------------------
 - Upgrade to the latest libpcap API 1.11.0-PRE
 - Copyright year update.

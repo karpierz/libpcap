@@ -22,9 +22,12 @@
 # MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 import sys
+import os
 import ctypes as ct
 
 import libpcap as pcap
+from libpcap._platform import is_windows
+if is_windows: import win32
 
 #ifndef lint
 copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
@@ -34,6 +37,49 @@ copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
 #endif
 
 INT_MAX = int(2147483647)
+
+if is_windows:
+
+    # Generate a string for a Win32-specific error (i.e. an error generated when
+    # calling a Win32 API).
+    # For errors occurred during standard C calls, we still use pcap.strerror()
+
+    ERRBUF_SIZE = 1024
+
+    def strerror(code) -> str:
+        error  = win32.DWORD(error)
+        errbuf = ct.create_string_buffer(ERRBUF_SIZE + 1)
+        #static char errbuf[ERRBUF_SIZE+1];
+        win32.FormatMessageA(win32.FORMAT_MESSAGE_FROM_SYSTEM,
+                             None, error, 0, errbuf,
+                             ERRBUF_SIZE, None)
+        # "FormatMessage()" "helpfully" sticks CR/LF at the end of the
+        # message.  Get rid of it.
+        errlen = len(errbuf)
+        if errlen >= 2:
+            errbuf[errlen - 1] = b'\0'
+            errbuf[errlen - 2] = b'\0'
+            errlen -= 2
+
+        return errbuf.value.decode()
+       #return errbuf
+
+    def sleep_secs(secs: int):
+        win32.Sleep(secs * 1000)
+
+else:
+
+    def strerror(code) -> str:
+        try:
+            return os.strerror(code)
+        except ValueError:
+            return f"Unknown error (code: {code})"
+
+    def sleep_secs(secs: int):
+        if secs <= 0: return
+        secs_remaining = secs # (unsigned int) secs
+        while secs_remaining != 0:
+            secs_remaining = sleep(secs_remaining)
 
 if hasattr(pcap, "statustostr"):
     status2str = lambda status: pcap.statustostr(status).decode("utf-8", "ignore")

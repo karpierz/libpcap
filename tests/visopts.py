@@ -16,12 +16,12 @@ Usage guide:
        make tests
 2. Run filtertest to compile BPF expression and produce the CFG as a
    DOT graph, save to output a.txt
-       tests/filtertest -g EN10MB host 192.168.1.1 > a.txt
+       python tests/filtertest.py -g EN10MB host 192.168.1.1 > a.txt
 3. Send a.txt to this program's standard input
-       cat a.txt | tests/visopts.py
+       cat a.txt | python tests/visopts.py
    (Graphviz must be installed)
 4. Step 2&3 can be merged:
-       tests/filtertest -g EN10MB host 192.168.1.1 | tests/visopts.py
+       python tests/filtertest.py -g EN10MB host 192.168.1.1 | python tests/visopts.py
 5. The standard output is something like this:
        generated files under directory: /tmp/visopts-W9ekBw
          the directory will be removed when this programs finished.
@@ -232,11 +232,11 @@ html_template = string.Template("""
 
 
 def write_html(expr, gcount, logs):
-    logs = map(lambda s: s.strip().replace("\n", "<br/>"), logs)
+    logs = [s.strip().replace("\n", "<br/>") for s in logs]
     global html_template
-    html = html_template.safe_substitute(expr=expr.encode("string-escape"),
+    html = html_template.safe_substitute(expr=expr.encode("unicode-escape").decode("utf-8"),
                                          gcount=gcount,
-                                         logs=json.dumps(logs).encode("string-escape"))
+                                         logs=json.dumps(logs).encode("unicode-escape").decode("utf-8"))
     with open("expr1.html", "wt") as f:
         f.write(html)
 
@@ -284,22 +284,24 @@ def render_on_html(infile):
             indot = 0
 
     if indot != 0:
-        #unterminated dot graph for expression
+        # unterminated dot graph for expression
         return False
     if expr is None:
         # BPF parser encounter error(s)
         return False
+
     write_html(expr, gid - 1, logs)
     return True
 
 
 def run_httpd():
-    import SimpleHTTPServer
-    import SocketServer
+    import http.server
+    import socketserver
 
-    class MySocketServer(SocketServer.TCPServer):
+    class MySocketServer(socketserver.TCPServer):
         allow_reuse_address = True
-    Handler = SimpleHTTPServer.SimpleHTTPRequestHandler
+
+    Handler = http.server.SimpleHTTPRequestHandler
     httpd = MySocketServer(("localhost", 0), Handler)
     print("open this link: http://localhost:{}/expr1.html".format(
           httpd.server_address[1]))
@@ -318,15 +320,21 @@ def main(argv=sys.argv[1:]):
         print(__doc__)
         return 0
 
-    os.chdir(tempfile.mkdtemp(prefix="visopts-"))
-    atexit.register(shutil.rmtree, os.getcwd())
-    print("generated files under directory: {}".format(os.getcwd()))
-    print("  the directory will be removed when this program has finished.")
+    cwd = os.getcwd()
+    try:
+        temp_dir = tempfile.mkdtemp(prefix="visopts-")
+        atexit.register(shutil.rmtree, temp_dir)
+        os.chdir(temp_dir)
+        print("generated files under directory: {}".format(temp_dir))
+        print("  the directory will be removed when this program has finished.")
 
-    if not render_on_html(sys.stdin):
-        return 1
+        if not render_on_html(sys.stdin):
+            return 1
 
-    run_httpd()
+        run_httpd()
+    finally:
+        os.chdir(cwd)
+
     return 0
 
 

@@ -30,8 +30,6 @@ import getopt
 import ctypes as ct
 
 import libpcap as pcap
-from libpcap._platform import is_windows
-
 from pcaptestutils import *  # noqa
 
 #ifndef lint
@@ -41,19 +39,19 @@ copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
             "All rights reserved.\n"
 #endif
 
-pd = ct.POINTER(pcap.pcap_t)
+pd = ct.POINTER(pcap.pcap_t)()
 
 if is_windows:
-    # BOOL WINAPI stop_capture(DWORD ctrltype _U_):
-    def stop_capture(ctrltype):
+    @win32.PHANDLER_ROUTINE
+    def stop_capture(ctrltype: win32.DWORD) -> win32.BOOL:
         global pd
-        pcap_breakloop(pd)
-        return TRUE;
+        pcap.breakloop(pd)
+        return True
 else:
     # void stop_capture(int signum _U_):
     def stop_capture(signum):
         global pd
-        pcap_breakloop(pd)
+        pcap.breakloop(pd)
 
 
 def parse_interface_number(device: bytes) -> int:
@@ -111,7 +109,6 @@ def find_interface_by_number(devnum: int) -> bytes:
 def open_interface(device: bytes, snaplen: Optional[int],
                    ebuf: ct.POINTER(ct.c_char)) -> Optional[ct.POINTER(pcap.pcap_t)]:
     """ """
-    print("@@@", device.decode("utf-8"))
     pc = pcap.create(device, ebuf)
     if not pc:
         # If this failed with "No such device", that means
@@ -121,7 +118,6 @@ def open_interface(device: bytes, snaplen: Optional[int],
         if b"No such device" in ebuf.value:
             return None
         error("{}", ebuf2str(ebuf))
-    print("@@@", device.decode("utf-8"))
     if snaplen is not None:
         status = pcap.set_snaplen(pc, snaplen)
         if status != 0:
@@ -320,7 +316,7 @@ def main(argv=sys.argv[1:]):
         if pcap.compile(pd, ct.byref(fcode), cmdbuf, 1, netmask) < 0:
             error("{}", geterr2str(pd))
 
-        if pcap_setfilter(pd, ct.byref(fcode)) < 0:
+        if pcap.setfilter(pd, ct.byref(fcode)) < 0:
             error("{}", geterr2str(pd))
 
     pdd = pcap.dump_open(pd, savefile)
@@ -328,14 +324,14 @@ def main(argv=sys.argv[1:]):
         error("{}", geterr2str(pd))
 
     if is_windows:
-        SetConsoleCtrlHandler(stop_capture, TRUE)
+        win32.SetConsoleCtrlHandler(stop_capture, True)
     else:
         action = sigaction()
         action.sa_handler = stop_capture
         sigemptyset(ct.byref(action.sa_mask))
         action.sa_flags = 0
         if sigaction(SIGINT, ct.byref(action), NULL) == -1:
-            error("Can't catch SIGINT: {!s}", strerror(errno))
+            error("Can't catch SIGINT: {}", strerror(errno))
 
     print("Listening on {}, link-type ".format(device2str(device)), end="")
     dlt = pcap_datalink(pd)
@@ -346,7 +342,8 @@ def main(argv=sys.argv[1:]):
         print("{}".format(dlt_name.decode("utf-8")), end="")
     print()
     while True:
-        status = pcap.dispatch(pd, -1, pcap_dump, ct.cast(pdd, ct.POINTER(ct.c_ubyte)))
+        status = pcap.dispatch(pd, -1, pcap.dump,
+                               ct.cast(pdd, ct.POINTER(ct.c_ubyte)))
         if status < 0:
             break
         if status != 0:
@@ -355,10 +352,9 @@ def main(argv=sys.argv[1:]):
             pcap.stats(pd, ct.byref(ps))
             print("{:d} ps_recv, {:d} ps_drop, {:d} ps_ifdrop".format(
                   ps.ps_recv, ps.ps_drop, ps.ps_ifdrop))
-    if status == -2:
-        # We got interrupted, so perhaps we didn't
-        # manage to finish a line we were printing.
-        # Print an extra newline, just in case.
+    if status == pcap.PCAP_ERROR_BREAK:
+        # We got interrupted, so perhaps we didn't manage to finish a
+        # line we were printing. Print an extra newline, just in case.
         print()
         print("Broken out of loop from SIGINT handler")
     sys.stdout.flush()
@@ -366,17 +362,17 @@ def main(argv=sys.argv[1:]):
         # Error.  Report it.
         print("{}: pcap.dispatch: {}".format(program_name, geterr2str(pd)),
               file=sys.stderr)
-    pcap.close(pd)
     if cmdbuf is not None:
         pcap.freecode(ct.byref(fcode))
     del cmdbuf
+    pcap.close(pd)
 
     return 1 if status == -1 else 0
 
 
 def usage():
     print("Usage: {} -D -L [ -i interface ] [ -s snaplen ] [ -w file ] "
-          "[ -y dlt ] [expression]".format(program_name), file=sys.stderr)
+          "[ -y dlt ] [ expression ]".format(program_name), file=sys.stderr)
     sys.exit(1)
 
 

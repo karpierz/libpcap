@@ -5,6 +5,7 @@ Changelog
 ---------------------
 - Upgrade to the latest libpcap API 1.11.0-PRE
 - Copyright year update.
+- *backward incompatibility* - libpcap.cfg is now a regular INI file.
 - Setup update.
 
 1.10.0b15 (2020-10-18)

@@ -16,14 +16,20 @@ arch_dir = os.path.join(this_dir, arch)
 if is_32bit:
     raise NotImplementedError("This 32 bit OS is not supported already!")
 
+found = False
 try:
-    from ...__config__ import LIBPCAP
+    from ...__config__ import config
+    LIBPCAP = config.get("LIBPCAP", None)
+    del config
+    if LIBPCAP is None or LIBPCAP in ("", "None"):
+        raise ImportError()
 except ImportError:
     LIBPCAP = find_library("pcap")
     if not LIBPCAP:
         raise OSError("Cannot find libpcap.so library") from None
+    found = True
 
-if os.path.isabs(LIBPCAP):
+if found or os.path.isabs(LIBPCAP):
     DLL_PATH = LIBPCAP
 else:
     LIBPCAP = "tcpdump"  # only internal tcpdump is available

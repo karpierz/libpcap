@@ -16,7 +16,11 @@ arch_dir = os.path.join(this_dir, arch)
 raise NotImplementedError("This OS is not supported yet!")
 
 try:
-    from ...__config__ import LIBPCAP
+    from ...__config__ import config
+    LIBPCAP = config.get("LIBPCAP", None)
+    del config
+    if LIBPCAP is None or LIBPCAP in ("", "None"):
+        raise ImportError()
 except ImportError:
     LIBPCAP = "tcpdump"  # !!! temporary? !!!
 

@@ -29,8 +29,6 @@ import getopt
 import ctypes as ct
 
 import libpcap as pcap
-from libpcap._platform import is_windows
-
 from pcaptestutils import *  # noqa
 
 #ifndef lint
@@ -40,7 +38,7 @@ copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
             "All rights reserved.\n"
 #endif
 
-pd = ct.POINTER(pcap.pcap_t)
+pd = ct.POINTER(pcap.pcap_t)()
 
 if not is_windows:
     breaksigint = False
@@ -50,7 +48,7 @@ if not is_windows:
         global pd
         global breaksigint
         if breaksigint:
-            pcap_breakloop(pd)
+            pcap.breakloop(pd)
 
 
 def main(argv=sys.argv[1:]):
@@ -123,7 +121,7 @@ def main(argv=sys.argv[1:]):
             # Should SIGINT interrupt, or restart, system calls?
             action.sa_flags = SA_RESTART if sigrestart else 0
             if sigaction(SIGINT, ct.byref(action), NULL) == -1:
-                error("Can't catch SIGINT: {!s}", strerror(errno))
+                error("Can't catch SIGINT: {}", strerror(errno))
 
     pd = pcap.create(device, ebuf)
     if not pd:
@@ -190,13 +188,13 @@ def main(argv=sys.argv[1:]):
             print("{:d} ps_recv, {:d} ps_drop, {:d} ps_ifdrop".format(
                   ps.ps_recv, ps.ps_drop, ps.ps_ifdrop))
 
-    if status == -2:
+    if status == pcap.PCAP_ERROR_BREAK:
         # We got interrupted, so perhaps we didn't manage to finish a
         # line we were printing. Print an extra newline, just in case.
         print()
         print("Broken out of loop from SIGINT handler")
     sys.stdout.flush()
-    if status == -1:
+    if status == pcap.PCAP_ERROR:
         # Error.  Report it.
         print("{}: pcap.dispatch: {}".format(program_name, geterr2str(pd)),
               file=sys.stderr)
@@ -215,7 +213,7 @@ def countme(arg, hdr, pkt):
 
 def usage():
     print("Usage: {} [ {} ] [ -i interface ] [ -t timeout] "
-          "[expression]".format(program_name,
+          "[ expression ]".format(program_name,
           "-mn" if is_windows else "-bmnrs"), file=sys.stderr)
     sys.exit(1)
 

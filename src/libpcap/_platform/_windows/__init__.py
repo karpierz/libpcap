@@ -20,8 +20,13 @@ def _DLL(*args, **kargs):
     finally:
         windll.kernel32.SetDllDirectoryA(None)
 
+found = False
 try:
-    from ...__config__ import LIBPCAP
+    from ...__config__ import config
+    LIBPCAP = config.get("LIBPCAP", None)
+    del config
+    if LIBPCAP is None or LIBPCAP in ("", "None"):
+        raise ImportError()
 except ImportError:
     if find_library(os.path.join("npcap", "wpcap")):
         LIBPCAP = "npcap"
@@ -29,6 +34,7 @@ except ImportError:
         LIBPCAP = find_library("wpcap")
         if not LIBPCAP:
             raise OSError("Cannot find wpcap.dll library") from None
+        found = True
         from ctypes import WinDLL as DLL
 else:
     DLL = _DLL
@@ -37,13 +43,14 @@ if LIBPCAP == "npcap":
     LIBPCAP = find_library(os.path.join("npcap", "wpcap"))
     if not LIBPCAP:
         raise OSError("Cannot find npcap/wpcap.dll library")
+    found = True
     npcap_dir = os.path.dirname(LIBPCAP)
     ct.windll.kernel32.SetDllDirectoryA(npcap_dir.encode("utf-8"))
     ct.cdll.LoadLibrary(os.path.join(npcap_dir, "Packet.dll"))
     del npcap_dir
     DLL = _DLL
 
-if os.path.isabs(LIBPCAP):
+if found or os.path.isabs(LIBPCAP):
     DLL_PATH = LIBPCAP
 else:
     DLL_PATH = os.path.join(arch_dir, LIBPCAP, "wpcap.dll")

@@ -57,7 +57,7 @@ def select(rlist, wlist, xlist, timeout=None):
 def main(argv=sys.argv[1:]):
 
     global program_name
-    program_name = os.path.basename(sys.sys.argv[0])
+    program_name = os.path.basename(sys.argv[0])
 
     try:
         opts, args = getopt.getopt(argv, "i:sptnq")
@@ -286,7 +286,7 @@ def main(argv=sys.argv[1:]):
             print("{:d} packets seen, {:d} packets counted after "
                   "pcap.dispatch returns".format(status, packet_count.value))
 
-    if status == -2:
+    if status == pcap.PCAP_ERROR_BREAK:
         # We got interrupted, so perhaps we didn't manage to finish a
         # line we were printing. Print an extra newline, just in case.
         print()
@@ -310,7 +310,7 @@ def countme(arg, hdr, pkt):
 
 def usage():
     print("Usage: {} [ -sptnq ] [ -i interface ] "
-          "[expression]".format(program_name), file=sys.stderr)
+          "[ expression ]".format(program_name), file=sys.stderr)
     sys.exit(1)
 
 

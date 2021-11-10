@@ -39,16 +39,16 @@ copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
 #endif
 
 
-def main(argv=sys.argv):
+def main(argv=sys.argv[1:]):
 
     global program_name
     program_name = os.path.basename(sys.argv[0])
 
-    if len(argv) != 2:
+    if len(argv) != 1:
         print("Usage: {} <device>".format(program_name), file=sys.stderr)
         return 2
 
-    device = argv[1].encode("utf-8")
+    device = argv[0].encode("utf-8")
 
     ebuf = ct.create_string_buffer(pcap.PCAP_ERRBUF_SIZE)
 

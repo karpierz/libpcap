@@ -34,17 +34,17 @@ ability to specify it programmatically by one of the following ways:
 .. code:: python
 
   import libpcap
-  libpcap.config(LIBPCAP=None)       # system's libpcap library will be use
+  libpcap.config(LIBPCAP=None)       # system's libpcap library will be used
   # or
   libpcap.config(LIBPCAP="npcap")
   # or
-  libpcap.config(LIBPCAP="wpcap")    # included wpcap library will be use
+  libpcap.config(LIBPCAP="wpcap")    # included wpcap library will be used
   # or
-  libpcap.config(LIBPCAP="tcpdump")  # included tcpdump library will be use
+  libpcap.config(LIBPCAP="tcpdump")  # included tcpdump library will be used
   # or                               # (currently works only for Linux x64)
   libpcap.config(LIBPCAP="libpcap shared library absolute path")
 
-About original LIBPCAP:
+About original libpcap:
 -----------------------
 
 | LIBPCAP 1.x.y
@@ -150,7 +150,7 @@ Prerequisites:
 + Python 3.6 or higher
 
   * https://www.python.org/
-  * 3.7 with C LIBPCAP 1.8.1 is a primary test environment.
+  * 3.7 with C libpcap 1.8.1 is a primary test environment.
 
 + pip and setuptools
 

@@ -29,8 +29,7 @@ import getopt
 import ctypes as ct
 
 import libpcap as pcap
-from libpcap._platform import is_windows, defined
-
+from libpcap._platform import defined
 from pcaptestutils import *  # noqa
 
 #ifndef lint
@@ -67,7 +66,7 @@ def main(argv=sys.argv[1:]):
     for opt, optarg in opts:
         if opt == '-d':
             dflag += 1
-        elif opt == 'g':
+        elif opt == '-g':
             if defined("BDEBUG"):
                 gflag += 1
             else:

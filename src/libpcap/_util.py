@@ -32,15 +32,20 @@ def set_config(**cfg_dict):
     import sys
     import importlib
     # Update config
-    from .__config__ import config
     to_update = {key: str(val) for key, val in cfg_dict.items()
                  if val is not None}
     to_remove = {key for key, val in cfg_dict.items() if val is None}
+    #fglobals = sys._getframe(1).f_globals
+    #package_name = fglobals["__package__"]
+    package_name = __package__
+    config_name  = package_name + ".__config__"
+    #config = sys.modules[config_name].config
+    from .__config__ import config
     config.update(to_update)
     for key in to_remove: config.pop(key, None)
     # Reload
     for mod_name in tuple(sys.modules):
-        if (mod_name.startswith(__package__ + ".") and
-            mod_name != __package__ + ".__config__"):
+        if (mod_name.startswith(package_name + ".") and
+            mod_name != config_name):
             del sys.modules[mod_name]
-    importlib.reload(sys.modules[__package__])
+    importlib.reload(sys.modules[package_name])

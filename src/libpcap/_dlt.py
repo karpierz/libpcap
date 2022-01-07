@@ -1,4 +1,4 @@
-# Copyright (c) 2016-2021, Adam Karpierz
+# Copyright (c) 2016-2022, Adam Karpierz
 # Licensed under the BSD license
 # https://opensource.org/licenses/BSD-3-Clause
 
@@ -95,6 +95,63 @@ if defined("__NetBSD__") or defined("__FreeBSD__"):
 else:
     DLT_SLIP_BSDOS = 15  # BSD/OS Serial Line IP
     DLT_PPP_BSDOS  = 16  # BSD/OS Point-to-point Protocol
+
+# NetBSD uses 15 for HIPPI.
+# 
+# From a quick look at sys/net/if_hippi.h and sys/net/if_hippisubr.c
+# in an older version of NetBSD , the header appears to be:
+#
+#     a 1-byte ULP field (ULP-id)?
+#
+#    a 1-byte flags field;
+#
+#    a 2-byte "offsets" field;
+#
+#    a 4-byte "D2 length" field (D2_Size?);
+#
+#    a 4-byte "destination switch" field (or a 1-byte field
+#    containing the Forwarding Class, Double_Wide, and Message_Type
+#    sub fields, followed by a 3-byte Destination_Switch_Address
+#    field?, HIPPI-LE 3.4-style?);
+#
+#    a 4-byte "source switch" field (or a 1-byte field containing the
+#    Destination_Address_type and Source_Address_Type fields, followed
+#    by a 3-byte Source_Switch_Address field, HIPPI-LE 3.4-style?);
+#
+#    a 2-byte reserved field;
+#
+#    a 6-byte destination address field;
+#
+#    a 2-byte "local admin" field;
+#
+#    a 6-byte source address field;
+#
+# followed by an 802.2 LLC header.
+#
+# This looks somewhat like something derived from the HIPPI-FP 4.4
+# Header_Area, followed an HIPPI-FP 4.4 D1_Area containing a D1 data set
+# with the header in HIPPI-LE 3.4 (ANSI X3.218-1993), followed by an
+# HIPPI-FP 4.4 D2_Area (with no Offset) containing the 802.2 LLC header
+# and payload?  Or does the "offsets" field contain the D2_Offset,
+# with that many bytes of offset before the payload?
+#
+# See http://wotug.org/parallel/standards/hippi/ for an archive of
+# HIPPI specifications.
+#
+# RFC 2067 imposes some additional restrictions.  It says that the
+# Offset is always zero
+#
+# HIPPI is long-gone, and the source files found in an older version
+# of NetBSD don't appear to be in the main CVS branch, so we may never
+# see a capture with this link-layer type.
+
+if defined("__NetBSD__"):
+    DLT_HIPPI = 15  # HIPPI
+
+# NetBSD uses 16 for DLT_HDLC; see below.
+# BSD/OS uses it for PPP; see above.
+# As far as I know, no other OS uses it for anything; don't use it
+# for anything else.
 
 # 17 was used for DLT_PFLOG in OpenBSD; it no longer is.
 #
@@ -197,7 +254,8 @@ DLT_FRELAY = 107
 # that the AF_ type in the link-layer header is in network byte order.
 #
 # DLT_LOOP is 12 in OpenBSD, but that's DLT_RAW in other OSes, so
-# we don't use 12 for it in OSes other than OpenBSD.
+# we don't use 12 for it in OSes other than OpenBSD; instead, we
+# use the same value as LINKTYPE_LOOP.
 
 if defined("__OpenBSD__"):
     DLT_LOOP = 12
@@ -206,17 +264,25 @@ else:
 
 # Encapsulated packets for IPsec; DLT_ENC is 13 in OpenBSD, but that's
 # DLT_SLIP_BSDOS in NetBSD, so we don't use 13 for it in OSes other
-# than OpenBSD.
+# than OpenBSD; instead, we use the same value as LINKTYPE_ENC.
 
 if defined("__OpenBSD__"):
     DLT_ENC = 13
 else:
     DLT_ENC = 109
 
-# Values between 110 and 112 are reserved for use in capture file headers
+# Values 110 and 111 are reserved for use in capture file headers
 # as link-layer types corresponding to DLT_ types that might differ
 # between platforms; don't use those values for new DLT_ types
 # other than the corresponding DLT_ types.
+
+# NetBSD uses 16 for (Cisco) "HDLC framing".  For other platforms,
+# we define it to have the same value as LINKTYPE_NETBSD_HDLC.
+
+if defined("__NetBSD__"):
+    DLT_HDLC = 16    # Cisco HDLC
+else:
+    DLT_HDLC = 112
 
 # Linux cooked sockets.
 
@@ -1323,9 +1389,9 @@ DLT_ATSC_ALP = 289
 
 DLT_ETW = 290
 
-# Hilscher Gesellschaft fuer Systemautomation mbH 
+# Hilscher Gesellschaft fuer Systemautomation mbH
 # netANALYZER NG hardware and software.
-# 
+#
 # The specification for this footer can be found at:
 # https://kb.hilscher.com/x/brDJBw
 #
@@ -1333,13 +1399,22 @@ DLT_ETW = 290
 
 DLT_NETANALYZER_NG = 291
 
+# Serial NCP (Network Co-Processor) protocol for Zigbee stack ZBOSS
+# by DSR.
+# ZBOSS NCP protocol description: https://cloud.dsr-corporation.com/index.php/s/3isHzaNTTgtJebn
+# Header in pcap file: https://cloud.dsr-corporation.com/index.php/s/fiqSDorAAAZrsYB
+#
+# Requested by Eugene Exarevsky <eugene.exarevsky@dsr-corporation.com>
+
+DLT_ZBOSS_NCP = 292
+
 # In case the code that includes this file (directly or indirectly)
 # has also included OS files that happen to define DLT_MATCHING_MAX,
 # with a different value (perhaps because that OS hasn't picked up
 # the latest version of our DLT definitions), we undefine the
 # previous value of DLT_MATCHING_MAX.
 
-DLT_MATCHING_MAX = 291  # highest value in the "matching" range # available from v.1.8.1
+DLT_MATCHING_MAX = 292  # highest value in the "matching" range # available from v.1.8.1
 
 # DLT and savefile link type values are split into a class and
 # a member of that class.  A class value of 0 indicates a regular

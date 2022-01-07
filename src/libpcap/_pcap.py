@@ -1,4 +1,4 @@
-# Copyright (c) 2016-2021, Adam Karpierz
+# Copyright (c) 2016-2022, Adam Karpierz
 # Licensed under the BSD license
 # https://opensource.org/licenses/BSD-3-Clause
 
@@ -1004,7 +1004,7 @@ if is_windows:
     # with a pcap_t (there's no guarantee that there is one), we can add
     # a Windows-only pcap_handle() API that returns the HANDLE.
     #
-    # PCAP_DEPRECATED(pcap_fileno, "use 'pcap_handle'")
+    # PCAP_DEPRECATED(pcap_fileno, "request a 'pcap_handle' that returns a HANDLE if you need it")
     pass
 
 try:  # PCAP_AVAILABLE_0_4
@@ -1370,7 +1370,7 @@ PCAP_SRC_IFREMOTE = 4  # interface on a remote host, using RPCAP
 
 # The formats allowed by pcap.open() are the following:
 # - file://path_and_filename [opens a local file]
-# - rpcap://devicename [opens the selected device devices available on the
+# - rpcap://devicename [opens the selected device available on the
 #   local host, without using the RPCAP protocol]
 # - rpcap://host/devicename [opens the selected device available on a remote
 #   host]

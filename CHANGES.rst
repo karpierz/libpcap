@@ -1,6 +1,12 @@
 Changelog
 =========
 
+1.11.0b3 (2022-01-07)
+---------------------
+- Drop support for Python 3.6.
+- Copyright year update.
+- Setup update.
+
 1.11.0b2 (2021-11-10)
 ---------------------
 - Upgrade to the latest libpcap API 1.11.0-PRE

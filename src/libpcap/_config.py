@@ -2,6 +2,22 @@
 # Licensed under the BSD license
 # https://opensource.org/licenses/BSD-3-Clause
 
+__all__ = ('make_config',)
+
+
+def make_config(cfg_fname, cfg_section=None):
+    import sys
+    from pathlib import Path
+    from functools import partial
+    fglobals = sys._getframe(1).f_globals
+    fglobals.pop("__builtins__", None)
+    fglobals.pop("__cached__",   None)
+    if cfg_section is None: cfg_section = fglobals["__package__"]
+    cfg_path = Path(fglobals["__file__"]).parent/cfg_fname
+    fglobals["__all__"] = ("config", "set_config")
+    fglobals["config"] = get_config(cfg_path, cfg_section)
+    fglobals["set_config"] = partial(set_config, fglobals)
+
 
 def get_config(cfg_path, cfg_section):
     from pathlib import Path
@@ -16,31 +32,16 @@ def get_config(cfg_path, cfg_section):
     return cfg[cfg_section]
 
 
-def make_config(cfg_fname, cfg_section=None):
-    import sys
-    from pathlib import Path
-    fglobals = sys._getframe(1).f_globals
-    fglobals.pop("__builtins__", None)
-    fglobals.pop("__cached__",   None)
-    if cfg_section is None: cfg_section = fglobals["__package__"]
-    cfg_path = Path(fglobals["__file__"]).parent/cfg_fname
-    fglobals["__all__"] = ("config",)
-    fglobals["config"] = get_config(cfg_path, cfg_section)
-
-
-def set_config(**cfg_dict):
+def set_config(fglobals, **cfg_dict):
     import sys
     import importlib
     # Update config
     to_update = {key: str(val) for key, val in cfg_dict.items()
                  if val is not None}
     to_remove = {key for key, val in cfg_dict.items() if val is None}
-    #fglobals = sys._getframe(1).f_globals
-    #package_name = fglobals["__package__"]
-    package_name = __package__
+    package_name = fglobals["__package__"]
     config_name  = package_name + ".__config__"
-    #config = sys.modules[config_name].config
-    from .__config__ import config
+    config = sys.modules[config_name].config
     config.update(to_update)
     for key in to_remove: config.pop(key, None)
     # Reload

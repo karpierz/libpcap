@@ -47,14 +47,13 @@ ability to specify it programmatically by one of the following ways:
 About original libpcap:
 -----------------------
 
-| LIBPCAP 1.x.y
-| Now maintained by "The Tcpdump Group":
+LIBPCAP 1.x.y by "The Tcpdump Group":
 
   https://www.tcpdump.org
 
 Anonymous Git is available via:
 
-    git clone git://bpf.tcpdump.org/libpcap
+    git clone https://github.com/the-tcpdump-group/libpcap.git
 
 formerly from:
 
@@ -72,6 +71,8 @@ require this functionality, we've created this system-independent API
 to ease in porting and to alleviate the need for several
 system-dependent packet capture modules in each application.
 
+Support for particular platforms and BPF:
+
 For some platforms there are README.{system} files that discuss issues
 with the OS's interface for packet capture on those platforms, such as
 how to enable support for that interface in the OS, if it's not built in
@@ -80,22 +81,10 @@ by default.
 The libpcap interface supports a filtering mechanism based on the
 architecture in the BSD packet filter.  BPF is described in the 1993
 Winter Usenix paper "The BSD Packet Filter: A New Architecture for
-User-level Packet Capture".  A compressed PostScript version can be
-found at:
-
-    ftp://ftp.ee.lbl.gov/papers/bpf-usenix93.ps.Z
-
-or:
-
-    https://www.tcpdump.org/papers/bpf-usenix93.ps.Z
-
-and a gzipped version can be found at:
-
-    https://www.tcpdump.org/papers/bpf-usenix93.ps.gz
-
-A PDF version can be found at:
-
-    https://www.tcpdump.org/papers/bpf-usenix93.pdf
+User-level Packet Capture" (`compressed PostScript
+<https://www.tcpdump.org/papers/bpf-usenix93.ps.Z>`__, `gzipped
+PostScript <https://www.tcpdump.org/papers/bpf-usenix93.ps.gz>`__,
+`PDF <https://www.tcpdump.org/papers/bpf-usenix93.pdf>`__).
 
 Although most packet capture interfaces support in-kernel filtering,
 libpcap utilizes in-kernel filtering only for the BPF interface.
@@ -106,17 +95,18 @@ would translate BPF filters into a filter program that is compatible
 with the underlying kernel subsystem, but this is not yet implemented.
 
 BPF is standard in 4.4BSD, BSD/OS, NetBSD, FreeBSD, OpenBSD, DragonFly
-BSD, and Mac OS X; an older, modified and undocumented version is
+BSD, and macOS; an older, modified and undocumented version is
 standard in AIX.  DEC OSF/1, Digital UNIX, Tru64 UNIX uses the
 packetfilter interface but has been extended to accept BPF filters
 (which libpcap utilizes).  Also, you can add BPF filter support to
-Ultrix using the kernel source and/or object patches available in:
+Ultrix using the kernel source and/or object patches available 
+`here <https://www.tcpdump.org/other/bpfext42.tar.Z>`__.
 
-    https://www.tcpdump.org/other/bpfext42.tar.Z
-
-Linux, in the 2.2 kernel and later kernels, has a "Socket Filter"
-mechanism that accepts BPF filters; see the README.linux file for
-information on configuring that option.
+Linux has a number of BPF based systems, and libpcap does not support
+any of the eBPF mechanisms as yet, although it supports many of the
+memory mapped receive mechanisms. See the `Linux-specific README
+<https://github.com/the-tcpdump-group/libpcap/blob/master/doc/README.linux>`__,
+for more information.
 
 Note to Linux distributions and \*BSD systems that include libpcap:
 
@@ -124,16 +114,16 @@ There's now a rule to make a shared library, which should work on Linux
 and \*BSD, among other platforms.
 
 It sets the soname of the library to "libpcap.so.1"; this is what it
-should be, *NOT* libpcap.so.1.x or libpcap.so.1.x.y or something such as
-that.
+should be, *NOT* "libpcap.so.1.x" or "libpcap.so.1.x.y" or something
+such as that.
 
 We've been maintaining binary compatibility between libpcap releases for
 quite a while; there's no reason to tie a binary linked with libpcap to
 a particular release of libpcap.
 
-Current versions can be found at: https://www.tcpdump.org
-
-\- The TCPdump group
+We've been maintaining binary compatibility between libpcap releases for
+quite a while; there's no reason to tie a binary linked with libpcap to
+a particular release of libpcap.
 
 Requirements
 ============
@@ -147,7 +137,7 @@ Installation
 
 Prerequisites:
 
-+ Python 3.6 or higher
++ Python 3.7 or higher
 
   * https://www.python.org/
   * 3.7 with C libpcap 1.8.1 is a primary test environment.

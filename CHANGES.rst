@@ -1,7 +1,7 @@
 Changelog
 =========
 
-1.11.0b3 (2022-01-08)
+1.11.0b3 (2022-01-09)
 ---------------------
 - Drop support for Python 3.6.
 - Copyright year update.

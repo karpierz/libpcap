@@ -17,8 +17,8 @@ is_android = False
 is_posix   = (os.name == "posix")
 is_32bit   = (sys.maxsize <= 2**32)
 
-def defined(varname, _getframe=sys._getframe):
-    frame = _getframe(1)
+def defined(varname, __getframe=sys._getframe):
+    frame = __getframe(1)
     return varname in frame.f_locals or varname in frame.f_globals
 
 del sys, os, platform

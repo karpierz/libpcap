@@ -74,6 +74,8 @@ from ._dll      import dll
 
 from ._bpf import *
 
+PCAP_DEPRECATED = lambda func, msg: None
+
 
 class FILE(ct.Structure): pass
 
@@ -149,11 +151,59 @@ class file_header(ct.Structure):
     ("linktype",      bpf_u_int32),  # data link type (LINKTYPE_*)
 ]
 
-# Macros for the value returned by pcap.datalink_ext().
+# Subfields of the field containing the link-layer header type.
 #
-# If LT_FCS_LENGTH_PRESENT(x) is true, the LT_FCS_LENGTH(x) macro
-# gives the FCS length of packets in the capture.
+# Link-layer header types are assigned for both pcap and
+# pcapng, and the same value must work with both.  In pcapng,
+# the link-layer header type field in an Interface Description
+# Block is 16 bits, so only the bottommost 16 bits of the
+# link-layer header type in a pcap file can be used for the
+# header type value.
+#
+# In libpcap, the upper 16 bits, from the top down, are divided into:
+#
+#    A 4-bit "FCS length" field, to allow the FCS length to
+#    be specified, just as it can be specified in the if_fcslen
+#    field of the pcapng IDB.  The field is in units of 16 bits,
+#    i.e. 1 means 16 bits of FCS, 2 means 32 bits of FCS, etc..
+#
+#    A reserved bit, which must be zero.
+#
+#    An "FCS length present" flag; if 0, the "FCS length" field
+#    should be ignored, and if 1, the "FCS length" field should
+#    be used.
+#
+#    10 reserved bits, which must be zero.  They were originally
+#    intended to be used as a "class" field, allowing additional
+#    classes of link-layer types to be defined, with a class value
+#    of 0 indicating that the link-layer type is a LINKTYPE_ value.
+#    A value of 0x224 was, at one point, used by NetBSD to define
+#    "raw" packet types, with the lower 16 bits containing a
+#    NetBSD AF_ value; see
+#
+#        https://marc.info/?l=tcpdump-workers&m=98296750229149&w=2
+#
+#    It's unknown whether those were ever used in capture files,
+#    or if the intent was just to use it as a link-layer type
+#    for BPF programs; NetBSD's libpcap used to support them in
+#    the BPF code generator, but it no longer does so.  If it
+#    was ever used in capture files, or if classes other than
+#    "LINKTYPE_ value" are ever useful in capture files, we could
+#    re-enable this, and use the reserved 16 bits following the
+#    link-layer type in pcapng files to hold the class information
+#    there.  (Note, BTW, that LINKTYPE_RAW/DLT_RAW is now being
+#    interpreted by libpcap, tcpdump, and Wireshark as "raw IP",
+#    including both IPv4 and IPv6, with the version number in the
+#    header being checked to see which it is, not just "raw IPv4";
+#    there are LINKTYPE_IPV4/DLT_IPV4 and LINKTYPE_IPV6/DLT_IPV6
+#    values if "these are IPv{4,6} and only IPv{4,6} packets"
+#    types are needed.)
+#
+#    Or we might be able to use it for other purposes.
 
+LT_LINKTYPE           = lambda x: (x & 0x0000FFFF)
+LT_LINKTYPE_EXT       = lambda x: (x & 0xFFFF0000)
+LT_RESERVED1          = lambda x: (x & 0x03FF0000)
 LT_FCS_LENGTH_PRESENT = lambda x: (x & 0x04000000)
 LT_FCS_LENGTH         = lambda x: ((x & 0xF0000000) >> 28)
 LT_FCS_DATALINK_EXT   = lambda x: (((x & 0xF) << 28) | 0x04000000)
@@ -163,7 +213,6 @@ direction_t = ct.c_int
     PCAP_D_INOUT,
     PCAP_D_IN,
     PCAP_D_OUT
-
 ) = (0, 1, 2)
 
 # Generic per-packet information, as supplied by libpcap.
@@ -398,13 +447,13 @@ PCAP_TSTAMP_PRECISION_NANO  = 1  # use timestamps with nanosecond precision
 # reasons (not thread-safe, can behave weirdly with WinPcap).
 # Callers should use  pcap.findalldevs() and use the first device.
 #
-# PCAP_DEPRECATED(pcap_lookupdev, "use 'pcap.findalldevs' and use the first device")
-#
 try:  # PCAP_AVAILABLE_0_4
     lookupdev = CFUNC(ct.c_char_p,
                       ct.c_char_p)(
                       ("pcap_lookupdev", dll), (
                       (1, "errbuf"),))
+    PCAP_DEPRECATED(lookupdev,
+                    "use 'pcap.findalldevs' and use the first device")
 except: pass
 
 try:  # PCAP_AVAILABLE_0_4
@@ -861,6 +910,8 @@ try:  # PCAP_AVAILABLE_0_5
                       (1, "buffer"),
                       (1, "optimize"),
                       (1, "mask"),))
+    PCAP_DEPRECATED(compile_nopcap,
+                    "use pcap.open_dead(), pcap.compile() and pcap.close()")
 except: pass
 
 try:  # PCAP_AVAILABLE_0_6 (XXX - this took two arguments in 0.4 and 0.5)
@@ -996,16 +1047,16 @@ try:  # PCAP_AVAILABLE_0_4
                       ct.POINTER(pcap_t))(
                       ("pcap_fileno", dll), (
                       (1, "pcap"),))
+    if is_windows:
+        # This probably shouldn't have been kept in WinPcap; most if not all
+        # UN*X code that used it won't work on Windows.  We deprecate it; if
+        # anybody really needs access to whatever HANDLE may be associated
+        # with a pcap_t (there's no guarantee that there is one), we can add
+        # a Windows-only pcap_handle() API that returns the HANDLE.
+        #
+        PCAP_DEPRECATED(fileno,
+                        "request a 'pcap_handle' that returns a HANDLE if you need it")
 except: pass
-if is_windows:
-    # This probably shouldn't have been kept in WinPcap; most if not all
-    # UN*X code that used it won't work on Windows.  We deprecate it; if
-    # anybody really needs access to whatever HANDLE may be associated
-    # with a pcap_t (there's no guarantee that there is one), we can add
-    # a Windows-only pcap_handle() API that returns the HANDLE.
-    #
-    # PCAP_DEPRECATED(pcap_fileno, "request a 'pcap_handle' that returns a HANDLE if you need it")
-    pass
 
 try:  # PCAP_AVAILABLE_0_4
     dump_open = CFUNC(ct.POINTER(pcap_dumper_t),
@@ -1368,23 +1419,25 @@ PCAP_SRC_FILE     = 2  # local savefile
 PCAP_SRC_IFLOCAL  = 3  # local network interface
 PCAP_SRC_IFREMOTE = 4  # interface on a remote host, using RPCAP
 
-# The formats allowed by pcap.open() are the following:
+# The formats allowed by pcap.open() are the following (optional parts in []):
 # - file://path_and_filename [opens a local file]
-# - rpcap://devicename [opens the selected device available on the
-#   local host, without using the RPCAP protocol]
-# - rpcap://host/devicename [opens the selected device available on a remote
-#   host]
-# - rpcap://host:port/devicename [opens the selected device available on a
-#   remote host, using a non-standard port for RPCAP]
+# - rpcap://devicename [opens the selected device available on the local host,
+#   without using the RPCAP protocol]
+# - rpcap://[username:password@]host[:port]/devicename [opens the selected device
+#   available on a remote host]
+#   - username and password, if present, will be used to authenticate to the remote host
+#   - port, if present, will specify a port for RPCAP rather than using the default
 # - adaptername [to open a local adapter; kept for compatibility, but it is
 #   strongly discouraged]
 # - (NULL) [to open the first local adapter; kept for compatibility, but it is
 #   strongly discouraged]
 #
-# The formats allowed by the pcap.findalldevs_ex() are the following:
+# The formats allowed by the pcap.findalldevs_ex() are the following (optional parts in []):
 # - file://folder/ [lists all the files in the given folder]
 # - rpcap:// [lists all local adapters]
-# - rpcap://host:port/ [lists the devices available on a remote host]
+# - rpcap://[username:password@]host[:port]/ [lists the devices available on a remote host]
+#   - username and password, if present, will be used to authenticate to the remote host
+#   - port, if present, will specify a port for RPCAP rather than using the default
 #
 # In all the above, "rpcaps://" can be substituted for "rpcap://" to enable
 # SSL (if it has been compiled in).
@@ -1401,6 +1454,7 @@ PCAP_SRC_IFREMOTE = 4  # interface on a remote host, using RPCAP
 # Here you find some allowed examples:
 # - rpcap://host.foo.bar/devicename [everything literal, no port number]
 # - rpcap://host.foo.bar:1234/devicename [everything literal, with port number]
+# - rpcap://root:hunter2@host.foo.bar/devicename [everything literal, with username/password]
 # - rpcap://10.11.12.13/devicename [IPv4 numeric, no port number]
 # - rpcap://10.11.12.13:1234/devicename [IPv4 numeric, with port number]
 # - rpcap://[10.11.12.13]:1234/devicename [IPv4 numeric with IPv6 format, with
@@ -1498,10 +1552,11 @@ RPCAP_RMTAUTH_NULL = 0
 # authentication is successful (and the user has the right to open network
 # devices) the RPCAP connection will continue; otherwise it will be dropped.
 #
-# *******NOTE********: the username and password are sent over the network
-# to the capture server *IN CLEAR TEXT*.  Don't use this on a network
-# that you don't completely control!  (And be *really* careful in your
-# definition of "completely"!)
+# *******NOTE********: unless TLS is being used, the username and password
+# are sent over the network to the capture server *IN CLEAR TEXT*.  Don't
+# use this, without TLS (i.e., with rpcap:// rather than rpcaps://) on
+# a network that you don't completely control!  (And be *really* careful
+# in your definition of "completely"!)
 
 RPCAP_RMTAUTH_PWD = 1
 
@@ -1793,6 +1848,67 @@ try:  # PCAP_AVAILABLE_1_9
       #ifdef ENABLE_REMOTE
     remoteact_cleanup = CFUNC(None)(
                       ("pcap_remoteact_cleanup", dll),)
+except: pass
+
+option_name = ct.c_int
+(   # never renumber this
+    PON_TSTAMP_PRECISION1,  # int
+    PON_IO_READ_PLUGIN,     # char *
+    PON_IO_WRITE_PLUGIN,    # char *
+) = (1, 2, 3)
+
+class options(ct.Structure): pass
+
+try:  # PCAP_AVAILABLE_1_11
+    alloc_option = CFUNC(ct.POINTER(options))(
+                      ("pcap_alloc_option", dll),)
+except: pass
+
+try:  # PCAP_AVAILABLE_1_11
+    free_option = CFUNC(None,
+                      ct.POINTER(options))(
+                      ("pcap_free_option", dll), (
+                      (1, "po"),))
+except: pass
+
+try:  # PCAP_AVAILABLE_1_11
+    set_option_string = CFUNC(ct.c_int,
+                      ct.POINTER(options),
+                      option_name,
+                      ct.c_char_p)(
+                      ("pcap_set_option_string", dll), (
+                      (1, "po"),
+                      (1, "pon"),
+                      (1, "value"),))
+except: pass
+
+try:  # PCAP_AVAILABLE_1_11
+    set_option_int = CFUNC(ct.c_int,
+                      ct.POINTER(options),
+                      option_name,
+                      ct.c_int)(
+                      ("pcap_set_option_int", dll), (
+                      (1, "po"),
+                      (1, "pon"),
+                      (1, "value"),))
+except: pass
+
+try:  # PCAP_AVAILABLE_1_11
+    get_option_string = CFUNC(ct.c_char_p,
+                      ct.POINTER(options),
+                      option_name)(
+                      ("pcap_get_option_string", dll), (
+                      (1, "po"),
+                      (1, "pon"),))
+except: pass
+
+try:  # PCAP_AVAILABLE_1_11
+    get_option_int = CFUNC(ct.c_int,
+                      ct.POINTER(options),
+                      option_name)(
+                      ("pcap_get_option_int", dll), (
+                      (1, "po"),
+                      (1, "pon"),))
 except: pass
 
 # eof

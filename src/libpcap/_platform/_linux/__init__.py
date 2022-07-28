@@ -14,7 +14,7 @@ arch     = "x86" if is_32bit else "x64"
 arch_dir = os.path.join(this_dir, arch)
 
 if is_32bit:
-    raise NotImplementedError("This 32 bit OS is not supported already!")
+    raise NotImplementedError("This OS is not supported in 32 bit!")
 
 found = False
 try:
@@ -101,8 +101,8 @@ class in_addr(ct.Structure):
 class sockaddr_in(ct.Structure):
     _fields_ = [
     ("sin_family", sa_family_t),  # e.g. AF_INET, AF_INET6
-    ("sin_port",   in_port_t),    # Port number. 
-    ("sin_addr",   in_addr),      # Internet address. 
+    ("sin_port",   in_port_t),    # Port number.
+    ("sin_addr",   in_addr),      # Internet address.
     ("sin_zero",   (ct.c_ubyte *  # # Pad to size of `struct sockaddr'.
                      (ct.sizeof(sockaddr) -
                       ct.sizeof(sa_family_t) -

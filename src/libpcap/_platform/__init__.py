@@ -12,7 +12,7 @@ is_windows = (bool(platform.win32_ver()[0]) or
               (os.name == "java" and
                "windows" in platform.java_ver()[3][0].lower()))
 is_linux   = sys.platform.startswith("linux")
-is_osx     = (sys.platform == "darwin")
+is_macos   = (sys.platform == "darwin")
 is_android = False
 is_posix   = (os.name == "posix")
 is_32bit   = (sys.maxsize <= 2**32)
@@ -31,9 +31,9 @@ elif is_linux:
     from ._linux   import DLL_PATH, DLL, dlclose, CFUNC
     from ._linux   import timeval, SOCKET, INVALID_SOCKET
     from ._linux   import sockaddr, in_addr, sockaddr_in, in6_addr, sockaddr_in6
-elif is_osx:
-    from ._osx     import DLL_PATH, DLL, dlclose, CFUNC
-    from ._osx     import timeval, SOCKET, INVALID_SOCKET
-    from ._osx     import sockaddr, in_addr, sockaddr_in, in6_addr, sockaddr_in6
+elif is_macos:
+    from ._macos   import DLL_PATH, DLL, dlclose, CFUNC
+    from ._macos   import timeval, SOCKET, INVALID_SOCKET
+    from ._macos   import sockaddr, in_addr, sockaddr_in, in6_addr, sockaddr_in6
 else:
     raise ImportError("unsupported platform")

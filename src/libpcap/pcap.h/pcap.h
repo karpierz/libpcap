@@ -215,11 +215,59 @@ struct pcap_file_header {
 };
 
 /*
- * Macros for the value returned by pcap_datalink_ext().
+ * Subfields of the field containing the link-layer header type.
  *
- * If LT_FCS_LENGTH_PRESENT(x) is true, the LT_FCS_LENGTH(x) macro
- * gives the FCS length of packets in the capture.
+ * Link-layer header types are assigned for both pcap and
+ * pcapng, and the same value must work with both.  In pcapng,
+ * the link-layer header type field in an Interface Description
+ * Block is 16 bits, so only the bottommost 16 bits of the
+ * link-layer header type in a pcap file can be used for the
+ * header type value.
+ *
+ * In libpcap, the upper 16 bits, from the top down, are divided into:
+ *
+ *    A 4-bit "FCS length" field, to allow the FCS length to
+ *    be specified, just as it can be specified in the if_fcslen
+ *    field of the pcapng IDB.  The field is in units of 16 bits,
+ *    i.e. 1 means 16 bits of FCS, 2 means 32 bits of FCS, etc..
+ *
+ *    A reserved bit, which must be zero.
+ *
+ *    An "FCS length present" flag; if 0, the "FCS length" field
+ *    should be ignored, and if 1, the "FCS length" field should
+ *    be used.
+ *
+ *    10 reserved bits, which must be zero.  They were originally
+ *    intended to be used as a "class" field, allowing additional
+ *    classes of link-layer types to be defined, with a class value
+ *    of 0 indicating that the link-layer type is a LINKTYPE_ value.
+ *    A value of 0x224 was, at one point, used by NetBSD to define
+ *    "raw" packet types, with the lower 16 bits containing a
+ *    NetBSD AF_ value; see
+ *
+ *        https://marc.info/?l=tcpdump-workers&m=98296750229149&w=2
+ *
+ *    It's unknown whether those were ever used in capture files,
+ *    or if the intent was just to use it as a link-layer type
+ *    for BPF programs; NetBSD's libpcap used to support them in
+ *    the BPF code generator, but it no longer does so.  If it
+ *    was ever used in capture files, or if classes other than
+ *    "LINKTYPE_ value" are ever useful in capture files, we could
+ *    re-enable this, and use the reserved 16 bits following the
+ *    link-layer type in pcapng files to hold the class information
+ *    there.  (Note, BTW, that LINKTYPE_RAW/DLT_RAW is now being
+ *    interpreted by libpcap, tcpdump, and Wireshark as "raw IP",
+ *    including both IPv4 and IPv6, with the version number in the
+ *    header being checked to see which it is, not just "raw IPv4";
+ *    there are LINKTYPE_IPV4/DLT_IPV4 and LINKTYPE_IPV6/DLT_IPV6
+ *    values if "these are IPv{4,6} and only IPv{4,6} packets"
+ *    types are needed.)
+ *
+ *    Or we might be able to use it for other purposes.
  */
+#define LT_LINKTYPE(x)			((x) & 0x0000FFFF)
+#define LT_LINKTYPE_EXT(x)		((x) & 0xFFFF0000)
+#define LT_RESERVED1(x)			((x) & 0x03FF0000)
 #define LT_FCS_LENGTH_PRESENT(x)	((x) & 0x04000000)
 #define LT_FCS_LENGTH(x)		(((x) & 0xF0000000) >> 28)
 #define LT_FCS_DATALINK_EXT(x)		((((x) & 0xF) << 28) | 0x04000000)
@@ -615,7 +663,8 @@ PCAP_API int	pcap_compile(pcap_t *, struct bpf_program *, const char *, int,
 
 PCAP_AVAILABLE_0_5
 PCAP_API int	pcap_compile_nopcap(int, int, struct bpf_program *,
-	    const char *, int, bpf_u_int32);
+	    const char *, int, bpf_u_int32)
+PCAP_DEPRECATED(pcap_compile_nopcap, "use pcap_open_dead(), pcap_compile() and pcap_close()");
 
 /* XXX - this took two arguments in 0.4 and 0.5 */
 PCAP_AVAILABLE_0_6
@@ -876,18 +925,21 @@ PCAP_API const char *pcap_lib_version(void);
 #define PCAP_SRC_IFREMOTE	4	/* interface on a remote host, using RPCAP */
 
 /*
- * The formats allowed by pcap_open() are the following:
+ * The formats allowed by pcap_open() are the following (optional parts in []):
  * - file://path_and_filename [opens a local file]
  * - rpcap://devicename [opens the selected device available on the local host, without using the RPCAP protocol]
- * - rpcap://host/devicename [opens the selected device available on a remote host]
- * - rpcap://host:port/devicename [opens the selected device available on a remote host, using a non-standard port for RPCAP]
+ * - rpcap://[username:password@]host[:port]/devicename [opens the selected device available on a remote host]
+ *   - username and password, if present, will be used to authenticate to the remote host
+ *   - port, if present, will specify a port for RPCAP rather than using the default
  * - adaptername [to open a local adapter; kept for compatibility, but it is strongly discouraged]
  * - (NULL) [to open the first local adapter; kept for compatibility, but it is strongly discouraged]
  *
- * The formats allowed by the pcap_findalldevs_ex() are the following:
+ * The formats allowed by the pcap_findalldevs_ex() are the following (optional parts in []):
  * - file://folder/ [lists all the files in the given folder]
  * - rpcap:// [lists all local adapters]
- * - rpcap://host:port/ [lists the devices available on a remote host]
+ * - rpcap://[username:password@]host[:port]/ [lists the devices available on a remote host]
+ *   - username and password, if present, will be used to authenticate to the remote host
+ *   - port, if present, will specify a port for RPCAP rather than using the default
  *
  * In all the above, "rpcaps://" can be substituted for "rpcap://" to enable
  * SSL (if it has been compiled in).
@@ -904,6 +956,7 @@ PCAP_API const char *pcap_lib_version(void);
  * Here you find some allowed examples:
  * - rpcap://host.foo.bar/devicename [everything literal, no port number]
  * - rpcap://host.foo.bar:1234/devicename [everything literal, with port number]
+ * - rpcap://root:hunter2@host.foo.bar/devicename [everything literal, with username/password]
  * - rpcap://10.11.12.13/devicename [IPv4 numeric, no port number]
  * - rpcap://10.11.12.13:1234/devicename [IPv4 numeric, with port number]
  * - rpcap://[10.11.12.13]:1234/devicename [IPv4 numeric with IPv6 format, with port number]
@@ -1013,10 +1066,11 @@ PCAP_API const char *pcap_lib_version(void);
  * authentication is successful (and the user has the right to open network
  * devices) the RPCAP connection will continue; otherwise it will be dropped.
  *
- * *******NOTE********: the username and password are sent over the network
- * to the capture server *IN CLEAR TEXT*.  Don't use this on a network
- * that you don't completely control!  (And be *really* careful in your
- * definition of "completely"!)
+ * *******NOTE********: unless TLS is being used, the username and password
+ * are sent over the network to the capture server *IN CLEAR TEXT*.  Don't
+ * use this, without TLS (i.e., with rpcap:// rather than rpcaps://) on
+ * a network that you don't completely control!  (And be *really* careful
+ * in your definition of "completely"!)
  */
 #define RPCAP_RMTAUTH_PWD 1
 
@@ -1211,6 +1265,32 @@ PCAP_API int	pcap_remoteact_close(const char *host, char *errbuf);
 
 PCAP_AVAILABLE_1_9
 PCAP_API void	pcap_remoteact_cleanup(void);
+
+enum pcap_option_name {  /* never renumber this */
+		       PON_TSTAMP_PRECISION = 1,  /* int */
+		       PON_IO_READ_PLUGIN   = 2,  /* char * */
+		       PON_IO_WRITE_PLUGIN  = 3,  /* char * */
+};
+typedef struct pcap_options pcap_options;
+PCAP_AVAILABLE_1_11
+PCAP_API pcap_options *pcap_alloc_option(void);
+
+PCAP_AVAILABLE_1_11
+PCAP_API void pcap_free_option(pcap_options *po);
+
+PCAP_AVAILABLE_1_11
+PCAP_API int pcap_set_option_string(pcap_options *po,
+				    enum pcap_option_name pon, const char *value);
+
+PCAP_AVAILABLE_1_11
+PCAP_API int pcap_set_option_int(pcap_options *po,
+				 enum pcap_option_name pon, const int value);
+
+PCAP_AVAILABLE_1_11
+PCAP_API const char *pcap_get_option_string(pcap_options *po, enum pcap_option_name pon);
+
+PCAP_AVAILABLE_1_11
+PCAP_API int pcap_get_option_int(pcap_options *po, enum pcap_option_name pon);
 
 #ifdef __cplusplus
 }

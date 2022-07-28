@@ -106,7 +106,7 @@
 
 /*
  * NetBSD uses 15 for HIPPI.
- * 
+ *
  * From a quick look at sys/net/if_hippi.h and sys/net/if_hippisubr.c
  * in an older version of NetBSD , the header appears to be:
  *
@@ -1544,6 +1544,8 @@
 
 /*
  * USB 2.0, 1.1, and 1.0 packets as transmitted over the cable.
+ * Deprecated in favor of speed specific DLTs: DLT_USB_2_0_LOW_SPEED,
+ * DLT_USB_2_0_FULL_SPEED and DLT_USB_2_0_HIGH_SPEED.
  */
 #define DLT_USB_2_0		288
 
@@ -1579,6 +1581,13 @@
 #define DLT_ZBOSS_NCP		292
 
 /*
+ * USB 2.0, 1.1, and 1.0 packets as transmitted over the cable.
+ */
+#define DLT_USB_2_0_LOW_SPEED	293
+#define DLT_USB_2_0_FULL_SPEED	294
+#define DLT_USB_2_0_HIGH_SPEED	295
+
+/*
  * In case the code that includes this file (directly or indirectly)
  * has also included OS files that happen to define DLT_MATCHING_MAX,
  * with a different value (perhaps because that OS hasn't picked up
@@ -1588,25 +1597,6 @@
 #ifdef DLT_MATCHING_MAX
 #undef DLT_MATCHING_MAX
 #endif
-#define DLT_MATCHING_MAX	292	/* highest value in the "matching" range */
-
-/*
- * DLT and savefile link type values are split into a class and
- * a member of that class.  A class value of 0 indicates a regular
- * DLT_/LINKTYPE_ value.
- */
-#define DLT_CLASS(x)		((x) & 0x03ff0000)
-
-/*
- * NetBSD-specific generic "raw" link type.  The class value indicates
- * that this is the generic raw type, and the lower 16 bits are the
- * address family we're dealing with.  Those values are NetBSD-specific;
- * do not assume that they correspond to AF_ values for your operating
- * system.
- */
-#define	DLT_CLASS_NETBSD_RAWAF	0x02240000
-#define	DLT_NETBSD_RAWAF(af)	(DLT_CLASS_NETBSD_RAWAF | (af))
-#define	DLT_NETBSD_RAWAF_AF(x)	((x) & 0x0000ffff)
-#define	DLT_IS_NETBSD_RAWAF(x)	(DLT_CLASS(x) == DLT_CLASS_NETBSD_RAWAF)
+#define DLT_MATCHING_MAX	295	/* highest value in the "matching" range */
 
 #endif /* !defined(lib_pcap_dlt_h) */

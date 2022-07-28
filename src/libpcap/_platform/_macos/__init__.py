@@ -13,6 +13,10 @@ is_32bit = (sys.maxsize <= 2**32)
 arch     = "x86" if is_32bit else "x64"
 arch_dir = os.path.join(this_dir, arch)
 
+def macos_version():
+    import platform
+    return tuple(int(x) for x in platform.mac_ver()[0].split("."))[:2]
+
 if is_32bit:
     raise NotImplementedError("This OS is not supported in 32 bit!")
 
@@ -24,15 +28,16 @@ try:
     if LIBPCAP is None or LIBPCAP in ("", "None"):
         raise ImportError()
 except ImportError:
-    # On Mac, use ports or homebrew to install libpcap if it's not present!
     LIBPCAP = find_library("pcap")
     if not LIBPCAP:
-        raise OSError("Cannot find libpcap.dylib library. Install from homebrew or other package manager!") from None
+        raise OSError("Cannot find libpcap.dylib library. Install from "
+                      "homebrew or other package manager!") from None
     found = True
 
-if os.path.isabs(LIBPCAP):
+if found or os.path.isabs(LIBPCAP):
     DLL_PATH = LIBPCAP
 else:
+    LIBPCAP = "tcpdump"  # only internal tcpdump is available
     DLL_PATH = os.path.join(arch_dir, LIBPCAP, "libpcap.dylib")
 
 from ctypes  import CDLL as DLL

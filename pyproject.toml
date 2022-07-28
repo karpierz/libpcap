@@ -1,3 +1,159 @@
+# Copyright (c) 2016-2022, Adam Karpierz
+# Licensed under the BSD license
+# https://opensource.org/licenses/BSD-3-Clause
+
 [build-system]
-requires = ["setuptools>=57.4.0", "wheel>=0.37.1", "packaging>=21.3.0", "tox>=3.24.5"]
-build-backend = "setuptools.build_meta"
+build-backend = 'setuptools.build_meta'
+requires = ['setuptools>=63.2.0', 'wheel>=0.37.1', 'packaging>=21.3.0', 'tox>=3.25.1']
+
+[project]
+name        = 'libpcap'
+version     = '1.11.0b5'
+description = 'Python binding for the libpcap C library.'
+authors = [
+    { name  = 'Adam Karpierz' },
+    { email = 'adam@karpierz.net' },
+]
+maintainers = [
+    { name  = 'Adam Karpierz' },
+    { email = 'adam@karpierz.net' },
+]
+license = { text = 'BSD license ; https://opensource.org/licenses/BSD-3-Clause' }
+keywords = ['pcap', 'libpcap', 'wpcap', 'npcap']
+classifiers = [
+    'Development Status :: 4 - Beta',
+    'Intended Audience :: Developers',
+    'License :: OSI Approved :: BSD License',
+    'Operating System :: OS Independent',
+    'Natural Language :: Polish',
+    'Programming Language :: Python',
+    'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.7',
+    'Programming Language :: Python :: 3.8',
+    'Programming Language :: Python :: 3.9',
+    'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11',
+    'Programming Language :: Python :: 3 :: Only',
+    'Programming Language :: Python :: Implementation :: CPython',
+    'Programming Language :: Python :: Implementation :: PyPy',
+    'Programming Language :: Python :: Implementation :: Stackless',
+    'Topic :: Software Development :: Libraries :: Python Modules',
+]
+requires-python = '>=3.7.0,<4.0.0'
+dependencies = [
+    # mandatory
+    'setuptools>=63.2.0',
+    'packaging>=21.3.0',
+    'importlib-resources>=5.7.1',
+    'importlib-metadata>=4.12.0',
+    'pkg_about>=1.0.6',
+    # others
+]
+dynamic = ['readme']
+[project.optional-dependencies]
+doc = [
+    'docutils>=0.14,<0.19',
+    'Sphinx>=4.5.0',
+    'sphinx-tabs>=3.4.1',
+    'sphinx_copybutton>=0.5.0',
+    'sphinxcontrib-spelling>=7.6.0',
+    'restructuredtext-lint>=1.4.0',
+    'nbsphinx>=0.8.9',
+]
+test = [
+    'deepdiff>=5.8.1',
+]
+[project.urls]
+Homepage      = 'https://pypi.org/project/libpcap/'
+Documentation = 'https://libpcap.readthedocs.io/'
+Download      = 'https://pypi.org/project/libpcap/'
+Source        = 'https://github.com/karpierz/libpcap'
+Issues        = 'https://github.com/karpierz/libpcap/issues'
+
+[project.scripts]
+#libpcap = 'libpcap.__main__:main'
+
+[project.gui-scripts]
+#libpcap-gui = 'libpcap:main_gui'
+
+#[project.entry-points.'libpcap.magical']
+#epoint = 'libpcap:main_epoint'
+
+[tool.setuptools.dynamic]
+readme = { file = ['README.rst', 'CHANGES.rst'], content-type = 'text/x-rst; charset=UTF-8' }
+
+[tool.setuptools]
+license-files = ['LICENSE']
+include-package-data = true
+platforms = ['any']
+zip-safe = false
+
+[tool.setuptools.packages.find]
+namespaces = false
+where = ['src']
+
+[tool.setuptools.package-dir]
+'' = 'src'
+#libpcap.tests = 'tests'
+
+[tool.setuptools.package-data]
+libpcap = [
+    'libpcap.cfg',
+]
+'libpcap._platform' = [
+    '*/*/*/*.dll',
+    '*/*/*/*.so',
+    '*/*/*.dylib',
+    '*/*/*/.keep',
+]
+
+[tool.coverage.run]
+source = [
+    'libpcap',
+    'tests',
+]
+omit = [
+]
+data_file = '.tox/coverage/.coverage'
+
+[tool.coverage.report]
+exclude_lines = [
+    # Regexes
+    # Have to re-enable the standard pragma
+    'pragma: no cover',
+    'if\s+self\.debug\s+:',
+    'if\s+__debug__\s+:',
+    'raise (AssertionError|NotImplementedError)',
+    'if\s+(0|False)\s*:',
+    '''if\s+__name__.*\s*==\s*'__main__'\s*:''',
+    'if\s+__name__.*\s*==\s*"__main__"\s*:',
+    '^\s*@unittest\.skip\(',
+    '^\s*@unittest\.skipIf\(sys\.platform\.startswith\("win"\)',
+]
+omit = [
+    'tests/run.py',
+]
+skip_covered = false
+
+[tool.coverage.html]
+directory = '.tox/coverage/.coverage.html'
+
+[tool.flake8]
+filename = ['*.py','*.pyx']
+#include = ['tests']
+#exclude = ['.tox','*.egg','.git','__pycache__','build','_build','docs/_build','dist']
+max-line-length = 99
+ignore = ['E126','E203','E221','E251','E302','E701','E702','E731',
+          'E122','E127','E128','E222','E272','E241','E266','E226','E704',
+          'D100','D101','D102','D103','D104','D400','D401','D202',
+          'N806','N802','N803','N801',
+          'I100']
+# (e.g. 'E4','W') default: 'E121','E123','126','226','E24','704'
+#select =
+#select = ['E','W','F','N','I']
+output-file = '.tox/lint/flake8out.txt'
+count = true
+#show-pep8,
+#show-source
+#verbose
+#quiet

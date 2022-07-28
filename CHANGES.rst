@@ -1,6 +1,15 @@
 Changelog
 =========
 
+1.11.0b5 (2022-07-25)
+---------------------
+- Upgrade to the latest libpcap API 1.11.0-PRE
+- Add support for macOS x64 (thank you very much Erik Rainey emrainey@Github
+  and lydia-hogan@Github!).
+- Add support for Python 3.10 and 3.11
+- Add support for PyPy 3.7, 3.8 and 3.9
+- Setup update (currently based mainly on pyproject.toml).
+
 1.11.0b4 (2022-01-10)
 ---------------------
 - Drop support for Python 3.6.

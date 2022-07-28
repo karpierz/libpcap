@@ -55,8 +55,11 @@ if found or os.path.isabs(LIBPCAP):
 else:
     DLL_PATH = os.path.join(arch_dir, LIBPCAP, "wpcap.dll")
 
-from _ctypes import FreeLibrary as dlclose
-from ctypes  import CFUNCTYPE   as CFUNC
+try:
+    from _ctypes import FreeLibrary as dlclose
+except ImportError:
+    dlclose = lambda handle: 0
+from ctypes import CFUNCTYPE as CFUNC
 
 # Winsock doesn't have this POSIX type; it's used for the
 # tv_usec value of struct timeval.

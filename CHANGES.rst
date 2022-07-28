@@ -1,7 +1,7 @@
 Changelog
 =========
 
-1.11.0b5 (2022-07-25)
+1.11.0b5 (2022-07-28)
 ---------------------
 - Upgrade to the latest libpcap API 1.11.0-PRE
 - Add support for macOS x64 (thank you very much Erik Rainey emrainey@Github

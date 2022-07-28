@@ -89,7 +89,7 @@ platforms = ['any']
 zip-safe = false
 
 [tool.setuptools.packages.find]
-namespaces = false
+namespaces = true
 where = ['src']
 
 [tool.setuptools.package-dir]

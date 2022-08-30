@@ -97,7 +97,7 @@ else:
     DLT_PPP_BSDOS  = 16  # BSD/OS Point-to-point Protocol
 
 # NetBSD uses 15 for HIPPI.
-# 
+#
 # From a quick look at sys/net/if_hippi.h and sys/net/if_hippisubr.c
 # in an older version of NetBSD , the header appears to be:
 #
@@ -178,8 +178,8 @@ if defined("__NetBSD__"):
 # have the relevant header files, so it's not that useful on
 # other platforms.
 
-if (defined("__OpenBSD__") or defined("__NetBSD__") or
-    defined("__DragonFly__") or defined("__APPLE__")):
+if (defined("__OpenBSD__") or defined("__NetBSD__")
+    or defined("__DragonFly__") or defined("__APPLE__")):  # noqa: E129
     DLT_PFSYNC = 18
 
 DLT_ATM_CLIP = 19  # Linux Classical IP over ATM
@@ -218,7 +218,7 @@ DLT_SYMANTEC_FIREWALL = 99
 # DLT_MATCHING_MIN is the lowest such value; DLT_MATCHING_MAX is
 # the highest such value.
 
-DLT_MATCHING_MIN = 104  # available from v.1.8.1
+DLT_MATCHING_MIN = 104  # avail. from v.1.8.1
 
 # This value was defined by libpcap 0.5; platforms that have defined
 # it with a different value should define it here with that value -
@@ -653,7 +653,7 @@ DLT_JUNIPER_VP = 183
 # DLT_ requested by Gianluca Varenni <gianluca.varenni@cacetech.com>.
 # Every frame contains a 32bit A429 label.
 # More documentation on Arinc 429 can be found at
-# http://www.condoreng.com/support/downloads/tutorials/ARINCTutorial.pdf
+# https://web.archive.org/web/20040616233302/https://www.condoreng.com/support/downloads/tutorials/ARINCTutorial.pdf
 
 DLT_A429 = 184
 
@@ -679,7 +679,7 @@ DLT_A653_ICM = 185
 # defines DLT_USB as 186, we don't get a redefinition warning.
 # (NetBSD 7 does that.)
 
-DLT_USB_FREEBSD = 186  # available from v.1.8.1
+DLT_USB_FREEBSD = 186  # avail. from v.1.8.1
 DLT_USB         = 186
 
 # Bluetooth HCI UART transport layer (part H:4); requested by
@@ -871,7 +871,7 @@ DLT_X2E_XORAYA = 214
 
 DLT_IEEE802_15_4_NONASK_PHY = 215
 
-## below available from v.1.8.1
+## below avail. from v.1.8.1
 
 # David Gibson <david@gibson.dropbear.id.au> requested this for
 # captures from the Linux kernel /dev/input/eventN devices. This
@@ -1118,9 +1118,9 @@ DLT_NFC_LLCP = 245
 # them collide with something used elsewhere.  On platforms that
 # don't already define it, define it as 246.
 
-if (not defined("__FreeBSD__") and not defined("__OpenBSD__") and
-    not defined("__NetBSD__") and not defined("__DragonFly__") and
-    not defined("__APPLE__")):
+if (not defined("__FreeBSD__") and not defined("__OpenBSD__")
+    and not defined("__NetBSD__") and not defined("__DragonFly__")
+    and not defined("__APPLE__")):  # noqa: E129
     DLT_PFSYNC = 246
 
 # Raw InfiniBand packets, starting with the Local Routing Header.
@@ -1265,7 +1265,7 @@ DLT_ISO_14443 = 264
 
 DLT_RDS = 265
 
-## below available from v.1.9.0
+## below avail. from v.1.9.0
 
 # USB packets, beginning with a Darwin (macOS, etc.) header.
 
@@ -1291,7 +1291,8 @@ DLT_LORATAP = 270
 
 # per: Stefanha at gmail.com for
 #   https://lists.sandelman.ca/pipermail/tcpdump-workers/2017-May/000772.html
-# and: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/uapi/linux/vsockmon.h
+# and: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree
+#      /include/uapi/linux/vsockmon.h
 # for: https://qemu-project.org/Features/VirtioVsock
 
 DLT_VSOCK = 271
@@ -1412,9 +1413,9 @@ DLT_ZBOSS_NCP = 292
 
 # USB 2.0, 1.1, and 1.0 packets as transmitted over the cable.
 
-DLT_USB_2_0_LOW_SPEED	= 293
-DLT_USB_2_0_FULL_SPEED	= 294
-DLT_USB_2_0_HIGH_SPEED	= 295
+DLT_USB_2_0_LOW_SPEED  = 293
+DLT_USB_2_0_FULL_SPEED = 294
+DLT_USB_2_0_HIGH_SPEED = 295
 
 # In case the code that includes this file (directly or indirectly)
 # has also included OS files that happen to define DLT_MATCHING_MAX,
@@ -1422,6 +1423,6 @@ DLT_USB_2_0_HIGH_SPEED	= 295
 # the latest version of our DLT definitions), we undefine the
 # previous value of DLT_MATCHING_MAX.
 
-DLT_MATCHING_MAX = 295  # highest value in the "matching" range # available from v.1.8.1
+DLT_MATCHING_MAX = 295  # highest value in the "matching" range # avail. from v.1.8.1
 
 # eof

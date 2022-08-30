@@ -65,14 +65,16 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import ctypes as ct
-intptr_t = (ct.c_int32 if ct.sizeof(ct.c_void_p) == ct.sizeof(ct.c_int32) else ct.c_int64)
 
 from ._platform import is_windows, is_linux, defined
 from ._platform import CFUNC
 from ._platform import timeval, SOCKET, INVALID_SOCKET, sockaddr
 from ._dll      import dll
 
-from ._bpf import *
+from ._bpf import BPF_RELEASE, bpf_program
+from ._bpf import *  # noqa
+
+intptr_t = (ct.c_int32 if ct.sizeof(ct.c_void_p) == ct.sizeof(ct.c_int32) else ct.c_int64)
 
 PCAP_DEPRECATED = lambda func, msg: None
 
@@ -260,32 +262,32 @@ if defined("MSDOS"):
 
     class stat_ex(ct.Structure):
         _fields_ = [
-           ("rx_packets",          ct.c_ulong),  # total packets received
-           ("tx_packets",          ct.c_ulong),  # total packets transmitted
-           ("rx_bytes",            ct.c_ulong),  # total bytes received
-           ("tx_bytes",            ct.c_ulong),  # total bytes transmitted
-           ("rx_errors",           ct.c_ulong),  # bad packets received
-           ("tx_errors",           ct.c_ulong),  # packet transmit problems
-           ("rx_dropped",          ct.c_ulong),  # no space in Rx buffers
-           ("tx_dropped",          ct.c_ulong),  # no space available for Tx
-           ("multicast",           ct.c_ulong),  # multicast packets received
-           ("collisions",          ct.c_ulong),
-           # detailed rx_errors:
-           ("rx_length_errors",    ct.c_ulong),
-           ("rx_over_errors",      ct.c_ulong),  # receiver ring buff overflow
-           ("rx_crc_errors",       ct.c_ulong),  # recv'd pkt with crc error
-           ("rx_frame_errors",     ct.c_ulong),  # recv'd frame alignment error
-           ("rx_fifo_errors",      ct.c_ulong),  # recv'r fifo overrun
-           ("rx_missed_errors",    ct.c_ulong),  # recv'r missed packet
-           # detailed tx_errors
-           ("tx_aborted_errors",   ct.c_ulong),
-           ("tx_carrier_errors",   ct.c_ulong),
-           ("tx_fifo_errors",      ct.c_ulong),
-           ("tx_heartbeat_errors", ct.c_ulong),
-           ("tx_window_errors",    ct.c_ulong),
+            ("rx_packets",          ct.c_ulong),  # total packets received
+            ("tx_packets",          ct.c_ulong),  # total packets transmitted
+            ("rx_bytes",            ct.c_ulong),  # total bytes received
+            ("tx_bytes",            ct.c_ulong),  # total bytes transmitted
+            ("rx_errors",           ct.c_ulong),  # bad packets received
+            ("tx_errors",           ct.c_ulong),  # packet transmit problems
+            ("rx_dropped",          ct.c_ulong),  # no space in Rx buffers
+            ("tx_dropped",          ct.c_ulong),  # no space available for Tx
+            ("multicast",           ct.c_ulong),  # multicast packets received
+            ("collisions",          ct.c_ulong),
+            # detailed rx_errors:
+            ("rx_length_errors",    ct.c_ulong),
+            ("rx_over_errors",      ct.c_ulong),  # receiver ring buff overflow
+            ("rx_crc_errors",       ct.c_ulong),  # recv'd pkt with crc error
+            ("rx_frame_errors",     ct.c_ulong),  # recv'd frame alignment error
+            ("rx_fifo_errors",      ct.c_ulong),  # recv'r fifo overrun
+            ("rx_missed_errors",    ct.c_ulong),  # recv'r missed packet
+            # detailed tx_errors
+            ("tx_aborted_errors",   ct.c_ulong),
+            ("tx_carrier_errors",   ct.c_ulong),
+            ("tx_fifo_errors",      ct.c_ulong),
+            ("tx_heartbeat_errors", ct.c_ulong),
+            ("tx_window_errors",    ct.c_ulong),
      ]
 
-#endif # MSDOS
+# endif # MSDOS
 
 #
 # Representation of an interface address.
@@ -316,9 +318,9 @@ pcap_if._fields_ = [
 pcap_if_t = pcap_if
 
 PCAP_IF_LOOPBACK                         = 0x00000001  # interface is loopback
-PCAP_IF_UP                               = 0x00000002  # interface is up      # available from v.1.8.1
-PCAP_IF_RUNNING                          = 0x00000004  # interface is running # available from v.1.8.1
-PCAP_IF_WIRELESS                         = 0x00000008  # interface is wireless (*NOT* necessarily Wi-Fi!)
+PCAP_IF_UP                               = 0x00000002  # interface is up      # avail. from v.1.8.1
+PCAP_IF_RUNNING                          = 0x00000004  # interface is running # avail. from v.1.8.1
+PCAP_IF_WIRELESS                         = 0x00000008  # interface is wireless (*NOT* necessarily Wi-Fi!)  # noqa: E501
 PCAP_IF_CONNECTION_STATUS                = 0x00000030  # connection status:
 PCAP_IF_CONNECTION_STATUS_UNKNOWN        = 0x00000000  # unknown
 PCAP_IF_CONNECTION_STATUS_CONNECTED      = 0x00000010  # connected
@@ -335,15 +337,15 @@ pcap_handler = CFUNC(None, ct.POINTER(ct.c_ubyte), ct.POINTER(pkthdr), ct.POINTE
 PCAP_ERROR                         = -1   # generic error code
 PCAP_ERROR_BREAK                   = -2   # loop terminated by pcap.breakloop
 PCAP_ERROR_NOT_ACTIVATED           = -3   # the capture needs to be activated
-PCAP_ERROR_ACTIVATED               = -4   # the operation can't be performed on already activated captures
+PCAP_ERROR_ACTIVATED               = -4   # the operation can't be performed on already activated captures  # noqa: E501
 PCAP_ERROR_NO_SUCH_DEVICE          = -5   # no such device exists
 PCAP_ERROR_RFMON_NOTSUP            = -6   # this device doesn't support rfmon (monitor) mode
 PCAP_ERROR_NOT_RFMON               = -7   # operation supported only in monitor mode
 PCAP_ERROR_PERM_DENIED             = -8   # no permission to open the device
 PCAP_ERROR_IFACE_NOT_UP            = -9   # interface isn't up
-PCAP_ERROR_CANTSET_TSTAMP_TYPE     = -10  # this device doesn't support setting the time stamp type  # available from v.1.8.1
-PCAP_ERROR_PROMISC_PERM_DENIED     = -11  # you don't have permission to capture in promiscuous mode # available from v.1.8.1
-PCAP_ERROR_TSTAMP_PRECISION_NOTSUP = -12  # the requested time stamp precision is not supported      # available from v.1.8.1
+PCAP_ERROR_CANTSET_TSTAMP_TYPE     = -10  # this device doesn't support setting the time stamp type  # avail. from v.1.8.1  # noqa: E501
+PCAP_ERROR_PROMISC_PERM_DENIED     = -11  # you don't have permission to capture in promiscuous mode # avail. from v.1.8.1  # noqa: E501
+PCAP_ERROR_TSTAMP_PRECISION_NOTSUP = -12  # the requested time stamp precision is not supported      # avail. from v.1.8.1  # noqa: E501
 
 # Warning codes for the pcap API.
 # These will all be positive and non-zero, so they won't look like
@@ -351,12 +353,12 @@ PCAP_ERROR_TSTAMP_PRECISION_NOTSUP = -12  # the requested time stamp precision i
 
 PCAP_WARNING                    = 1  # generic warning code
 PCAP_WARNING_PROMISC_NOTSUP     = 2  # this device doesn't support promiscuous mode
-PCAP_WARNING_TSTAMP_TYPE_NOTSUP = 3  # the requested time stamp type is not supported # available from v.1.8.1
+PCAP_WARNING_TSTAMP_TYPE_NOTSUP = 3  # the requested time stamp type is not supported # avail. from v.1.8.1  # noqa: E501
 
 # Value to pass to pcap.compile() as the netmask if you don't know what
 # the netmask is.
 
-PCAP_NETMASK_UNKNOWN = 0xFFFFFFFF  # available from v.1.8.1
+PCAP_NETMASK_UNKNOWN = 0xFFFFFFFF  # avail. from v.1.8.1
 
 # Initialize pcap.  If this isn't called, pcap is initialized to
 # a mode source-compatible and binary-compatible with older versions
@@ -380,10 +382,9 @@ try:  # PCAP_AVAILABLE_1_10
                  ("pcap_init", dll), (
                  (1, "pcap"),
                  (1, "rfmon"),))
-except: pass
+except: pass  # noqa: E722
 
-# Time stamp types.
-# available from v.1.8.1
+# Time stamp types. # avail. from v.1.8.1
 # Not all systems and interfaces will necessarily support all of these.
 #
 # A system that supports PCAP_TSTAMP_HOST is offering time stamps
@@ -429,7 +430,7 @@ PCAP_TSTAMP_HOST_LOWPREC         = 1  # host-provided, low precision, synced wit
 PCAP_TSTAMP_HOST_HIPREC          = 2  # host-provided, high precision, synced with the system clock
 PCAP_TSTAMP_ADAPTER              = 3  # device-provided, synced with the system clock
 PCAP_TSTAMP_ADAPTER_UNSYNCED     = 4  # device-provided, not synced with the system clock
-PCAP_TSTAMP_HOST_HIPREC_UNSYNCED = 5  # host-provided, high precision, not synced with the system clock
+PCAP_TSTAMP_HOST_HIPREC_UNSYNCED = 5  # host-provided, high prec., not synced with the system clock
 
 # Time stamp resolution types.
 # Not all systems and interfaces will necessarily support all of these
@@ -454,7 +455,7 @@ try:  # PCAP_AVAILABLE_0_4
                       (1, "errbuf"),))
     PCAP_DEPRECATED(lookupdev,
                     "use 'pcap.findalldevs' and use the first device")
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_4
     lookupnet = CFUNC(ct.c_int,
@@ -467,7 +468,7 @@ try:  # PCAP_AVAILABLE_0_4
                       (1, "netp"),
                       (1, "maskp"),
                       (1, "errbuf"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_0
     create    = CFUNC(ct.POINTER(pcap_t),
@@ -476,7 +477,7 @@ try:  # PCAP_AVAILABLE_1_0
                       ("pcap_create", dll), (
                       (1, "source"),
                       (1, "errbuf"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_0
     set_snaplen = CFUNC(ct.c_int,
@@ -485,7 +486,7 @@ try:  # PCAP_AVAILABLE_1_0
                       ("pcap_set_snaplen", dll), (
                       (1, "pcap"),
                       (1, "snaplen"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_0
     set_promisc = CFUNC(ct.c_int,
@@ -494,14 +495,14 @@ try:  # PCAP_AVAILABLE_1_0
                       ("pcap_set_promisc", dll), (
                       (1, "pcap"),
                       (1, "promisc"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_0
     can_set_rfmon = CFUNC(ct.c_int,
                       ct.POINTER(pcap_t))(
                       ("pcap_can_set_rfmon", dll), (
                       (1, "pcap"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_0
     set_rfmon = CFUNC(ct.c_int,
@@ -510,7 +511,7 @@ try:  # PCAP_AVAILABLE_1_0
                       ("pcap_set_rfmon", dll), (
                       (1, "pcap"),
                       (1, "rfmon"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_0
     set_timeout = CFUNC(ct.c_int,
@@ -519,7 +520,7 @@ try:  # PCAP_AVAILABLE_1_0
                       ("pcap_set_timeout", dll), (
                       (1, "pcap"),
                       (1, "timeout"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_2
     set_tstamp_type = CFUNC(ct.c_int,
@@ -528,7 +529,7 @@ try:  # PCAP_AVAILABLE_1_2
                       ("pcap_set_tstamp_type", dll), (
                       (1, "pcap"),
                       (1, "tstamp_type"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_5
     set_immediate_mode = CFUNC(ct.c_int,
@@ -537,7 +538,7 @@ try:  # PCAP_AVAILABLE_1_5
                       ("pcap_set_immediate_mode", dll), (
                       (1, "pcap"),
                       (1, "immediate"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_0
     set_buffer_size = CFUNC(ct.c_int,
@@ -546,7 +547,7 @@ try:  # PCAP_AVAILABLE_1_0
                       ("pcap_set_buffer_size", dll), (
                       (1, "pcap"),
                       (1, "buffer_size"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_5
     set_tstamp_precision = CFUNC(ct.c_int,
@@ -555,14 +556,14 @@ try:  # PCAP_AVAILABLE_1_5
                       ("pcap_set_tstamp_precision", dll), (
                       (1, "pcap"),
                       (1, "tstamp_precision"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_5
     get_tstamp_precision = CFUNC(ct.c_int,
                       ct.POINTER(pcap_t))(
                       ("pcap_get_tstamp_precision", dll), (
                       (1, "pcap"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_2
     list_tstamp_types = CFUNC(ct.c_int,
@@ -571,35 +572,35 @@ try:  # PCAP_AVAILABLE_1_2
                       ("pcap_list_tstamp_types", dll), (
                       (1, "pcap"),
                       (1, "tstamp_type_list"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_2
     free_tstamp_types = CFUNC(None,
                       ct.POINTER(ct.c_int))(
                       ("pcap_free_tstamp_types", dll), (
                       (1, "tstamp_type_list"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_2
     tstamp_type_name_to_val = CFUNC(ct.c_int,
                       ct.c_char_p)(
                       ("pcap_tstamp_type_name_to_val", dll), (
                       (1, "name"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_2
     tstamp_type_val_to_name = CFUNC(ct.c_char_p,
                       ct.c_int)(
                       ("pcap_tstamp_type_val_to_name", dll), (
                       (1, "tstamp_type"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_2
     tstamp_type_val_to_description = CFUNC(ct.c_char_p,
                       ct.c_int)(
                       ("pcap_tstamp_type_val_to_description", dll), (
                       (1, "tstamp_type"),))
-except: pass
+except: pass  # noqa: E722
 
 if is_linux:
     try:  # PCAP_AVAILABLE_1_9
@@ -609,14 +610,14 @@ if is_linux:
                       ("pcap_set_protocol_linux", dll), (
                       (1, "pcap"),
                       (1, "protocol"),))
-    except: pass
+    except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_0
     activate  = CFUNC(ct.c_int,
                       ct.POINTER(pcap_t))(
                       ("pcap_activate", dll), (
                       (1, "pcap"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_4
     open_live = CFUNC(ct.POINTER(pcap_t),
@@ -631,7 +632,7 @@ try:  # PCAP_AVAILABLE_0_4
                       (1, "promisc"),
                       (1, "timeout"),
                       (1, "errbuf"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_6
     open_dead = CFUNC(ct.POINTER(pcap_t),
@@ -640,7 +641,7 @@ try:  # PCAP_AVAILABLE_0_6
                       ("pcap_open_dead", dll), (
                       (1, "linktype"),
                       (1, "snaplen"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_5
     open_dead_with_tstamp_precision = CFUNC(ct.POINTER(pcap_t),
@@ -651,7 +652,7 @@ try:  # PCAP_AVAILABLE_1_5
                       (1, "linktype"),
                       (1, "snaplen"),
                       (1, "precision"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_4
     open_offline  = CFUNC(ct.POINTER(pcap_t),
@@ -660,7 +661,7 @@ try:  # PCAP_AVAILABLE_0_4
                       ("pcap_open_offline", dll), (
                       (1, "fname"),
                       (1, "errbuf"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_5
     open_offline_with_tstamp_precision = CFUNC(ct.POINTER(pcap_t),
@@ -671,7 +672,7 @@ try:  # PCAP_AVAILABLE_1_5
                       (1, "fname"),
                       (1, "precision"),
                       (1, "errbuf"),))
-except: pass
+except: pass  # noqa: E722
 
 if is_windows:
     hopen_offline = CFUNC(ct.POINTER(pcap_t),
@@ -681,7 +682,7 @@ if is_windows:
                       (1, "osfd"),
                       (1, "errbuf"),))
 
-    #@CFUNC(ct.POINTER(pcap_t), ct.POINTER(FILE), ct.c_char_p)
+    # @CFUNC(ct.POINTER(pcap_t), ct.POINTER(FILE), ct.c_char_p)
     def fopen_offline(fp, errbuf, libc=ct.cdll.msvcrt):
         return hopen_offline(libc._get_osfhandle(libc._fileno(fp)), errbuf)
 
@@ -695,11 +696,11 @@ if is_windows:
                       (1, "precision"),
                       (1, "errbuf"),))
 
-        #@CFUNC(ct.POINTER(pcap_t), ct.POINTER(FILE), ct.c_uint, ct.c_char_p)
+        # @CFUNC(ct.POINTER(pcap_t), ct.POINTER(FILE), ct.c_uint, ct.c_char_p)
         def fopen_offline_with_tstamp_precision(fp, precision, errbuf, libc=ct.cdll.msvcrt):
             return hopen_offline_with_tstamp_precision(libc._get_osfhandle(libc._fileno(fp)),
                                                        precision, errbuf)
-    except: pass
+    except: pass  # noqa: E722
 else:
     try:  # PCAP_AVAILABLE_0_9
         fopen_offline = CFUNC(ct.POINTER(pcap_t),
@@ -708,7 +709,7 @@ else:
                       ("pcap_fopen_offline", dll), (
                       (1, "fp"),
                       (1, "errbuf"),))
-    except: pass
+    except: pass  # noqa: E722
 
     try:  # PCAP_AVAILABLE_1_5
         fopen_offline_with_tstamp_precision = CFUNC(ct.POINTER(pcap_t),
@@ -719,14 +720,14 @@ else:
                       (1, "fp"),
                       (1, "precision"),
                       (1, "errbuf"),))
-    except: pass
+    except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_4
     close     = CFUNC(None,
                       ct.POINTER(pcap_t))(
                       ("pcap_close", dll), (
                       (1, "pcap"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_4
     loop      = CFUNC(ct.c_int,
@@ -739,7 +740,7 @@ try:  # PCAP_AVAILABLE_0_4
                       (1, "cnt"),
                       (1, "callback"),
                       (1, "user"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_4
     dispatch  = CFUNC(ct.c_int,
@@ -752,16 +753,16 @@ try:  # PCAP_AVAILABLE_0_4
                       (1, "cnt"),
                       (1, "callback"),
                       (1, "user"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_4
-    next      = CFUNC(ct.POINTER(ct.c_ubyte),
+    next      = CFUNC(ct.POINTER(ct.c_ubyte),  # noqa: A001
                       ct.POINTER(pcap_t),
                       ct.POINTER(pkthdr))(
                       ("pcap_next", dll), (
                       (1, "pcap"),
                       (1, "pkt_header"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_8
     next_ex   = CFUNC(ct.c_int,
@@ -772,14 +773,14 @@ try:  # PCAP_AVAILABLE_0_8
                       (1, "pcap"),
                       (1, "pkt_header"),
                       (1, "pkt_data"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_8
     breakloop = CFUNC(None,
                       ct.POINTER(pcap_t))(
                       ("pcap_breakloop", dll), (
                       (1, "pcap"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_4
     stats     = CFUNC(ct.c_int,
@@ -788,7 +789,7 @@ try:  # PCAP_AVAILABLE_0_4
                       ("pcap_stats", dll), (
                       (1, "pcap"),
                       (1, "stat"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_4
     setfilter = CFUNC(ct.c_int,
@@ -797,7 +798,7 @@ try:  # PCAP_AVAILABLE_0_4
                       ("pcap_setfilter", dll), (
                       (1, "pcap"),
                       (1, "prog"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_9
     setdirection  = CFUNC(ct.c_int,
@@ -806,7 +807,7 @@ try:  # PCAP_AVAILABLE_0_9
                       ("pcap_setdirection", dll), (
                       (1, "pcap"),
                       (1, "direction"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_7
     getnonblock = CFUNC(ct.c_int,
@@ -815,7 +816,7 @@ try:  # PCAP_AVAILABLE_0_7
                       ("pcap_getnonblock", dll), (
                       (1, "pcap"),
                       (1, "errbuf"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_7
     setnonblock = CFUNC(ct.c_int,
@@ -826,7 +827,7 @@ try:  # PCAP_AVAILABLE_0_7
                       (1, "pcap"),
                       (1, "nonblock"),
                       (1, "errbuf"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_9
     inject    = CFUNC(ct.c_int,
@@ -837,7 +838,7 @@ try:  # PCAP_AVAILABLE_0_9
                       (1, "pcap"),
                       (1, "buffer"),
                       (1, "size"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_8
     sendpacket = CFUNC(ct.c_int,
@@ -848,28 +849,28 @@ try:  # PCAP_AVAILABLE_0_8
                       (1, "pcap"),
                       (1, "buffer"),
                       (1, "size"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_0
     statustostr = CFUNC(ct.c_char_p,
                       ct.c_int)(
                       ("pcap_statustostr", dll), (
                       (1, "errnum"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_4
     strerror  = CFUNC(ct.c_char_p,
                       ct.c_int)(
                       ("pcap_strerror", dll), (
                       (1, "errnum"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_4
     geterr    = CFUNC(ct.c_char_p,
                       ct.POINTER(pcap_t))(
                       ("pcap_geterr", dll), (
                       (1, "pcap"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_4
     perror    = CFUNC(None,
@@ -878,10 +879,10 @@ try:  # PCAP_AVAILABLE_0_4
                       ("pcap_perror", dll), (
                       (1, "pcap"),
                       (1, "prefix"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_4
-    compile   = CFUNC(ct.c_int,
+    compile   = CFUNC(ct.c_int,  # noqa: A001
                       ct.POINTER(pcap_t),
                       ct.POINTER(bpf_program),
                       ct.c_char_p,
@@ -893,7 +894,7 @@ try:  # PCAP_AVAILABLE_0_4
                       (1, "buffer"),
                       (1, "optimize"),
                       (1, "mask"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_5
     compile_nopcap = CFUNC(ct.c_int,
@@ -912,14 +913,14 @@ try:  # PCAP_AVAILABLE_0_5
                       (1, "mask"),))
     PCAP_DEPRECATED(compile_nopcap,
                     "use pcap.open_dead(), pcap.compile() and pcap.close()")
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_6 (XXX - this took two arguments in 0.4 and 0.5)
     freecode  = CFUNC(None,
                       ct.POINTER(bpf_program))(
                       ("pcap_freecode", dll), (
                       (1, "prog"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_0
     offline_filter = CFUNC(ct.c_int,
@@ -930,21 +931,21 @@ try:  # PCAP_AVAILABLE_1_0
                       (1, "prog"),
                       (1, "pkt_header"),
                       (1, "pkt_data"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_4
     datalink  = CFUNC(ct.c_int,
                       ct.POINTER(pcap_t))(
                       ("pcap_datalink", dll), (
                       (1, "pcap"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_0
     datalink_ext = CFUNC(ct.c_int,
                       ct.POINTER(pcap_t))(
                       ("pcap_datalink_ext", dll), (
                       (1, "pcap"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_8
     list_datalinks = CFUNC(ct.c_int,
@@ -953,7 +954,7 @@ try:  # PCAP_AVAILABLE_0_8
                       ("pcap_list_datalinks", dll), (
                       (1, "pcap"),
                       (1, "dlt_buffer"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_8
     set_datalink = CFUNC(ct.c_int,
@@ -962,77 +963,77 @@ try:  # PCAP_AVAILABLE_0_8
                       ("pcap_set_datalink", dll), (
                       (1, "pcap"),
                       (1, "dlt"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_8
     free_datalinks = CFUNC(None,
                       ct.POINTER(ct.c_int))(
                       ("pcap_free_datalinks", dll), (
                       (1, "dlt_list"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_8
     datalink_name_to_val = CFUNC(ct.c_int,
                       ct.c_char_p)(
                       ("pcap_datalink_name_to_val", dll), (
                       (1, "name"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_8
     datalink_val_to_name = CFUNC(ct.c_char_p,
                       ct.c_int)(
                       ("pcap_datalink_val_to_name", dll), (
                       (1, "dlt"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_8
     datalink_val_to_description = CFUNC(ct.c_char_p,
                       ct.c_int)(
                       ("pcap_datalink_val_to_description", dll), (
                       (1, "dlt"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_10
     datalink_val_to_description_or_dlt = CFUNC(ct.c_char_p,
                       ct.c_int)(
                       ("pcap_datalink_val_to_description_or_dlt", dll), (
                       (1, "dlt"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_4
     snapshot  = CFUNC(ct.c_int,
                       ct.POINTER(pcap_t))(
                       ("pcap_snapshot", dll), (
                       (1, "pcap"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_4
     is_swapped = CFUNC(ct.c_int,
                       ct.POINTER(pcap_t))(
                       ("pcap_is_swapped", dll), (
                       (1, "pcap"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_9
     bufsize   = CFUNC(ct.c_int,
                       ct.POINTER(pcap_t))(
                       ("pcap_bufsize", dll), (
                       (1, "pcap"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_4
     major_version = CFUNC(ct.c_int,
                       ct.POINTER(pcap_t))(
                       ("pcap_major_version", dll), (
                       (1, "pcap"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_4
     minor_version = CFUNC(ct.c_int,
                       ct.POINTER(pcap_t))(
                       ("pcap_minor_version", dll), (
                       (1, "pcap"),))
-except: pass
+except: pass  # noqa: E722
 
 # XXX
 try:  # PCAP_AVAILABLE_0_4
@@ -1040,7 +1041,7 @@ try:  # PCAP_AVAILABLE_0_4
                       ct.POINTER(pcap_t))(
                       ("pcap_file", dll), (
                       (1, "pcap"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_4
     fileno    = CFUNC(ct.c_int,
@@ -1056,7 +1057,7 @@ try:  # PCAP_AVAILABLE_0_4
         #
         PCAP_DEPRECATED(fileno,
                         "request a 'pcap_handle' that returns a HANDLE if you need it")
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_4
     dump_open = CFUNC(ct.POINTER(pcap_dumper_t),
@@ -1065,7 +1066,7 @@ try:  # PCAP_AVAILABLE_0_4
                       ("pcap_dump_open", dll), (
                       (1, "pcap"),
                       (1, "fname"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_7
     dump_open_append = CFUNC(ct.POINTER(pcap_dumper_t),
@@ -1074,7 +1075,7 @@ try:  # PCAP_AVAILABLE_1_7
                       ("pcap_dump_open_append", dll), (
                       (1, "pcap"),
                       (1, "fname"),))
-except: pass
+except: pass  # noqa: E722
 
 if is_windows:
     try:  # PCAP_AVAILABLE_0_9
@@ -1097,10 +1098,10 @@ if is_windows:
         # runtime with which libpcap was built.  (Maybe once the Universal CRT
         # rules the world, this will cease to be a problem.)
 
-        #@CFUNC(ct.POINTER(pcap_dumper_t), ct.POINTER(pcap_t), ct.POINTER(FILE))
+        # @CFUNC(ct.POINTER(pcap_dumper_t), ct.POINTER(pcap_t), ct.POINTER(FILE))
         def dump_fopen(pcap, fp, libc=ct.cdll.msvcrt):
             return dump_hopen(pcap, libc._get_osfhandle(libc._fileno(fp)))
-    except: pass
+    except: pass  # noqa: E722
 else:
     try:  # PCAP_AVAILABLE_0_9
         dump_fopen = CFUNC(ct.POINTER(pcap_dumper_t),
@@ -1109,42 +1110,42 @@ else:
                       ("pcap_dump_fopen", dll), (
                       (1, "pcap"),
                       (1, "fp"),))
-    except: pass
+    except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_8
     dump_file = CFUNC(ct.POINTER(FILE),
                       ct.POINTER(pcap_dumper_t))(
                       ("pcap_dump_file", dll), (
                       (1, "pcap_dumper"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_9
     dump_ftell = CFUNC(ct.c_long,
                       ct.POINTER(pcap_dumper_t))(
                       ("pcap_dump_ftell", dll), (
                       (1, "pcap_dumper"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_9
     dump_ftell64 = CFUNC(ct.c_int64,
                       ct.POINTER(pcap_dumper_t))(
                       ("pcap_dump_ftell64", dll), (
                       (1, "pcap_dumper"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_8
     dump_flush = CFUNC(ct.c_int,
                       ct.POINTER(pcap_dumper_t))(
                       ("pcap_dump_flush", dll), (
                       (1, "pcap_dumper"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_4
     dump_close = CFUNC(None,
                       ct.POINTER(pcap_dumper_t))(
                       ("pcap_dump_close", dll), (
                       (1, "pcap_dumper"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_4
     dump      = CFUNC(None,
@@ -1155,7 +1156,7 @@ try:  # PCAP_AVAILABLE_0_4
                       (1, "fhandle"),
                       (1, "pkt_header"),
                       (1, "pkt_data"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_7
     findalldevs = CFUNC(ct.c_int,
@@ -1164,14 +1165,14 @@ try:  # PCAP_AVAILABLE_0_7
                       ("pcap_findalldevs", dll), (
                       (1, "alldevsp"),
                       (1, "errbuf"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_7
     freealldevs = CFUNC(None,
                       ct.POINTER(pcap_if_t))(
                       ("pcap_freealldevs", dll), (
                       (1, "alldevs"),))
-except: pass
+except: pass  # noqa: E722
 
 # We return a pointer to the version string, rather than exporting the
 # version string directly.
@@ -1189,7 +1190,7 @@ except: pass
 #
 try:  # PCAP_AVAILABLE_0_8
     lib_version = CFUNC(ct.c_char_p)(("pcap_lib_version", dll),)
-except: pass
+except: pass  # noqa: E722
 
 if is_windows:
 
@@ -1197,9 +1198,9 @@ if is_windows:
 
     try:
         wsockinit = CFUNC(ct.c_int)(("pcap_wsockinit", dll),)
-    except: pass
+    except: pass  # noqa: E722
 
-    #if defined("WPCAP"):
+    # if defined("WPCAP"):
 
     import ctypes.wintypes
 
@@ -1264,7 +1265,7 @@ if is_windows:
                       (1, "oid"),
                       (1, "data"),
                       (1, "length"),))
-    except: pass
+    except: pass  # noqa: E722
 
     try:  # PCAP_AVAILABLE_1_8
         oid_set_request = CFUNC(ct.c_int,
@@ -1277,7 +1278,7 @@ if is_windows:
                       (1, "oid"),
                       (1, "data"),
                       (1, "length"),))
-    except: pass
+    except: pass  # noqa: E722
 
     sendqueue_alloc = CFUNC(ct.POINTER(send_queue),
                       ct.c_uint)(
@@ -1346,7 +1347,7 @@ if is_windows:
                       ("pcap_start_oem", dll), (
                       (1, "err_str"),
                       (1, "flags"),))
-    except: pass
+    except: pass  # noqa: E722
 
     get_airpcap_handle = CFUNC(PAirpcapHandle,
                       ct.POINTER(pcap_t))(
@@ -1380,7 +1381,7 @@ elif defined("MSDOS"):
     mac_packets = CFUNC(ct.c_ulong)(
                       ("pcap_mac_packets", dll),)
 
-else: # UN*X
+else:  # UN*X
 
     # UN*X definitions
 
@@ -1389,16 +1390,16 @@ else: # UN*X
                       ct.POINTER(pcap_t))(
                       ("pcap_get_selectable_fd", dll), (
                       (1, "pcap"),))
-    except: pass
+    except: pass  # noqa: E722
 
     try:  # PCAP_AVAILABLE_1_9
         get_required_select_timeout = CFUNC(ct.POINTER(timeval),
                       ct.POINTER(pcap_t))(
                       ("pcap_get_required_select_timeout", dll), (
                       (1, "pcap"),))
-    except: pass
+    except: pass  # noqa: E722
 
-#endif # WIN32/MSDOS/UN*X
+# endif # WIN32/MSDOS/UN*X
 
 # Remote capture definitions.
 #
@@ -1687,8 +1688,8 @@ RPCAP_HOSTLIST_SIZE = 1024
 # API available.
 #
 try:  # PCAP_AVAILABLE_1_9
-      #ifdef ENABLE_REMOTE
-    open      = CFUNC(ct.POINTER(pcap_t),
+    # ifdef ENABLE_REMOTE
+    open      = CFUNC(ct.POINTER(pcap_t),  # noqa: A001
                       ct.c_char_p,
                       ct.c_int,
                       ct.c_int,
@@ -1702,10 +1703,10 @@ try:  # PCAP_AVAILABLE_1_9
                       (1, "read_timeout"),
                       (1, "auth"),
                       (1, "errbuf"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_9
-      #ifdef ENABLE_REMOTE
+    # ifdef ENABLE_REMOTE
     createsrcstr = CFUNC(ct.c_int,
                       ct.c_char_p,
                       ct.c_int,
@@ -1720,10 +1721,10 @@ try:  # PCAP_AVAILABLE_1_9
                       (1, "port"),
                       (1, "name"),
                       (1, "errbuf"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_9
-      #ifdef ENABLE_REMOTE
+    # ifdef ENABLE_REMOTE
     parsesrcstr = CFUNC(ct.c_int,
                       ct.c_char_p,
                       ct.POINTER(ct.c_int),
@@ -1738,7 +1739,7 @@ try:  # PCAP_AVAILABLE_1_9
                       (1, "port"),
                       (1, "name"),
                       (1, "errbuf"),))
-except: pass
+except: pass  # noqa: E722
 
 # This routine can scan a directory for savefiles, list local capture
 # devices, or list capture devices on a remote machine running an RPCAP
@@ -1759,7 +1760,7 @@ except: pass
 # the only API available.
 #
 try:  # PCAP_AVAILABLE_1_9
-      #ifdef ENABLE_REMOTE
+    # ifdef ENABLE_REMOTE
     findalldevs_ex = CFUNC(ct.c_int,
                       ct.c_char_p,
                       ct.POINTER(rmtauth),
@@ -1770,20 +1771,20 @@ try:  # PCAP_AVAILABLE_1_9
                       (1, "auth"),
                       (1, "alldevs"),
                       (1, "errbuf"),))
-except: pass
+except: pass  # noqa: E722
 
 # New functions.
 
 try:  # PCAP_AVAILABLE_1_9
-      #ifdef ENABLE_REMOTE
+    # ifdef ENABLE_REMOTE
     setsampling = CFUNC(ct.POINTER(samp),
                       ct.POINTER(pcap_t))(
                       ("pcap_setsampling", dll), (
                       (1, "pcap"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_9
-      #ifdef ENABLE_REMOTE
+    # ifdef ENABLE_REMOTE
     remoteact_accept = CFUNC(SOCKET,
                       ct.c_char_p,
                       ct.c_char_p,
@@ -1798,10 +1799,10 @@ try:  # PCAP_AVAILABLE_1_9
                       (1, "connectinghost"),
                       (1, "auth"),
                       (1, "errbuf"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_10
-      #ifdef ENABLE_REMOTE
+    # ifdef ENABLE_REMOTE
     remoteact_accept_ex = CFUNC(SOCKET,
                       ct.c_char_p,
                       ct.c_char_p,
@@ -1818,10 +1819,10 @@ try:  # PCAP_AVAILABLE_1_10
                       (1, "auth"),
                       (1, "uses_ssl"),
                       (1, "errbuf"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_9
-      #ifdef ENABLE_REMOTE
+    # ifdef ENABLE_REMOTE
     remoteact_list = CFUNC(ct.c_int,
                       ct.c_char_p,
                       ct.c_char,
@@ -1832,23 +1833,23 @@ try:  # PCAP_AVAILABLE_1_9
                       (1, "sep"),
                       (1, "size"),
                       (1, "errbuf"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_9
-      #ifdef ENABLE_REMOTE
+    # ifdef ENABLE_REMOTE
     remoteact_close = CFUNC(ct.c_int,
                       ct.c_char_p,
                       ct.c_char_p)(
                       ("pcap_remoteact_close", dll), (
                       (1, "host"),
                       (1, "errbuf"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_9
-      #ifdef ENABLE_REMOTE
+    # ifdef ENABLE_REMOTE
     remoteact_cleanup = CFUNC(None)(
                       ("pcap_remoteact_cleanup", dll),)
-except: pass
+except: pass  # noqa: E722
 
 option_name = ct.c_int
 (   # never renumber this
@@ -1862,14 +1863,14 @@ class options(ct.Structure): pass
 try:  # PCAP_AVAILABLE_1_11
     alloc_option = CFUNC(ct.POINTER(options))(
                       ("pcap_alloc_option", dll),)
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_11
     free_option = CFUNC(None,
                       ct.POINTER(options))(
                       ("pcap_free_option", dll), (
                       (1, "po"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_11
     set_option_string = CFUNC(ct.c_int,
@@ -1880,7 +1881,7 @@ try:  # PCAP_AVAILABLE_1_11
                       (1, "po"),
                       (1, "pon"),
                       (1, "value"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_11
     set_option_int = CFUNC(ct.c_int,
@@ -1891,7 +1892,7 @@ try:  # PCAP_AVAILABLE_1_11
                       (1, "po"),
                       (1, "pon"),
                       (1, "value"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_11
     get_option_string = CFUNC(ct.c_char_p,
@@ -1900,7 +1901,7 @@ try:  # PCAP_AVAILABLE_1_11
                       ("pcap_get_option_string", dll), (
                       (1, "po"),
                       (1, "pon"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_1_11
     get_option_int = CFUNC(ct.c_int,
@@ -1909,6 +1910,6 @@ try:  # PCAP_AVAILABLE_1_11
                       ("pcap_get_option_int", dll), (
                       (1, "po"),
                       (1, "pon"),))
-except: pass
+except: pass  # noqa: E722
 
 # eof

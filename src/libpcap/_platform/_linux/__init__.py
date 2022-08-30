@@ -13,9 +13,6 @@ is_32bit = (sys.maxsize <= 2**32)
 arch     = "x86" if is_32bit else "x64"
 arch_dir = os.path.join(this_dir, arch)
 
-if is_32bit:
-    raise NotImplementedError("This OS is not supported in 32 bit!")
-
 found = False
 try:
     from ...__config__ import config
@@ -31,26 +28,27 @@ except ImportError:
 
 if found or os.path.isabs(LIBPCAP):
     DLL_PATH = LIBPCAP
-else:
-    LIBPCAP = "tcpdump"  # only internal tcpdump is available
+elif LIBPCAP == "tcpdump":
     DLL_PATH = os.path.join(arch_dir, LIBPCAP, "libpcap.so")
+else:
+    raise ValueError("Improper value of the LIBPCAP configuration variable: {}".format(LIBPCAP))
 
-from ctypes  import CDLL as DLL
-from _ctypes import dlclose
-from ctypes  import CFUNCTYPE as CFUNC
+from ctypes  import CDLL as DLL         # noqa: E402
+from _ctypes import dlclose             # noqa: E402
+from ctypes  import CFUNCTYPE as CFUNC  # noqa: E402
 
 DLL = partial(DLL, mode=ct.RTLD_GLOBAL)
 
 # X32 kernel interface is 64-bit.
-if False:#if defined __x86_64__ && defined __ILP32__
+if False:  # if defined __x86_64__ && defined __ILP32__
     # quad_t is also 64 bits.
     time_t = suseconds_t = ct.c_longlong
 else:
     time_t = suseconds_t = ct.c_long
-#endif
+# endif
 
 # Taken from the file <sys/time.h>
-#include <time.h>
+# #include <time.h>
 #
 # struct timeval {
 #     time_t      tv_sec;   /* Seconds. */
@@ -103,11 +101,11 @@ class sockaddr_in(ct.Structure):
     ("sin_family", sa_family_t),  # e.g. AF_INET, AF_INET6
     ("sin_port",   in_port_t),    # Port number.
     ("sin_addr",   in_addr),      # Internet address.
-    ("sin_zero",   (ct.c_ubyte *  # # Pad to size of `struct sockaddr'.
-                     (ct.sizeof(sockaddr) -
-                      ct.sizeof(sa_family_t) -
-                      ct.sizeof(in_port_t) -
-                      ct.sizeof(in_addr)))),
+    ("sin_zero",   (ct.c_ubyte    # Pad to size of `struct sockaddr'.
+                    * (ct.sizeof(sockaddr)
+                       - ct.sizeof(sa_family_t)
+                       - ct.sizeof(in_port_t)
+                       - ct.sizeof(in_addr)))),
 ]
 
 # IPv6 AF_INET6 sockets:

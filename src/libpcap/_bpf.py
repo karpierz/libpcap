@@ -56,7 +56,7 @@ from ._dll      import dll
 
 # Link-layer type codes.
 #
-from ._dlt import *
+from ._dlt import *  # noqa
 
 # BSD style release date
 
@@ -114,42 +114,42 @@ BPF_MSH = 0xA0
 
 # alu/jmp fields
 BPF_OP = lambda code: (code & 0xF0)
-BPF_ADD = 0x00
-BPF_SUB = 0x10
-BPF_MUL = 0x20
-BPF_DIV = 0x30
-BPF_OR  = 0x40
-BPF_AND = 0x50
-BPF_LSH = 0x60
-BPF_RSH = 0x70
-BPF_NEG = 0x80
-BPF_MOD = 0x90  # available from v.1.8.1
-BPF_XOR = 0xa0  # available from v.1.8.1
-#         0xb0  # reserved
-#         0xc0  # reserved
-#         0xd0  # reserved
-#         0xe0  # reserved
-#         0xf0  # reserved
+BPF_ADD  = 0x00
+BPF_SUB  = 0x10
+BPF_MUL  = 0x20
+BPF_DIV  = 0x30
+BPF_OR   = 0x40
+BPF_AND  = 0x50
+BPF_LSH  = 0x60
+BPF_RSH  = 0x70
+BPF_NEG  = 0x80
+BPF_MOD  = 0x90  # avail. from v.1.8.1
+BPF_XOR  = 0xa0  # avail. from v.1.8.1
+#          0xb0  # reserved
+#          0xc0  # reserved
+#          0xd0  # reserved
+#          0xe0  # reserved
+#          0xf0  # reserved
 
-BPF_JA  = 0x00
-BPF_JEQ = 0x10
-BPF_JGT = 0x20
-BPF_JGE = 0x30
-BPF_JSET= 0x40
-#         0x50  # reserved; used on BSD/OS
-#         0x60  # reserved
-#         0x70  # reserved
-#         0x80  # reserved
-#         0x90  # reserved
-#         0xa0  # reserved
-#         0xb0  # reserved
-#         0xc0  # reserved
-#         0xd0  # reserved
-#         0xe0  # reserved
-#         0xf0  # reserved
-BPF_SRC = lambda code: (code & 0x08)
-BPF_K   = 0x00
-BPF_X   = 0x08
+BPF_JA   = 0x00
+BPF_JEQ  = 0x10
+BPF_JGT  = 0x20
+BPF_JGE  = 0x30
+BPF_JSET = 0x40
+#          0x50  # reserved; used on BSD/OS
+#          0x60  # reserved
+#          0x70  # reserved
+#          0x80  # reserved
+#          0x90  # reserved
+#          0xa0  # reserved
+#          0xb0  # reserved
+#          0xc0  # reserved
+#          0xd0  # reserved
+#          0xe0  # reserved
+#          0xf0  # reserved
+BPF_SRC  = lambda code: (code & 0x08)
+BPF_K    = 0x00
+BPF_X    = 0x08
 
 # ret - BPF_K and BPF_X also apply
 BPF_RVAL = lambda code: (code & 0x18)
@@ -158,38 +158,38 @@ BPF_A = 0x10
 
 # misc
 BPF_MISCOP = lambda code: (code & 0xF8)
-BPF_TAX = 0x00
-#         0x08  # reserved
-#         0x10  # reserved
-#         0x18  # reserved
-BPF_COP = 0x20  # NetBSD "coprocessor" extensions # available from v.1.8.1
-#         0x28  # reserved
-#         0x30  # reserved
-#         0x38  # reserved
-BPF_COPX= 0x40  # NetBSD "coprocessor" extensions, also used on BSD/OS # available from v.1.8.1
-#         0x48  # reserved
-#         0x50  # reserved
-#         0x58  # reserved
-#         0x60  # reserved
-#         0x68  # reserved
-#         0x70  # reserved
-#         0x78  # reserved
-BPF_TXA = 0x80
-#         0x88  # reserved
-#         0x90  # reserved
-#         0x98  # reserved
-#         0xa0  # reserved
-#         0xa8  # reserved
-#         0xb0  # reserved
-#         0xb8  # reserved
-#         0xc0  # reserved; used on BSD/OS
-#         0xc8  # reserved
-#         0xd0  # reserved
-#         0xd8  # reserved
-#         0xe0  # reserved
-#         0xe8  # reserved
-#         0xf0  # reserved
-#         0xf8  # reserved
+BPF_TAX  = 0x00
+#          0x08  # reserved
+#          0x10  # reserved
+#          0x18  # reserved
+BPF_COP  = 0x20  # NetBSD "coprocessor" extensions # avail. from v.1.8.1
+#          0x28  # reserved
+#          0x30  # reserved
+#          0x38  # reserved
+BPF_COPX = 0x40  # NetBSD "coprocessor" extensions, also used on BSD/OS # avail. from v.1.8.1
+#          0x48  # reserved
+#          0x50  # reserved
+#          0x58  # reserved
+#          0x60  # reserved
+#          0x68  # reserved
+#          0x70  # reserved
+#          0x78  # reserved
+BPF_TXA  = 0x80
+#          0x88  # reserved
+#          0x90  # reserved
+#          0x98  # reserved
+#          0xa0  # reserved
+#          0xa8  # reserved
+#          0xb0  # reserved
+#          0xb8  # reserved
+#          0xc0  # reserved; used on BSD/OS
+#          0xc8  # reserved
+#          0xd0  # reserved
+#          0xd8  # reserved
+#          0xe0  # reserved
+#          0xe8  # reserved
+#          0xf0  # reserved
+#          0xf8  # reserved
 
 #
 # The instruction data structure.
@@ -240,7 +240,7 @@ try:  # PCAP_AVAILABLE_0_4
                          (1, "buffer"),
                          (1, "wirelen"),
                          (1, "buflen"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_6
     bpf_validate = CFUNC(ct.c_int,
@@ -249,7 +249,7 @@ try:  # PCAP_AVAILABLE_0_6
                          ("bpf_validate", dll), (
                          (1, "insn"),
                          (1, "len"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_4
     bpf_image    = CFUNC(ct.c_char_p,
@@ -258,7 +258,7 @@ try:  # PCAP_AVAILABLE_0_4
                          ("bpf_image", dll), (
                          (1, "insn"),
                          (1, "len"),))
-except: pass
+except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_6
     bpf_dump     = CFUNC(None,
@@ -267,7 +267,7 @@ try:  # PCAP_AVAILABLE_0_6
                          ("bpf_dump", dll), (
                          (1, "prog"),
                          (1, "option"),))
-except: pass
+except: pass  # noqa: E722
 
 #
 # Number of scratch memory words (for BPF_LD|BPF_MEM and BPF_ST).

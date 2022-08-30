@@ -35,7 +35,7 @@ except ImportError:
         if not LIBPCAP:
             raise OSError("Cannot find wpcap.dll library") from None
         found = True
-        from ctypes import WinDLL as DLL
+        from ctypes import WinDLL as DLL  # noqa: E402,N814
 else:
     DLL = _DLL
 
@@ -52,14 +52,20 @@ if LIBPCAP == "npcap":
 
 if found or os.path.isabs(LIBPCAP):
     DLL_PATH = LIBPCAP
-else:
+elif LIBPCAP == "wpcap":
     DLL_PATH = os.path.join(arch_dir, LIBPCAP, "wpcap.dll")
+elif LIBPCAP == "tcpdump":
+    DLL_PATH = os.path.join(arch_dir, LIBPCAP, "msys-pcap-1.dll")
+else:
+    raise ValueError("Improper value of the LIBPCAP configuration variable: {}".format(LIBPCAP))
 
 try:
-    from _ctypes import FreeLibrary as dlclose
+    from _ctypes import FreeLibrary as dlclose  # noqa: E402,N813
 except ImportError:
     dlclose = lambda handle: 0
-from ctypes import CFUNCTYPE as CFUNC
+from ctypes import CFUNCTYPE as CFUNC  # noqa: E402
+
+time_t = ct.c_uint64
 
 # Winsock doesn't have this POSIX type; it's used for the
 # tv_usec value of struct timeval.
@@ -113,7 +119,7 @@ in_port_t = ct.c_ushort
 
 class in_addr(ct.Union):
     _fields_ = [
-    ("s_addr", ct.c_uint32), # ct.c_ulong
+    ("s_addr", ct.c_uint32),  # ct.c_ulong
 ]
 
 class sockaddr_in(ct.Structure):

@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.11.0b6 (2022-08-25)
+---------------------
+- Upgrade to the latest libpcap API 1.11.0-PRE
+- Setup fixes and update.
+
 1.11.0b5 (2022-07-28)
 ---------------------
 - Upgrade to the latest libpcap API 1.11.0-PRE

@@ -8,8 +8,9 @@ requires = ['setuptools>=63.2.0', 'wheel>=0.37.1', 'packaging>=21.3.0', 'tox>=3.
 
 [project]
 name        = 'libpcap'
-version     = '1.11.0b5'
+version     = '1.11.0b6'
 description = 'Python binding for the libpcap C library.'
+license = { text = 'BSD license ; https://opensource.org/licenses/BSD-3-Clause' }
 authors = [
     { name  = 'Adam Karpierz' },
     { email = 'adam@karpierz.net' },
@@ -18,7 +19,6 @@ maintainers = [
     { name  = 'Adam Karpierz' },
     { email = 'adam@karpierz.net' },
 ]
-license = { text = 'BSD license ; https://opensource.org/licenses/BSD-3-Clause' }
 keywords = ['pcap', 'libpcap', 'wpcap', 'npcap']
 classifiers = [
     'Development Status :: 4 - Beta',
@@ -43,10 +43,7 @@ requires-python = '>=3.7.0,<4.0.0'
 dependencies = [
     # mandatory
     'setuptools>=63.2.0',
-    'packaging>=21.3.0',
-    'importlib-resources>=5.7.1',
-    'importlib-metadata>=4.12.0',
-    'pkg_about>=1.0.6',
+    'pkg_about>=1.0.7',
     # others
 ]
 dynamic = ['readme']
@@ -89,12 +86,12 @@ platforms = ['any']
 zip-safe = false
 
 [tool.setuptools.packages.find]
-namespaces = true
+namespaces = false
 where = ['src']
 
 [tool.setuptools.package-dir]
 '' = 'src'
-#libpcap.tests = 'tests'
+#'libpcap.tests' = 'tests'
 
 [tool.setuptools.package-data]
 libpcap = [
@@ -103,7 +100,8 @@ libpcap = [
 'libpcap._platform' = [
     '*/*/*/*.dll',
     '*/*/*/*.so',
-    '*/*/*.dylib',
+    '*/*/*/*.dylib',
+    '*/*/*/*/*.dylib',
     '*/*/*/.keep',
 ]
 
@@ -147,10 +145,18 @@ ignore = ['E126','E203','E221','E251','E302','E701','E702','E731',
           'E122','E127','E128','E222','E272','E241','E266','E226','E704',
           'D100','D101','D102','D103','D104','D400','D401','D202',
           'N806','N802','N803','N801',
-          'I100']
+          'I100','W503','F401']
 # (e.g. 'E4','W') default: 'E121','E123','126','226','E24','704'
 #select =
 #select = ['E','W','F','N','I']
+per-file-ignores = [
+    '*/libpcap/_pcap.py: E305',
+    '*/libpcap/_bpf.py: E305',
+    '*/libpcap/_platform/__init__.py: E305',
+    '*/libpcap/_platform/_windows/__init__.py: E305',
+    '*/libpcap/_platform/_macos/__init__.py: E305',
+    '*/libpcap/_platform/_linux/__init__.py: E305',
+]
 output-file = '.tox/lint/flake8out.txt'
 count = true
 #show-pep8,

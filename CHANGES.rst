@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.11.0b7 (2022-09-10)
+---------------------
+- Upgrade to the latest libpcap API 1.11.0-PRE
+- Tox configuration has been moved to pyproject.toml
+
 1.11.0b6 (2022-08-25)
 ---------------------
 - Upgrade to the latest libpcap API 1.11.0-PRE

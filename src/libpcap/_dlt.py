@@ -1154,15 +1154,17 @@ DLT_RTAC_SERIAL = 250
 
 DLT_BLUETOOTH_LE_LL = 251
 
-# DLT type for upper-protocol layer PDU saves from wireshark.
+# DLT type for upper-protocol layer PDU saves from Wireshark.
 #
-# the actual contents are determined by two TAGs stored with each
-# packet:
-#   EXP_PDU_TAG_LINKTYPE      the link type (LINKTYPE_ value) of the
-#                             original packet.
+# the actual contents are determined by two TAGs, one or more of
+# which is stored with each packet:
 #
-#   EXP_PDU_TAG_PROTO_NAME    the name of the wireshark dissector
-#                             that can make sense of the data stored.
+#   EXP_PDU_TAG_DISSECTOR_NAME      the name of the Wireshark dissector
+#                                   that can make sense of the data stored.
+#
+#   EXP_PDU_TAG_HEUR_DISSECTOR_NAME the name of the Wireshark heuristic
+#                                   dissector that can make sense of the
+#                                   data stored.
 
 DLT_WIRESHARK_UPPER_PDU = 252
 
@@ -1417,12 +1419,18 @@ DLT_USB_2_0_LOW_SPEED  = 293
 DLT_USB_2_0_FULL_SPEED = 294
 DLT_USB_2_0_HIGH_SPEED = 295
 
+# Auerswald Logger Protocol
+# description is provided on
+# https://github.com/Auerswald-GmbH/auerlog/blob/master/auerlog.txt
+
+DLT_AUERSWALD_LOG = 296
+
 # In case the code that includes this file (directly or indirectly)
 # has also included OS files that happen to define DLT_MATCHING_MAX,
 # with a different value (perhaps because that OS hasn't picked up
 # the latest version of our DLT definitions), we undefine the
 # previous value of DLT_MATCHING_MAX.
 
-DLT_MATCHING_MAX = 295  # highest value in the "matching" range # avail. from v.1.8.1
+DLT_MATCHING_MAX = 296  # highest value in the "matching" range # avail. from v.1.8.1
 
 # eof

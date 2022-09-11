@@ -55,7 +55,6 @@ def main(argv=sys.argv[1:]):
     if is_windows and hasattr(pcap, "wsockinit") and pcap.wsockinit() != 0:
         return 1
 
-    have_fcode = False
     dflag = 1
     if defined("BDEBUG"):
         gflag = 0
@@ -127,7 +126,6 @@ def main(argv=sys.argv[1:]):
     fcode = pcap.bpf_program()
     if pcap.compile(pd, ct.byref(fcode), cmdbuf, Oflag, netmask) < 0:
         error("{}", geterr2str(pd))
-    have_fcode = True
 
     if not pcap.bpf_validate(fcode.bf_insns, fcode.bf_len):
         warning("Filter doesn't pass validation")
@@ -144,8 +142,8 @@ def main(argv=sys.argv[1:]):
 
     pcap.bpf_dump(ct.byref(fcode), dflag)
     del cmdbuf
-    if have_fcode:
-        pcap.freecode(ct.byref(fcode))
+
+    pcap.freecode(ct.byref(fcode))
     pcap.close(pd)
 
     return 0

@@ -28,7 +28,6 @@ import os
 import ctypes as ct
 
 import libpcap as pcap
-
 from pcaptestutils import *  # noqa
 
 #ifndef lint

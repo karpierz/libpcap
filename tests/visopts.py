@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright (c) 2016-2022, Adam Karpierz
 # Licensed under the BSD license
@@ -9,7 +9,7 @@ This program parses the output from pcap.compile() to visualize the CFG after
 each optimize phase.
 
 Usage guide:
-1. Enable optimizier debugging code when configure libpcap,
+1. Enable optimizer debugging code when configure libpcap,
    and build libpcap & the test programs
        ./configure --enable-optimizer-dbg
        make
@@ -42,13 +42,11 @@ Note:
 import sys
 import os
 import string
-import subprocess
-import json
 
 html_template = string.Template("""
 <html>
   <head>
-    <title>BPF compiler optimization phases for $expr </title>
+    <title>BPF compiler optimization phases for "${expr_html}"</title>
     <style type="text/css">
       .hc {
          /* half width container */
@@ -61,10 +59,10 @@ html_template = string.Template("""
     <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"/></script>
     <!--script type="text/javascript" src="./jquery.min.js"/></script-->
     <script type="text/javascript">
-      var expr = '$expr';
+      var expr = '${expr_json}';
       var exprid = 1;
-      var gcount = $gcount;
-      var logs = JSON.parse('$logs');
+      var gcount = ${gcount};
+      var logs = JSON.parse('${logs}');
       logs[gcount] = "";
 
       var leftsvg = null;
@@ -201,7 +199,7 @@ html_template = string.Template("""
   </head>
   <body style="width: 96%">
     <div>
-      <h1>$expr</h1>
+      <h1>${expr_html}</h1>
       <div style="text-align: center;">
         <button id="backward" type="button">&lt;&lt;</button>
           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -232,16 +230,30 @@ html_template = string.Template("""
 
 
 def write_html(expr, gcount, logs):
-    logs = [s.strip().replace("\n", "<br/>") for s in logs]
-    global html_template
-    html = html_template.safe_substitute(expr=expr.encode("unicode-escape").decode("utf-8"),
-                                         gcount=gcount,
-                                         logs=json.dumps(logs).encode("unicode-escape").decode("utf-8"))
+    import html
+    import json
+
+    # In the Python 2.7 version this used to be str.encode('string-escape'),
+    # which was a normal string, but in Python 3 the "string_escape" encoding
+    # no longer exists and even with the "unicode_escape" encoding encode()
+    # always returns a binary string.  So let's just escape the single quotes
+    # here and hope the result is a valid JavaScript string literal.
+    def encode(s):
+        return s.replace("'", "\'")
+
+    mapping = {
+        'expr_html': html.escape(expr),
+        'expr_json': encode(expr),
+        'gcount': gcount,
+        'logs': encode(json.dumps([s.strip().replace("\n", "<br/>") for s in logs])),
+    }
     with open("expr1.html", "wt") as f:
-        f.write(html)
+        f.write(html_template.safe_substitute(mapping))
 
 
 def render_on_html(infile):
+    import subprocess
+
     expr = None
     gid = 1
     log = ""
@@ -265,16 +277,16 @@ def render_on_html(infile):
 
         if indot == 2:
             try:
-                p = subprocess.Popen(['dot', '-Tsvg'],
-                                     stdin=subprocess.PIPE,
-                                     stdout=subprocess.PIPE)
+                svg = subprocess.check_output(['dot', '-Tsvg'], input=dot, universal_newlines=True)
             except OSError as ose:
                 print("Failed to run 'dot':", ose)
                 print("(Is Graphviz installed?)")
-                exit(1)
+                return False
+            except subprocess.CalledProcessError as cpe:
+                print("Got an error from the 'dot' process: ", cpe)
+                return False
 
-            svg = p.communicate(dot)[0]
-            with open("expr1_g%03d.svg" % (gid), "wt") as f:
+            with open("expr1_g%03d.svg" % gid, "wt") as f:
                 f.write(svg)
 
             logs.append(log)
@@ -296,15 +308,9 @@ def render_on_html(infile):
 
 def run_httpd():
     import http.server
-    import socketserver
 
-    class MySocketServer(socketserver.TCPServer):
-        allow_reuse_address = True
-
-    Handler = http.server.SimpleHTTPRequestHandler
-    httpd = MySocketServer(("localhost", 0), Handler)
-    print("open this link: http://localhost:{}/expr1.html".format(
-          httpd.server_address[1]))
+    httpd = http.server.HTTPServer(("localhost", 0), http.server.SimpleHTTPRequestHandler)
+    print("open this link: http://localhost:{}/expr1.html".format(httpd.server_port))
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

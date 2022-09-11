@@ -1,6 +1,9 @@
 Changelog
 =========
 
+- Sync/upgrade of tests to the latest libpcap API 1.11.0-PRE
+- Add nonblocktest.py
+
 1.11.0b7 (2022-09-10)
 ---------------------
 - Upgrade to the latest libpcap API 1.11.0-PRE

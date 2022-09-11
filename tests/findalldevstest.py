@@ -12,7 +12,6 @@ import ctypes as ct
 
 import libpcap as pcap
 from libpcap._platform import sockaddr_in, sockaddr_in6
-
 from pcaptestutils import *  # noqa
 
 

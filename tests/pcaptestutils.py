@@ -29,14 +29,26 @@ import libpcap as pcap
 from libpcap._platform import is_windows
 if is_windows: import win32
 
+# include <limits.h>
+USHRT_MAX  = ct.c_ushort(-1).value
+SHRT_MAX   = USHRT_MAX >> 1
+SHRT_MIN   = -SHRT_MAX - 1
+UINT_MAX   = ct.c_uint(-1).value
+INT_MAX    = UINT_MAX >> 1
+INT_MIN    = -INT_MAX - 1
+ULONG_MAX  = ct.c_ulong(-1).value
+LONG_MAX   = ULONG_MAX >> 1
+LONG_MIN   = -LONG_MAX - 1
+ULLONG_MAX = ct.c_ulonglong(-1).value
+LLONG_MAX  = ULLONG_MAX >> 1
+LLONG_MIN  = -LLONG_MAX - 1
+
 #ifndef lint
 copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
             "1995, 1996, 1997, 2000\n"\
             "The Regents of the University of California.  "\
             "All rights reserved.\n"
 #endif
-
-INT_MAX = int(2147483647)
 
 if is_windows:
 

@@ -120,10 +120,6 @@ We've been maintaining binary compatibility between libpcap releases for
 quite a while; there's no reason to tie a binary linked with libpcap to
 a particular release of libpcap.
 
-We've been maintaining binary compatibility between libpcap releases for
-quite a while; there's no reason to tie a binary linked with libpcap to
-a particular release of libpcap.
-
 Requirements
 ============
 

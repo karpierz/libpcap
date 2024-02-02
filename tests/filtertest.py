@@ -78,7 +78,7 @@ def main(argv=sys.argv[1:]):
             # try:
             #     addr = socket.inet_pton(socket.AF_INET, optarg)
             # except socket.error:
-            #     if r == 0:                        
+            #     if r == 0:
             #         error("invalid netmask {}", optarg)
             #     elif r == -1:
             #         error("invalid netmask {}: {}", optarg, pcap_strerror(errno))
@@ -149,7 +149,7 @@ def main(argv=sys.argv[1:]):
     return 0
 
 
-def read_infile(fname: str) -> bytes: 
+def read_infile(fname: str) -> bytes:
 
     try:
         fd = open(fname, "rb")

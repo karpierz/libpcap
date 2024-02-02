@@ -242,7 +242,7 @@ def main(argv=sys.argv[1:]):
             # pcap.activate() failed.
             error("{}: {}\n({})",
                   device2str(device), status2str(status), geterr2str(pd))
-        dlts = ct.POINTER(ct.c_int)() 
+        dlts = ct.POINTER(ct.c_int)()
         ndlts = pcap.list_datalinks(pd, ct.byref(dlts))
         if ndlts < 0:
             # pcap.list_datalinks() failed.

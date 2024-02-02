@@ -95,25 +95,18 @@ getpass(const char *prompt)
 }
 #endif
 
-#ifdef ENABLE_REMOTE
 int main(int argc, char **argv)
-#else
-int main(int argc _U_, char **argv _U_)
-#endif
 {
   pcap_if_t *alldevs;
   pcap_if_t *d;
   bpf_u_int32 net, mask;
   int exit_status = 0;
   char errbuf[PCAP_ERRBUF_SIZE+1];
-#ifdef ENABLE_REMOTE
   struct pcap_rmtauth auth;
   char username[128+1];
   char *p;
   char *password;
-#endif
 
-#ifdef ENABLE_REMOTE
   if (argc >= 2)
   {
     if (pcap_findalldevs_ex(argv[1], NULL, &alldevs, errbuf) == -1)
@@ -139,7 +132,6 @@ int main(int argc _U_, char **argv _U_)
     }
   }
   else
-#endif
   {
     if (pcap_findalldevs(&alldevs, errbuf) == -1)
     {
@@ -190,7 +182,9 @@ static int ifprint(pcap_if_t *d)
 {
   pcap_addr_t *a;
   char ipv4_buf[INET_ADDRSTRLEN];
+#ifdef INET6
   char ipv6_buf[INET6_ADDRSTRLEN];
+#endif
   const char *sep;
   int status = 1; /* success */
 
@@ -256,7 +250,7 @@ static int ifprint(pcap_if_t *d)
     if (a->addr != NULL)
       switch(a->addr->sa_family) {
       case AF_INET:
-        printf("\tAddress Family: AF_INET\n");
+        printf("\tAddress Family: AF_INET (%d)\n", a->addr->sa_family);
         if (a->addr)
           printf("\t\tAddress: %s\n",
             inet_ntop(AF_INET,
@@ -280,7 +274,7 @@ static int ifprint(pcap_if_t *d)
         break;
 #ifdef INET6
       case AF_INET6:
-        printf("\tAddress Family: AF_INET6\n");
+        printf("\tAddress Family: AF_INET6 (%d)\n", a->addr->sa_family);
         if (a->addr)
           printf("\t\tAddress: %s\n",
             inet_ntop(AF_INET6,

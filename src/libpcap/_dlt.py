@@ -1,6 +1,6 @@
-# Copyright (c) 2016-2022, Adam Karpierz
+# Copyright (c) 2016 Adam Karpierz
 # Licensed under the BSD license
-# https://opensource.org/licenses/BSD-3-Clause
+# https://opensource.org/license/bsd-3-clause
 
 # Copyright (c) 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997
 #    The Regents of the University of California.  All rights reserved.
@@ -56,6 +56,11 @@ from ._platform import defined
 
 # These are the types that are the same on all platforms, and that
 # have been defined by <net/bpf.h> for ages.
+#
+# DLT_LOW_MATCHING_MIN is the lowest such value; DLT_LOW_MATCHING_MAX
+# is the highest such value.
+
+DLT_LOW_MATCHING_MIN = 0
 
 DLT_NULL    =  0  # BSD loopback encapsulation
 DLT_EN10MB  =  1  # Ethernet (10Mb)
@@ -69,13 +74,29 @@ DLT_SLIP    =  8  # Serial Line IP
 DLT_PPP     =  9  # Point-to-point Protocol
 DLT_FDDI    = 10  # FDDI
 
+# In case the code that includes this file (directly or indirectly)
+# has also included OS files that happen to define DLT_LOW_MATCHING_MAX,
+# with a different value (perhaps because that OS hasn't picked up
+# the latest version of our DLT definitions), we undefine the
+# previous value of DLT_LOW_MATCHING_MAX.
+#
+# (They shouldn't, because only those 10 values were assigned in
+# the Good Old Days, before DLT_ code assignment became a bit of
+# a free-for-all.  Perhaps 11 is DLT_ATM_RFC1483 everywhere 11
+# is used at all, but 12 is DLT_RAW on some platforms but not
+# OpenBSD, and the fun continues for several other values.)
+
+DLT_LOW_MATCHING_MAX = DLT_FDDI  # highest value in this "matching" range
+
 # These are types that are different on some platforms, and that
 # have been defined by <net/bpf.h> for ages.  We use #ifdefs to
 # detect the BSDs that define them differently from the traditional
 # libpcap <net/bpf.h>
 #
 # XXX - DLT_ATM_RFC1483 is 13 in BSD/OS, and DLT_RAW is 14 in BSD/OS,
-# but I don't know what the right #define is for BSD/OS.
+# but I don't know what the right #define is for BSD/OS.  The last
+# release was in October 2003; if anybody cares about making this
+# work on BSD/OS, give us a pull request for a change to make it work.
 
 DLT_ATM_RFC1483 = 11  # LLC-encapsulated ATM
 
@@ -171,12 +192,10 @@ if defined("__NetBSD__"):
 # anything and doesn't appear to have ever used it for anything.)
 #
 # We define it as 18 on those platforms; it is, unfortunately, used
-# for DLT_CIP in Suse 6.3, so we don't define it as DLT_PFSYNC
-# in general.  As the packet format for it, like that for
-# DLT_PFLOG, is not only OS-dependent but OS-version-dependent,
-# we don't support printing it in tcpdump except on OSes that
-# have the relevant header files, so it's not that useful on
-# other platforms.
+# for DLT_CIP in SUSE 6.3, so we don't define it as 18 on all
+# platforms. We define it as 121 on FreeBSD and as the same
+# value that we assigned to LINKTYPE_PFSYNC on all remaining
+# platforms.
 
 if (defined("__OpenBSD__") or defined("__NetBSD__")
     or defined("__DragonFly__") or defined("__APPLE__")):  # noqa: E129
@@ -215,10 +234,10 @@ DLT_SYMANTEC_FIREWALL = 99
 # and the LINKTYPE_ value that appears in capture files, are the
 # same.
 #
-# DLT_MATCHING_MIN is the lowest such value; DLT_MATCHING_MAX is
+# DLT_HIGH_MATCHING_MIN is the lowest such value; DLT_HIGH_MATCHING_MAX is
 # the highest such value.
 
-DLT_MATCHING_MIN = 104  # avail. from v.1.8.1
+DLT_HIGH_MATCHING_MIN = 104  # avail. from v.1.8.1
 
 # This value was defined by libpcap 0.5; platforms that have defined
 # it with a different value should define it here with that value -
@@ -912,9 +931,9 @@ DLT_DECT = 221
 
 DLT_AOS = 222
 
-# Wireless HART (Highway Addressable Remote Transducer)
+# WirelessHART (Highway Addressable Remote Transducer)
 # From the HART Communication Foundation
-# IES/PAS 62591
+# IEC/PAS 62591
 #
 # Requested by Sam Roberts <vieuxtech@gmail.com>.
 
@@ -1425,12 +1444,43 @@ DLT_USB_2_0_HIGH_SPEED = 295
 
 DLT_AUERSWALD_LOG = 296
 
+# Z-Wave packets with a TAP meta-data header
+# https://gitlab.com/exegin/zwave-g9959-tap
+# requested on tcpdump-workers@
+
+DLT_ZWAVE_TAP = 297
+
+# Silicon Labs debug channel protocol:
+
+DLT_SILABS_DEBUG_CHANNEL = 298
+
+# Ultra-wideband (UWB) controller interface protocol (UCI).
+# requested by Henri Chataing <henrichataing@google.com>
+
+DLT_FIRA_UCI = 299
+
+# MDB (Multi-Drop Bus) protocol between a vending machine controller and
+# peripherals inside the vending machine. See
+#
+#    https://www.kaiser.cx/pcap-mdb.html
+#
+# for the specification.
+#
+# Requested by Martin Kaiser <martin@kaiser.cx>.
+
+DLT_MDB = 300
+
+# DECT-2020 New Radio (NR) - ETSI TS 103 636.
+# Requested by Stig Bjorlykke <stig@bjorlykke.org>.
+
+DLT_DECT_NR = 301
+
 # In case the code that includes this file (directly or indirectly)
-# has also included OS files that happen to define DLT_MATCHING_MAX,
+# has also included OS files that happen to define DLT_HIGH_MATCHING_MAX,
 # with a different value (perhaps because that OS hasn't picked up
 # the latest version of our DLT definitions), we undefine the
-# previous value of DLT_MATCHING_MAX.
+# previous value of DLT_HIGH_MATCHING_MAX.
 
-DLT_MATCHING_MAX = 296  # highest value in the "matching" range # avail. from v.1.8.1
+DLT_HIGH_MATCHING_MAX = 301  # highest value in the "matching" range # avail. from v.1.8.1
 
 # eof

@@ -48,6 +48,7 @@ extensions = [
    #'sphinx.ext.coverage',
     'sphinx.ext.ifconfig',
     'sphinx.ext.napoleon',
+   #'sphinx_toolbox',
     'sphinx_tabs.tabs',
     'sphinx_copybutton',
     'sphinxcontrib.spelling',

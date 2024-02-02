@@ -1,6 +1,6 @@
-# Copyright (c) 2016-2022, Adam Karpierz
+# Copyright (c) 2016 Adam Karpierz
 # Licensed under the BSD license
-# https://opensource.org/licenses/BSD-3-Clause
+# https://opensource.org/license/bsd-3-clause
 
 import unittest
 
@@ -10,4 +10,7 @@ import libpcap
 class MainTestCase(unittest.TestCase):
 
     def setUp(self):
+        pass
+
+    def test_main(self):
         pass

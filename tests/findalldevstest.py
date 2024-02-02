@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2016-2022, Adam Karpierz
+# Copyright (c) 2016 Adam Karpierz
 # Licensed under the BSD license
-# https://opensource.org/licenses/BSD-3-Clause
+# https://opensource.org/license/bsd-3-clause
 
 import sys
 import os
@@ -27,7 +27,6 @@ def main(argv=sys.argv[1:]):
     errbuf  = ct.create_string_buffer(pcap.PCAP_ERRBUF_SIZE + 1)
     alldevs = ct.POINTER(pcap.pcap_if_t)()
 
-    #ifdef ENABLE_REMOTE
     if source is not None:
         if pcap.findalldevs_ex(source, None, ct.byref(alldevs), errbuf) == -1:
             # OK, try it with a user name and password.
@@ -47,7 +46,6 @@ def main(argv=sys.argv[1:]):
                 exit_status = 1
                 return exit_status
     else:
-    #endif
         if pcap.findalldevs(ct.byref(alldevs), errbuf) == -1:
             print("Error in pcap.findalldevs: {}".format(ebuf2str(errbuf)),
                   file=sys.stderr)
@@ -143,7 +141,7 @@ def ifprint(dev: pcap.pcap_if_t):
             status = False
         else:
             if addr.contents.sa_family == socket.AF_INET:
-                print("\tAddress Family: AF_INET")
+                print("\tAddress Family: AF_INET ({})", addr.contents.sa_family)
                 if addr:
                     print("\t\tAddress: {}".format(socket.inet_ntop(socket.AF_INET, ct.cast(addr, ct.POINTER(sockaddr_in)).contents.sin_addr)))
                 if netmask:
@@ -154,7 +152,7 @@ def ifprint(dev: pcap.pcap_if_t):
                     print("\t\tDestination Address: {}".format(socket.inet_ntop(socket.AF_INET, ct.cast(dstaddr, ct.POINTER(sockaddr_in)).contents.sin_addr)))
             #ifdef INET6
             elif addr.contents.sa_family == socket.AF_INET6:
-                print("\tAddress Family: AF_INET6")
+                print("\tAddress Family: AF_INET6 ({})", addr.contents.sa_family)
                 if addr:
                     print("\t\tAddress: {}".format(socket.inet_ntop(socket.AF_INET6, ct.cast(addr, ct.POINTER(sockaddr_in6)).contents.sin6_addr.s6_addr)))
                 if netmask:

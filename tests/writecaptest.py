@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2016-2022, Adam Karpierz
+# Copyright (c) 2016 Adam Karpierz
 # Licensed under the BSD license
-# https://opensource.org/licenses/BSD-3-Clause
+# https://opensource.org/license/bsd-3-clause
 
 # Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000
 #  The Regents of the University of California.  All rights reserved.
@@ -349,9 +349,11 @@ def main(argv=sys.argv[1:]):
         if status != 0:
             print("{} packets seen".format(status))
             ps = pcap.stat()
-            pcap.stats(pd, ct.byref(ps))
-            print("{:d} ps_recv, {:d} ps_drop, {:d} ps_ifdrop".format(
-                  ps.ps_recv, ps.ps_drop, ps.ps_ifdrop))
+            if pcap.stats(pd, ct.byref(ps)) < 0:
+                print("pcap.stats: {}".format(geterr2str(pd)), file=sys.stderr)
+            else:
+                print("{:d} ps_recv, {:d} ps_drop, {:d} ps_ifdrop".format(
+                      ps.ps_recv, ps.ps_drop, ps.ps_ifdrop))
     if status == pcap.PCAP_ERROR_BREAK:
         # We got interrupted, so perhaps we didn't manage to finish a
         # line we were printing. Print an extra newline, just in case.

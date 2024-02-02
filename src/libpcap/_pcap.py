@@ -1,6 +1,6 @@
-# Copyright (c) 2016-2022, Adam Karpierz
+# Copyright (c) 2016 Adam Karpierz
 # Licensed under the BSD license
-# https://opensource.org/licenses/BSD-3-Clause
+# https://opensource.org/license/bsd-3-clause
 
 # Copyright (c) 1993, 1994, 1995, 1996, 1997
 #    The Regents of the University of California.  All rights reserved.
@@ -69,6 +69,7 @@ import ctypes as ct
 from ._platform import is_windows, is_linux, defined
 from ._platform import CFUNC
 from ._platform import timeval, SOCKET, INVALID_SOCKET, sockaddr
+from ._platform import SOCKET as PCAP_SOCKET
 from ._dll      import dll
 
 from ._bpf import BPF_RELEASE, bpf_program
@@ -147,8 +148,8 @@ class file_header(ct.Structure):
     ("magic",         bpf_u_int32),
     ("version_major", ct.c_ushort),
     ("version_minor", ct.c_ushort),
-    ("thiszone",      bpf_int32),    # gmt to local correction; this is always 0
-    ("sigfigs",       bpf_u_int32),  # accuracy of timestamps; this is always 0
+    ("thiszone",      bpf_int32),    # not used - SHOULD be filled with 0
+    ("sigfigs",       bpf_u_int32),  # not used - SHOULD be filled with 0
     ("snaplen",       bpf_u_int32),  # max length saved portion of each pkt
     ("linktype",      bpf_u_int32),  # data link type (LINKTYPE_*)
 ]
@@ -247,47 +248,11 @@ _fields_ = [
 ]
 if is_windows:
     _fields_ += [
-        ("ps_capt",    ct.c_uint),  # number of packets that are received by the application;
-                                    # please get rid off the Win32 ifdef
+        ("ps_capt",    ct.c_uint),  # number of packets that reach the application
         ("ps_sent",    ct.c_uint),  # number of packets sent by the server on the network
         ("ps_netdrop", ct.c_uint),  # number of packets lost on the network
     ]
 stat._fields_ = _fields_
-
-if defined("MSDOS"):
-
-    #
-    # As returned by the pcap.stats_ex()
-    #
-
-    class stat_ex(ct.Structure):
-        _fields_ = [
-            ("rx_packets",          ct.c_ulong),  # total packets received
-            ("tx_packets",          ct.c_ulong),  # total packets transmitted
-            ("rx_bytes",            ct.c_ulong),  # total bytes received
-            ("tx_bytes",            ct.c_ulong),  # total bytes transmitted
-            ("rx_errors",           ct.c_ulong),  # bad packets received
-            ("tx_errors",           ct.c_ulong),  # packet transmit problems
-            ("rx_dropped",          ct.c_ulong),  # no space in Rx buffers
-            ("tx_dropped",          ct.c_ulong),  # no space available for Tx
-            ("multicast",           ct.c_ulong),  # multicast packets received
-            ("collisions",          ct.c_ulong),
-            # detailed rx_errors:
-            ("rx_length_errors",    ct.c_ulong),
-            ("rx_over_errors",      ct.c_ulong),  # receiver ring buff overflow
-            ("rx_crc_errors",       ct.c_ulong),  # recv'd pkt with crc error
-            ("rx_frame_errors",     ct.c_ulong),  # recv'd frame alignment error
-            ("rx_fifo_errors",      ct.c_ulong),  # recv'r fifo overrun
-            ("rx_missed_errors",    ct.c_ulong),  # recv'r missed packet
-            # detailed tx_errors
-            ("tx_aborted_errors",   ct.c_ulong),
-            ("tx_carrier_errors",   ct.c_ulong),
-            ("tx_fifo_errors",      ct.c_ulong),
-            ("tx_heartbeat_errors", ct.c_ulong),
-            ("tx_window_errors",    ct.c_ulong),
-     ]
-
-# endif # MSDOS
 
 #
 # Representation of an interface address.
@@ -374,6 +339,7 @@ PCAP_NETMASK_UNKNOWN = 0xFFFFFFFF  # avail. from v.1.8.1
 
 PCAP_CHAR_ENC_LOCAL = 0x00000000  # strings are in the local character encoding
 PCAP_CHAR_ENC_UTF_8 = 0x00000001  # strings are in UTF-8
+PCAP_MMAP_32BIT     = 0x00000002  # map packet buffers with 32-bit addresses
 
 try:  # PCAP_AVAILABLE_1_10
     init = CFUNC(ct.c_int,
@@ -993,7 +959,7 @@ try:  # PCAP_AVAILABLE_0_8
                       (1, "dlt"),))
 except: pass  # noqa: E722
 
-try:  # PCAP_AVAILABLE_1_10
+try:  # PCAP_AVAILABLE_1_9
     datalink_val_to_description_or_dlt = CFUNC(ct.c_char_p,
                       ct.c_int)(
                       ("pcap_datalink_val_to_description_or_dlt", dll), (
@@ -1358,29 +1324,6 @@ if is_windows:
     MODE_STAT = 1
     MODE_MON  = 2
 
-elif defined("MSDOS"):
-
-    # MS-DOS definitions
-
-    stats_ex  = CFUNC(ct.c_int,
-                      ct.POINTER(pcap_t),
-                      ct.POINTER(stat_ex))(
-                      ("pcap_stats_ex", dll), (
-                      (1, "pcap"),
-                      (1, "stat"),))
-
-    set_wait  = CFUNC(None,
-                      ct.POINTER(pcap_t),
-                      CFUNC(None),
-                      ct.c_int)(
-                      ("pcap_set_wait", dll), (
-                      (1, "pcap"),
-                      (1, "yield"),
-                      (1, "wait"),))
-
-    mac_packets = CFUNC(ct.c_ulong)(
-                      ("pcap_mac_packets", dll),)
-
 else:  # UN*X
 
     # UN*X definitions
@@ -1399,12 +1342,33 @@ else:  # UN*X
                       (1, "pcap"),))
     except: pass  # noqa: E722
 
-# endif # WIN32/MSDOS/UN*X
+# endif # _WIN32/UN*X
 
-# Remote capture definitions.
+# APIs.added in WinPcap for remote capture.
 #
-# These routines are only present if libpcap has been configured to
-# include remote capture support.
+# They are present even if remote capture isn't enabled, as they
+# also support local capture, and as their absence may complicate
+# code build on macOS 14 with Xcode 15, as that platform supports
+# "weakly linked symbols":
+#
+#    https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPFrameworks/Concepts/WeakLinking.html
+#
+# which are symbols in dynamically-linked shared libraries, declare in
+# such a fashion that if a program linked against a newer software
+# development kit (SDK), and using a symbol present in the OS version
+# for which that SDK is provided, is run on an older OS version that
+# lacks that symbol, that symbol's value is a NULL pointer.  This
+# allows those programs to test for the presence of that symbol
+# by checking whether it's non-null and, if it is, using the symbol,
+# otherwise not using it.
+#
+# (This is a slightly more convenient alternative to the usual
+# technique used on Windows - and also available, and sometimes
+# used, on UN*Xes - of loading the library containing the symbol
+# at run time with dlopen() on UN*Xes and LoadLibrary() on Windows,
+# looking up the symbol with dlsym() on UN*Xes and GetProcAddress()
+# on Windows, and using the symbol with the returned pointer if it's
+# not null.)
 
 # The maximum buffer size in which address, port, interface names are kept.
 #
@@ -1687,7 +1651,7 @@ RPCAP_HOSTLIST_SIZE = 1024
 # For opening a remote capture, pcap.open() is currently the only
 # API available.
 #
-try:  # PCAP_AVAILABLE_1_9
+try:  # PCAP_AVAILABLE_1_9_REMOTE
     # ifdef ENABLE_REMOTE
     open      = CFUNC(ct.POINTER(pcap_t),  # noqa: A001
                       ct.c_char_p,
@@ -1705,7 +1669,7 @@ try:  # PCAP_AVAILABLE_1_9
                       (1, "errbuf"),))
 except: pass  # noqa: E722
 
-try:  # PCAP_AVAILABLE_1_9
+try:  # PCAP_AVAILABLE_1_9_REMOTE
     # ifdef ENABLE_REMOTE
     createsrcstr = CFUNC(ct.c_int,
                       ct.c_char_p,
@@ -1723,7 +1687,7 @@ try:  # PCAP_AVAILABLE_1_9
                       (1, "errbuf"),))
 except: pass  # noqa: E722
 
-try:  # PCAP_AVAILABLE_1_9
+try:  # PCAP_AVAILABLE_1_9_REMOTE
     # ifdef ENABLE_REMOTE
     parsesrcstr = CFUNC(ct.c_int,
                       ct.c_char_p,
@@ -1759,7 +1723,7 @@ except: pass  # noqa: E722
 # For listing remote capture devices, pcap.findalldevs_ex() is currently
 # the only API available.
 #
-try:  # PCAP_AVAILABLE_1_9
+try:  # PCAP_AVAILABLE_1_9_REMOTE
     # ifdef ENABLE_REMOTE
     findalldevs_ex = CFUNC(ct.c_int,
                       ct.c_char_p,
@@ -1775,7 +1739,7 @@ except: pass  # noqa: E722
 
 # New functions.
 
-try:  # PCAP_AVAILABLE_1_9
+try:  # PCAP_AVAILABLE_1_9_REMOTE
     # ifdef ENABLE_REMOTE
     setsampling = CFUNC(ct.POINTER(samp),
                       ct.POINTER(pcap_t))(
@@ -1783,9 +1747,9 @@ try:  # PCAP_AVAILABLE_1_9
                       (1, "pcap"),))
 except: pass  # noqa: E722
 
-try:  # PCAP_AVAILABLE_1_9
+try:  # PCAP_AVAILABLE_1_9_REMOTE
     # ifdef ENABLE_REMOTE
-    remoteact_accept = CFUNC(SOCKET,
+    remoteact_accept = CFUNC(PCAP_SOCKET,
                       ct.c_char_p,
                       ct.c_char_p,
                       ct.c_char_p,
@@ -1801,9 +1765,9 @@ try:  # PCAP_AVAILABLE_1_9
                       (1, "errbuf"),))
 except: pass  # noqa: E722
 
-try:  # PCAP_AVAILABLE_1_10
+try:  # PCAP_AVAILABLE_1_10_REMOTE
     # ifdef ENABLE_REMOTE
-    remoteact_accept_ex = CFUNC(SOCKET,
+    remoteact_accept_ex = CFUNC(PCAP_SOCKET,
                       ct.c_char_p,
                       ct.c_char_p,
                       ct.c_char_p,
@@ -1821,7 +1785,7 @@ try:  # PCAP_AVAILABLE_1_10
                       (1, "errbuf"),))
 except: pass  # noqa: E722
 
-try:  # PCAP_AVAILABLE_1_9
+try:  # PCAP_AVAILABLE_1_9_REMOTE
     # ifdef ENABLE_REMOTE
     remoteact_list = CFUNC(ct.c_int,
                       ct.c_char_p,
@@ -1835,7 +1799,7 @@ try:  # PCAP_AVAILABLE_1_9
                       (1, "errbuf"),))
 except: pass  # noqa: E722
 
-try:  # PCAP_AVAILABLE_1_9
+try:  # PCAP_AVAILABLE_1_9_REMOTE
     # ifdef ENABLE_REMOTE
     remoteact_close = CFUNC(ct.c_int,
                       ct.c_char_p,
@@ -1845,7 +1809,7 @@ try:  # PCAP_AVAILABLE_1_9
                       (1, "errbuf"),))
 except: pass  # noqa: E722
 
-try:  # PCAP_AVAILABLE_1_9
+try:  # PCAP_AVAILABLE_1_9_REMOTE
     # ifdef ENABLE_REMOTE
     remoteact_cleanup = CFUNC(None)(
                       ("pcap_remoteact_cleanup", dll),)

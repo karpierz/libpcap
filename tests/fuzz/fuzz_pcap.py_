@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2016-2022, Adam Karpierz
+# Copyright (c) 2016 Adam Karpierz
 # Licensed under the BSD license
-# https://opensource.org/licenses/BSD-3-Clause
+# https://opensource.org/license/bsd-3-clause
 
 #include <fcntl.h>
 #include <errno.h>
 
+import os
 import ctypes as ct
 
 import libpcap as pcap
@@ -54,14 +55,23 @@ def LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) -> int:
         if outfile is None:
             return 0
 
+    # generate temporary file name
+    filename = "/tmp/libpcap_fuzz_pcap.XXXXXX"
+    fd = mkstemp(filename)
+    if fd < 0:
+        return 0
+    close(fd);
+
     # rewrite buffer to a file as libpcap does not have buffer inputs
-    if bufferToFile("/tmp/fuzz.pcap", Data, Size) < 0:
+    if bufferToFile(filename, Data, Size) < 0:
+        os.unlink(filename)
         return 0
 
     # initialize structure
-    pkts = pcap.open_offline("/tmp/fuzz.pcap", errbuf)
+    pkts = pcap.open_offline(filename, errbuf)
     if not pkts:
         print("Couldn't open pcap file {}".format(errbuf), file=outfile)
+        os.unlink(filename)
         return 0
 
     # loop over packets
@@ -76,5 +86,6 @@ def LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) -> int:
 
     # close structure
     pcap.close(pkts)
+    os.unlink(filename)
 
     return 0

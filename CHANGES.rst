@@ -1,6 +1,18 @@
 Changelog
 =========
 
+1.11.0b8 (2024-01-30)
+---------------------
+- Upgrade to the latest libpcap API 1.11.0-PRE
+- Sync/upgrade of tests to the latest libpcap API 1.11.0-PRE
+- Setup update (now based on tox >= 4.0).
+- Add support for Python 3.12
+- Drop support for Python 3.7
+- Add support for PyPy 3.10
+- Drop support for PyPy 3.7 and 3.8
+- Copyright year update.
+- Cleanup.
+
 1.11.0b7 (2022-09-10)
 ---------------------
 - Upgrade to the latest libpcap API 1.11.0-PRE

@@ -1,6 +1,6 @@
-# Copyright (c) 2016-2022, Adam Karpierz
+# Copyright (c) 2016 Adam Karpierz
 # Licensed under the BSD license
-# https://opensource.org/licenses/BSD-3-Clause
+# https://opensource.org/license/bsd-3-clause
 
 # Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000
 #    The Regents of the University of California.  All rights reserved.
@@ -118,7 +118,11 @@ def main(argv=sys.argv[1:]):
 
     # Now pcap.loop forever, with a callback that
     # uses pcap.breakloop to get out of forever
-    pcap.loop(pd, -1, breakme, None)
+    status = pcap.loop(pd, -1, breakme, None)
+    if status != pcap.PCAP_ERROR_BREAK:
+        if status >= 0:
+            error("pcap.breakloop didn't cause a break")
+        error("pcap.loop failed: {}", geterr2str(pd))
 
     # Now test that pcap.setnonblock fails if we can't open the
     # eventfd.

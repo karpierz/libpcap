@@ -198,3 +198,4 @@ Authors
 .. _Development page: https://github.com/karpierz/libpcap
 .. _PyPI record: https://pypi.org/project/libpcap/
 .. _Documentation: https://libpcap.readthedocs.io/
+.. _Libpcap File Format: https://wiki.wireshark.org/Development/LibpcapFileFormat

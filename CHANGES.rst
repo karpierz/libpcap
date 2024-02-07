@@ -1,6 +1,10 @@
 Changelog
 =========
 
+1.11.0?? (2024-02-08)
+---------------------
+- Improvements and cleanup for win32.
+
 1.11.0b8 (2024-01-30)
 ---------------------
 - Upgrade to the latest libpcap API 1.11.0-PRE

@@ -27,7 +27,7 @@ import ctypes as ct
 
 import libpcap as pcap
 from libpcap._platform import is_windows
-if is_windows: import win32
+if is_windows: import _win32 as win32
 
 # include <limits.h>
 USHRT_MAX  = ct.c_ushort(-1).value

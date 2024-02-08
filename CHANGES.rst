@@ -1,7 +1,7 @@
 Changelog
 =========
 
-1.11.0?? (2024-02-08)
+1.11.0b2 (2024-02-08)
 ---------------------
 - Improvements and cleanup for win32.
 

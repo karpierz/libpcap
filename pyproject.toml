@@ -8,7 +8,7 @@ requires = ['setuptools>=68.2.2', 'wheel>=0.42.0', 'packaging>=23.2.0', 'tox>=4.
 
 [project]
 name        = 'libpcap'
-version     = '1.11.0??'
+version     = '1.11.0b2'
 description = 'Python binding for the libpcap C library.'
 urls.Homepage      = 'https://pypi.org/project/libpcap/'
 urls.Documentation = 'https://libpcap.readthedocs.io/'

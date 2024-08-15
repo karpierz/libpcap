@@ -1,6 +1,5 @@
 # Copyright (c) 2016 Adam Karpierz
-# Licensed under the BSD license
-# https://opensource.org/license/bsd-3-clause
+# SPDX-License-Identifier: BSD-3-Clause
 
 __all__ = ('make_config',)
 

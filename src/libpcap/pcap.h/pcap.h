@@ -119,13 +119,10 @@
 #if defined(_WIN32)
   #include <winsock2.h>		/* u_int, u_char etc. */
   #include <io.h>		/* _get_osfhandle() */
-#elif defined(MSDOS)
-  #include <sys/types.h>	/* u_int, u_char etc. */
-  #include <sys/socket.h>
 #else /* UN*X */
   #include <sys/types.h>	/* u_int, u_char etc. */
   #include <sys/time.h>
-#endif /* _WIN32/MSDOS/UN*X */
+#endif /* _WIN32/UN*X */
 
 #include <pcap/socket.h>	/* for PCAP_SOCKET, as the active-mode rpcap APIs use it */
 
@@ -155,7 +152,7 @@ extern "C" {
  * Compatibility for systems that have a bpf.h that
  * predates the bpf typedefs for 64-bit support.
  */
-#if BPF_RELEASE - 0 < 199406
+#if ! defined(BPF_RELEASE) || BPF_RELEASE < 199406
 typedef	int bpf_int32;
 typedef	u_int bpf_u_int32;
 #endif
@@ -289,11 +286,20 @@ typedef enum {
  * and 64-bit versions of libpcap, even if they're on the same platform,
  * should supply the appropriate version of "struct timeval", even if
  * that's not what the underlying packet capture mechanism supplies.
+ *
+ * caplen is the number of packet bytes available in the packet.
+ *
+ * len is the number of bytes that would have been available if
+ * the capture process had not discarded data at the end of the
+ * packet, either because a snapshot length less than the packet
+ * size was provided or because the mechanism used to capture
+ * the packet imposed a limit on the amount of packet data
+ * that is provided.
  */
 struct pcap_pkthdr {
 	struct timeval ts;	/* time stamp */
-	bpf_u_int32 caplen;	/* length of portion present */
-	bpf_u_int32 len;	/* length of this packet (off wire) */
+	bpf_u_int32 caplen;	/* length of portion present in data */
+	bpf_u_int32 len;	/* length of this packet prior to any slicing */
 };
 
 /*
@@ -363,6 +369,7 @@ typedef void (*pcap_handler)(u_char *, const struct pcap_pkthdr *,
 #define PCAP_ERROR_CANTSET_TSTAMP_TYPE	-10	/* this device doesn't support setting the time stamp type */
 #define PCAP_ERROR_PROMISC_PERM_DENIED	-11	/* you don't have permission to capture in promiscuous mode */
 #define PCAP_ERROR_TSTAMP_PRECISION_NOTSUP -12  /* the requested time stamp precision is not supported */
+#define PCAP_ERROR_CAPTURE_NOTSUP	-13	/* capture mechanism not available */
 
 /*
  * Warning codes for the pcap API.

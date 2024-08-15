@@ -1,6 +1,5 @@
 # Copyright (c) 2016 Adam Karpierz
-# Licensed under the BSD license
-# https://opensource.org/license/bsd-3-clause
+# SPDX-License-Identifier: BSD-3-Clause
 
 # Copyright (c) 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997
 #    The Regents of the University of California.  All rights reserved.
@@ -230,43 +229,43 @@ BPF_JUMP = lambda code, k, jt, jf: (ct.c_ushort(code), jt, jf, k)
 #
 
 try:  # PCAP_AVAILABLE_0_4
-    bpf_filter   = CFUNC(ct.c_uint,
-                         ct.POINTER(bpf_insn),
-                         ct.POINTER(ct.c_ubyte),
-                         ct.c_uint,
-                         ct.c_uint)(
-                         ("bpf_filter", dll), (
-                         (1, "insn"),
-                         (1, "buffer"),
-                         (1, "wirelen"),
-                         (1, "buflen"),))
+    bpf_filter = CFUNC(ct.c_uint,
+        ct.POINTER(bpf_insn),
+        ct.POINTER(ct.c_ubyte),
+        ct.c_uint,
+        ct.c_uint)(
+        ("bpf_filter", dll), (
+        (1, "insn"),
+        (1, "buffer"),
+        (1, "wirelen"),
+        (1, "buflen"),))
 except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_6
     bpf_validate = CFUNC(ct.c_int,
-                         ct.POINTER(bpf_insn),
-                         ct.c_int)(
-                         ("bpf_validate", dll), (
-                         (1, "insn"),
-                         (1, "len"),))
+        ct.POINTER(bpf_insn),
+        ct.c_int)(
+        ("bpf_validate", dll), (
+        (1, "insn"),
+        (1, "len"),))
 except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_4
-    bpf_image    = CFUNC(ct.c_char_p,
-                         ct.POINTER(bpf_insn),
-                         ct.c_int)(
-                         ("bpf_image", dll), (
-                         (1, "insn"),
-                         (1, "len"),))
+    bpf_image = CFUNC(ct.c_char_p,
+        ct.POINTER(bpf_insn),
+        ct.c_int)(
+        ("bpf_image", dll), (
+        (1, "insn"),
+        (1, "len"),))
 except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_6
-    bpf_dump     = CFUNC(None,
-                         ct.POINTER(bpf_program),
-                         ct.c_int)(
-                         ("bpf_dump", dll), (
-                         (1, "prog"),
-                         (1, "option"),))
+    bpf_dump = CFUNC(None,
+        ct.POINTER(bpf_program),
+        ct.c_int)(
+        ("bpf_dump", dll), (
+        (1, "prog"),
+        (1, "option"),))
 except: pass  # noqa: E722
 
 #

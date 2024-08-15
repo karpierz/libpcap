@@ -1,9 +1,15 @@
 Changelog
 =========
 
-1.11.0b2 (2024-02-08)
+1.11.0b10 (2024-08-13)
+----------------------
+- Add support for Python 3.13
+- Setup (dependencies) update.
+
+1.11.0b9 (2024-02-18)
 ---------------------
 - Improvements and cleanup for win32.
+- Source code refactoring and cleanup.
 
 1.11.0b8 (2024-01-30)
 ---------------------

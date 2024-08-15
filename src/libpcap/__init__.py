@@ -1,6 +1,5 @@
 # Copyright (c) 2016 Adam Karpierz
-# Licensed under the BSD license
-# https://opensource.org/license/bsd-3-clause
+# SPDX-License-Identifier: BSD-3-Clause
 
 from .__about__ import * ; del __about__  # noqa
 from . import __config__ ; del __config__

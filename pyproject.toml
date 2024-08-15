@@ -1,14 +1,13 @@
 # Copyright (c) 2016 Adam Karpierz
-# Licensed under the BSD license
-# https://opensource.org/license/bsd-3-clause
+# SPDX-License-Identifier: BSD-3-Clause
 
 [build-system]
 build-backend = 'setuptools.build_meta'
-requires = ['setuptools>=68.2.2', 'wheel>=0.42.0', 'packaging>=23.2.0', 'tox>=4.11.3']
+requires = ['setuptools>=72.2.0', 'wheel>=0.44.0', 'packaging>=24.1.0', 'tox>=4.18.0']
 
 [project]
 name        = 'libpcap'
-version     = '1.11.0b2'
+version     = '1.11.0b10'
 description = 'Python binding for the libpcap C library.'
 urls.Homepage      = 'https://pypi.org/project/libpcap/'
 urls.Documentation = 'https://libpcap.readthedocs.io/'
@@ -38,33 +37,34 @@ classifiers = [
     'Programming Language :: Python :: 3.10',
     'Programming Language :: Python :: 3.11',
     'Programming Language :: Python :: 3.12',
+    'Programming Language :: Python :: 3.13',
     'Programming Language :: Python :: 3 :: Only',
     'Programming Language :: Python :: Implementation :: CPython',
     'Programming Language :: Python :: Implementation :: PyPy',
     'Topic :: Software Development :: Libraries :: Python Modules',
 ]
-requires-python = '>=3.8.1,<4.0.0'
+requires-python = '>=3.8.10,<4.0.0'
 dependencies = [
     # mandatory
-    'setuptools>=68.2.2',
-    'pkg-about>=1.1.5',
+    'setuptools>=72.2.0',
+    'pkg-about>=1.1.8',
     # others
 ]
 dynamic = ['readme']
 [project.optional-dependencies]
 doc = [
     'Sphinx>=7.1.2',
-    'sphinx-toolbox>=3.5.0',
-    'sphinx-tabs>=3.4.1',
-    'sphinx-copybutton>=0.5.1',
-    'sphinxcontrib-spelling>=7.7.0',
-    'sphinx-lint>=0.6.7',
+    'sphinx-toolbox>=3.7.0',
+    'sphinx-tabs>=3.4.5',
+    'sphinx-copybutton>=0.5.2',
+    'sphinxcontrib-spelling>=8.0.0',
+    'sphinx-lint>=0.9.1',
     'restructuredtext-lint>=1.4.0',
-    'nbsphinx>=0.8.10',
+    'nbsphinx>=0.9.4',
 ]
 test = [
-    'deepdiff>=6.7.1',
-    'rich>=13.7.0',
+    'deepdiff>=7.0.1',
+    'rich>=13.7.1',
 ]
 
 [project.scripts]
@@ -174,29 +174,29 @@ count = true
 [tool.tox]
 legacy_tox_ini = """
 [tox]
-envlist = py{38,39,310,311,312}, pypy{39,310}, docs
+envlist = py{38,39,310,311,312,313}, pypy{39,310}, docs
 labels =
-    py = py{38,39,310,311,312}, pypy{39,310}
+    py = py{38,39,310,311,312,313}, pypy{39,310}
     prepare = prepare
     coverage = coverage
     lint = lint
     docs = docs
-    build  = py{38,39,310,311,312}, pypy{39,310}, docs, build
-    deploy = py{38,39,310,311,312}, pypy{39,310}, docs, build, publish
-minversion = 4.11.3
+    build  = py{38,39,310,311,312,313}, pypy{39,310}, docs, build
+    deploy = py{38,39,310,311,312,313}, pypy{39,310}, docs, build, publish
+minversion = 4.18.0
 skip_missing_interpreters = true
 requires =
     {[base]deps}
-    virtualenv>=20.25.0
-    tox-backtick>=0.4.4
+    virtualenv>=20.26.3
+    tox-backtick>=0.4.6
     tox-tags>=0.2.0
 
 [base]
-basepython = python3.11
+basepython = python3.12
 deps =
-    pip>=23.3.2
-    setuptools>=68.2.2
-    wheel>=0.42.0
+    pip>=24.2.0
+    setuptools>=72.2.0
+    wheel>=0.44.0
 packagesubdir = libpcap
 
 [testenv]
@@ -228,9 +228,9 @@ commands =
     {envpython} -m coverage html
 deps =
     {[testenv]deps}
-    coverage>=7.4.0
+    coverage>=7.6.1
     covdefaults>=2.3.0
-    diff-cover>=7.7.0
+    diff-cover>=9.1.1
 
 [testenv:docs]
 basepython = {[base]basepython}
@@ -244,7 +244,7 @@ extras = doc
 deps =
 
 [testenv:build]
-depends = py{38,39,310,311,312}, pypy{39,310}, docs
+depends = py{38,39,310,311,312,313}, pypy{39,310}, docs
 basepython = {[base]basepython}
 setenv =
     {[testenv]setenv}
@@ -258,7 +258,7 @@ commands =
     {envpython} -m twine check dist/*
 deps =
     {[testenv]deps}
-    twine>=4.0.2
+    twine>=5.1.1
 
 [testenv:publish]
 depends = build
@@ -269,7 +269,7 @@ commands =
     {envpython} -m twine upload dist/*
 extras =
 deps =
-    twine>=4.0.2
+    twine>=5.1.1
 
 [testenv:lint]
 basepython = {[base]basepython}
@@ -278,10 +278,10 @@ commands =
 extras =
 deps =
     {[testenv]deps}
-    flake8>=7.0.0
+    flake8>=7.1.1
     flake8-pyproject>=1.2.3
     flake8-docstrings>=1.7.0
-    pep8-naming>=0.13.3
-    flake8-builtins>=2.2.0
+    pep8-naming>=0.14.1
+    flake8-builtins>=2.5.0
     flake8-deprecated>=2.2.1
 """

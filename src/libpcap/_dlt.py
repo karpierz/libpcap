@@ -1,6 +1,5 @@
 # Copyright (c) 2016 Adam Karpierz
-# Licensed under the BSD license
-# https://opensource.org/license/bsd-3-clause
+# SPDX-License-Identifier: BSD-3-Clause
 
 # Copyright (c) 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997
 #    The Regents of the University of California.  All rights reserved.
@@ -848,8 +847,15 @@ DLT_LAPB_WITH_DIR = 207
 # 208 is reserved for an as-yet-unspecified proprietary link-layer
 # type, as requested by Will Barker.
 
-# IPMB with a Linux-specific pseudo-header; as requested by Alexey Neyman
+# I2C with a Linux-specific pseudo-header; as requested by Alexey Neyman
 # <avn@pigeonpoint.com>.
+
+DLT_I2C_LINUX = 209
+
+# This was renamed as it's also used for other protocols, such as
+# Display Data Channel as used by HDMI.
+#
+# We still define DLT_IPMB_LINUX for backwards source compatibility.
 
 DLT_IPMB_LINUX = 209
 

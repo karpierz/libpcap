@@ -55,3 +55,9 @@ def LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) -> int:
     pcap.close(pkts)
 
     return 0
+
+
+from onefile import main
+
+if __name__.rpartition(".")[-1] == "__main__":
+    sys.exit(main())

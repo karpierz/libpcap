@@ -27,9 +27,7 @@ static const char copyright[] _U_ =
 The Regents of the University of California.  All rights reserved.\n";
 #endif
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include <pcap.h>
 #include <stdio.h>
@@ -223,8 +221,10 @@ main(int argc, char **argv)
 	struct bpf_program fcode;
 
 #ifdef _WIN32
-	if (pcap_wsockinit() != 0)
+	WSADATA wsaData;
+	if (0 != WSAStartup(MAKEWORD(2, 2), &wsaData))
 		return 1;
+	atexit ((void(*)(void))WSACleanup);
 #endif /* _WIN32 */
 
 	dflag = 1;
@@ -252,10 +252,10 @@ main(int argc, char **argv)
 		case 'g':
 #ifdef BDEBUG
 			++gflag;
+			break;
 #else
 			error("libpcap and filtertest not built with optimizer debugging enabled");
 #endif
-			break;
 
 		case 'F':
 			infile = optarg;
@@ -272,12 +272,10 @@ main(int argc, char **argv)
 
 			case 0:
 				error("invalid netmask %s", optarg);
-				break;
 
 			case -1:
 				error("invalid netmask %s: %s", optarg,
 				    pcap_strerror(errno));
-				break;
 
 			case 1:
 				netmask = addr;

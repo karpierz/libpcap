@@ -13,6 +13,27 @@ import libpcap as pcap
 from libpcap._platform import sockaddr_in, sockaddr_in6
 from pcaptestutils import *  # noqa
 
+if not is_windows:
+    # Different OSes define ETHER_ADDR_LEN in different headers, if at all, so
+    # it would take an amount of conditionals similar to that in nametoaddr.c
+    # just to get the well-known constant from an OS (or not).  Keep it simple.
+    ETHER_ADDR_LEN = socket.ETHER_ADDR_LEN if hasattr(socket, "ETHER_ADDR_LEN") else 6
+
+    # Linux defines and uses AF_PACKET.
+    # AIX, FreeBSD, Haiku, macOS, NetBSD and OpenBSD define and use AF_LINK.
+    # illumos defines both AF_PACKET and AF_LINK, and uses AF_LINK.
+    # Solaris 11 defines both AF_PACKET and AF_LINK, but uses neither.
+    # GNU/Hurd defines neither AF_PACKET nor AF_LINK.
+    #include <net/if.h>
+    if hasattr(socket, "AF_PACKET"):
+        #include <netpacket/packet.h> // struct sockaddr_ll  # !!!
+        #include <net/if_arp.h>       // ARPHRD_ETHER        # !!!
+        pass
+    if hasattr(socket, "AF_LINK"):
+        #include <net/if_dl.h>    // struct sockaddr_dl and LLADDR()  # !!!
+        #include <net/if_types.h> // IFT_ETHER                        # !!!
+        pass
+
 
 def main(argv=sys.argv[1:]):
 
@@ -88,6 +109,18 @@ def main(argv=sys.argv[1:]):
     return exit_status
 
 
+if not is_windows and (hasattr(socket, "AF_PACKET") or hasattr(socket, "AF_LINK")):
+   #def ether_ntop(const u_char addr[], bool mask): # !!!
+    def ether_ntop(addr, mask: bool):
+        buffer = "00:00:00:00:00:00"
+        if mask:
+            buffer = "%02x:%02x:%02x:xx:xx:xx" % (addr[0], addr[1], addr[2])
+        else:
+            buffer = "%02x:%02x:%02x:%02x:%02x:%02x" % (addr[0], addr[1], addr[2], addr[3], addr[4], addr[5])
+        return buffer
+# endif
+
+
 def ifprint(dev: pcap.pcap_if_t):
 
     status = True  # success
@@ -126,6 +159,9 @@ def ifprint(dev: pcap.pcap_if_t):
             pass
     print("\tFlags: {}".format(", ".join(flags)))
 
+    unmask = os.environ.get("UNMASK_MAC_ADDRESSES")
+    unmask = bool(unmask and unmask.lower() == "yes")
+
     pa = dev.addresses
     while pa:
         a = pa.contents
@@ -134,39 +170,56 @@ def ifprint(dev: pcap.pcap_if_t):
         netmask   = a.netmask
         broadaddr = a.broadaddr
         dstaddr   = a.dstaddr
+
         if not addr:
-            print("\tWarning: a.addr is NULL, skipping this address.",
-                  file=sys.stderr)
+            print("\tWarning: a.addr is NULL, skipping this address.", file=sys.stderr)
             status = False
         else:
             if addr.contents.sa_family == socket.AF_INET:
-                print("\tAddress Family: AF_INET ({})", addr.contents.sa_family)
-                if addr:
-                    print("\t\tAddress: {}".format(socket.inet_ntop(socket.AF_INET, ct.cast(addr, ct.POINTER(sockaddr_in)).contents.sin_addr)))
+                print("\tAddress Family: AF_INET ({})".format(addr.contents.sa_family))
+                print("\t\tAddress: {}".format(socket.inet_ntop(socket.AF_INET, ct.cast(addr, ct.POINTER(sockaddr_in)).contents.sin_addr)))
                 if netmask:
                     print("\t\tNetmask: {}".format(socket.inet_ntop(socket.AF_INET, ct.cast(netmask, ct.POINTER(sockaddr_in)).contents.sin_addr)))
                 if broadaddr:
                     print("\t\tBroadcast Address: {}".format(socket.inet_ntop(socket.AF_INET, ct.cast(broadaddr, ct.POINTER(sockaddr_in)).contents.sin_addr)))
                 if dstaddr:
                     print("\t\tDestination Address: {}".format(socket.inet_ntop(socket.AF_INET, ct.cast(dstaddr, ct.POINTER(sockaddr_in)).contents.sin_addr)))
-            #ifdef INET6
-            elif addr.contents.sa_family == socket.AF_INET6:
-                print("\tAddress Family: AF_INET6 ({})", addr.contents.sa_family)
-                if addr:
-                    print("\t\tAddress: {}".format(socket.inet_ntop(socket.AF_INET6, ct.cast(addr, ct.POINTER(sockaddr_in6)).contents.sin6_addr.s6_addr)))
+            elif not is_windows and hasattr(socket, "AF_PACKET") and addr.contents.sa_family == socket.AF_PACKET:
+                print("\tAddress Family: AF_PACKET ({})".format(addr.contents.sa_family))
+                sll = ct.cast(addr, ct.POINTER(sockaddr_ll))
+                # !!!
+                # printf("\t\tInterface Index: %u\n", sll.contents.sll_ifindex);
+                # printf("\t\tType: %d%s\n", sll.contents.sll_hatype, (" (ARPHRD_ETHER)" if sll.contents.sll_hatype == ARPHRD_ETHER else ""))
+                # printf("\t\tLength: %u\n", sll.contents.sll_halen);
+                # if sll.contents.sll_hatype == ARPHRD_ETHER and sll.contents.sll_halen == ETHER_ADDR_LEN:
+                #     printf("\t\tAddress: %s\n", ether_ntop((const u_char *)sll.contents.sll_addr, not unmask))
+            elif not is_windows and hasattr(socket, "AF_LINK") and addr.contents.sa_family == socket.AF_LINK:
+                print("\tAddress Family: AF_LINK ({})".format(addr.contents.sa_family))
+                sdl = ct.cast(addr, ct.POINTER(sockaddr_dl))
+                # !!!
+                # printf("\t\tInterface Index: %u\n", sdl.contents.sdl_index);
+                # printf("\t\tType: %u%s\n", sdl.contents.sdl_type, (" (IFT_ETHER)" if sdl.contents.sdl_type == IFT_ETHER else ""))
+                # printf("\t\tLength: %u\n", sdl.contents.sdl_alen);
+                # # On illumos sdl_type can be 0, see https://www.illumos.org/issues/16383
+                # if ((sdl.contents.sdl_type == IFT_ETHER or (defined("__illumos__") and sdl.contents.sdl_type == 0)) and
+                #      sdl.contents.sdl_alen == ETHER_ADDR_LEN):
+                #     printf("\t\tAddress: %s\n", ether_ntop((const u_char *)LLADDR(sdl), not unmask))
+            elif hasattr(socket, "AF_INET6") and addr.contents.sa_family == socket.AF_INET6:
+                print("\tAddress Family: AF_INET6 ({})".format(addr.contents.sa_family))
+                print("\t\tAddress: {}".format(socket.inet_ntop(socket.AF_INET6, ct.cast(addr, ct.POINTER(sockaddr_in6)).contents.sin6_addr.s6_addr)))
                 if netmask:
                     print("\t\tNetmask: {}".format(socket.inet_ntop(socket.AF_INET6, ct.cast(netmask, ct.POINTER(sockaddr_in6)).contents.sin6_addr.s6_addr)))
                 if broadaddr:
                     print("\t\tBroadcast Address: {}".format(socket.inet_ntop(socket.AF_INET6, ct.cast(broadaddr, ct.POINTER(sockaddr_in6)).contents.sin6_addr.s6_addr)))
                 if dstaddr:
                     print("\t\tDestination Address: {}".format(socket.inet_ntop(socket.AF_INET6, ct.cast(dstaddr, ct.POINTER(sockaddr_in6)).contents.sin6_addr.s6_addr)))
-            #endif
             else:
                 print("\tAddress Family: Unknown ({:d})".format(addr.contents.sa_family))
 
         pa = a.next
 
     print()
+
     return status
 
 

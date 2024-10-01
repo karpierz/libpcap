@@ -3,11 +3,11 @@
 
 [build-system]
 build-backend = 'setuptools.build_meta'
-requires = ['setuptools>=72.2.0', 'wheel>=0.44.0', 'packaging>=24.1.0', 'tox>=4.18.0']
+requires = ['setuptools>=75.1.0', 'wheel>=0.44.0', 'packaging>=24.1.0', 'tox>=4.20.0']
 
 [project]
 name        = 'libpcap'
-version     = '1.11.0b10'
+version     = '1.11.0b11'
 description = 'Python binding for the libpcap C library.'
 urls.Homepage      = 'https://pypi.org/project/libpcap/'
 urls.Documentation = 'https://libpcap.readthedocs.io/'
@@ -32,7 +32,6 @@ classifiers = [
     'Natural Language :: Polish',
     'Programming Language :: Python',
     'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.8',
     'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10',
     'Programming Language :: Python :: 3.11',
@@ -43,28 +42,28 @@ classifiers = [
     'Programming Language :: Python :: Implementation :: PyPy',
     'Topic :: Software Development :: Libraries :: Python Modules',
 ]
-requires-python = '>=3.8.10,<4.0.0'
+requires-python = '>=3.9.0,<4.0.0'
 dependencies = [
     # mandatory
-    'setuptools>=72.2.0',
-    'pkg-about>=1.1.8',
+    'setuptools>=75.1.0',
+    'pkg-about>=1.2.0',
     # others
 ]
 dynamic = ['readme']
 [project.optional-dependencies]
 doc = [
-    'Sphinx>=7.1.2',
-    'sphinx-toolbox>=3.7.0',
+    'Sphinx>=7.4.7',
+    'sphinx-toolbox>=3.8.0',
     'sphinx-tabs>=3.4.5',
     'sphinx-copybutton>=0.5.2',
     'sphinxcontrib-spelling>=8.0.0',
-    'sphinx-lint>=0.9.1',
+    'sphinx-lint>=1.0.0',
     'restructuredtext-lint>=1.4.0',
-    'nbsphinx>=0.9.4',
+    'nbsphinx>=0.9.5',
 ]
 test = [
-    'deepdiff>=7.0.1',
-    'rich>=13.7.1',
+    'deepdiff>=8.0.1',
+    'rich>=13.8.1',
 ]
 
 [project.scripts]
@@ -174,28 +173,28 @@ count = true
 [tool.tox]
 legacy_tox_ini = """
 [tox]
-envlist = py{38,39,310,311,312,313}, pypy{39,310}, docs
+envlist = py{39,310,311,312,313}, pypy{39,310}, docs
 labels =
-    py = py{38,39,310,311,312,313}, pypy{39,310}
+    py = py{39,310,311,312,313}, pypy{39,310}
     prepare = prepare
     coverage = coverage
     lint = lint
     docs = docs
-    build  = py{38,39,310,311,312,313}, pypy{39,310}, docs, build
-    deploy = py{38,39,310,311,312,313}, pypy{39,310}, docs, build, publish
-minversion = 4.18.0
+    build  = py{39,310,311,312,313}, pypy{39,310}, docs, build
+    deploy = py{39,310,311,312,313}, pypy{39,310}, docs, build, publish
+minversion = 4.20.0
 skip_missing_interpreters = true
 requires =
     {[base]deps}
-    virtualenv>=20.26.3
-    tox-backtick>=0.4.6
+    virtualenv>=20.26.6
+    tox-backtick>=0.5.0
     tox-tags>=0.2.0
 
 [base]
 basepython = python3.12
 deps =
     pip>=24.2.0
-    setuptools>=72.2.0
+    setuptools>=75.1.0
     wheel>=0.44.0
 packagesubdir = libpcap
 
@@ -230,7 +229,7 @@ deps =
     {[testenv]deps}
     coverage>=7.6.1
     covdefaults>=2.3.0
-    diff-cover>=9.1.1
+    diff-cover>=9.2.0
 
 [testenv:docs]
 basepython = {[base]basepython}
@@ -244,7 +243,7 @@ extras = doc
 deps =
 
 [testenv:build]
-depends = py{38,39,310,311,312,313}, pypy{39,310}, docs
+depends = py{39,310,311,312,313}, pypy{39,310}, docs
 basepython = {[base]basepython}
 setenv =
     {[testenv]setenv}

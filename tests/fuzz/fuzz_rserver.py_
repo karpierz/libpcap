@@ -54,3 +54,10 @@ def LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) -> int:
     daemon_serviceloop(sock, 1, malloc(0), 1, 0)
 
     return 0
+
+
+from onefile import main
+# ../../rpcapd/daemon.c
+
+if __name__.rpartition(".")[-1] == "__main__":
+    sys.exit(main())

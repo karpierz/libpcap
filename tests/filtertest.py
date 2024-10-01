@@ -51,8 +51,12 @@ def main(argv=sys.argv[1:]):
     except getopt.GetoptError:
         usage()
 
-    if is_windows and hasattr(pcap, "wsockinit") and pcap.wsockinit() != 0:
-        return 1
+    if is_windows:
+        wsa_data = win32.WSADATA()
+        if win32.WSAStartup(win32.MAKEWORD(2, 2), ct.byref(wsa_data)) != 0:
+        #if hasattr(pcap, "wsockinit") and pcap.wsockinit() != 0:
+            return 1
+        # atexit((void(*)(void))win32.WSACleanup); # !!!
 
     dflag = 1
     if defined("BDEBUG"):

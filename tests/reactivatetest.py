@@ -42,13 +42,16 @@ def main(argv=sys.argv[1:]):
     global program_name
     program_name = os.path.basename(sys.argv[0])
 
+    if len(argv) != 1:
+        error("expecting exactly one command-line argument with the interface name")
+
+    ifname = argv[0]
+
     ebuf = ct.create_string_buffer(pcap.PCAP_ERRBUF_SIZE)
 
-    pd = pcap.open_live(b"lo0", 65535, 0, 1000, ebuf)
+    pd = pcap.open_live(ifname.encode("utf-8"), 65535, 0, 1000, ebuf)
     if not pd:
-        pd = pcap.open_live(b"lo", 65535, 0, 1000, ebuf)
-        if not pd:
-            error("Neither lo0 nor lo could be opened: {}", ebuf2str(ebuf))
+        error("pcap_open_live() failed: {}", ebuf2str(ebuf))
 
     status = pcap.activate(pd)
     if status != pcap.PCAP_ERROR_ACTIVATED:

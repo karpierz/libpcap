@@ -1,15 +1,19 @@
 Changelog
 =========
 
+1.11.0b11 (2024-09-30)
+----------------------
+- Drop support for Python 3.8
+- Upgrade to the latest libpcap API 1.11.0-PRE
+- Sync/upgrade of tests to the latest libpcap API 1.11.0-PRE
+- Setup (dependencies) update.
+
 1.11.0b10 (2024-08-13)
 ----------------------
 - Add support for Python 3.13
-- Setup (dependencies) update.
-
-1.11.0b9 (2024-02-18)
----------------------
 - Improvements and cleanup for win32.
 - Source code refactoring and cleanup.
+- Setup (dependencies) update.
 
 1.11.0b8 (2024-01-30)
 ---------------------

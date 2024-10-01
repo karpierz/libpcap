@@ -34,7 +34,8 @@ def LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) -> int:
     filter[Size - 1] = 0
 
     if pcap.compile(pkts, &bpf, filter, 1, pcap.PCAP_NETMASK_UNKNOWN) == 0:
-        pcap.setfilter(pkts, &bpf)
+        if pcap.setfilter(pkts, &bpf) < 0:
+            pcap.perror(pkts, b"pcap.setfilter")
         pcap.close(pkts)
         pcap.freecode(&bpf)
     else:
@@ -43,3 +44,9 @@ def LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) -> int:
     free(filter)
 
     return 0
+
+
+from onefile import main
+
+if __name__.rpartition(".")[-1] == "__main__":
+    sys.exit(main())

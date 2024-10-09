@@ -3,11 +3,11 @@
 
 [build-system]
 build-backend = 'setuptools.build_meta'
-requires = ['setuptools>=75.1.0', 'wheel>=0.44.0', 'packaging>=24.1.0', 'tox>=4.20.0']
+requires = ['setuptools>=75.1.0', 'wheel>=0.44.0', 'packaging>=24.1.0', 'tox>=4.21.2']
 
 [project]
 name        = 'libpcap'
-version     = '1.11.0b11'
+version     = '1.11.0b12'
 description = 'Python binding for the libpcap C library.'
 urls.Homepage      = 'https://pypi.org/project/libpcap/'
 urls.Documentation = 'https://libpcap.readthedocs.io/'
@@ -46,7 +46,7 @@ requires-python = '>=3.9.0,<4.0.0'
 dependencies = [
     # mandatory
     'setuptools>=75.1.0',
-    'pkg-about>=1.2.0',
+    'pkg-about>=1.2.1',
     # others
 ]
 dynamic = ['readme']
@@ -54,7 +54,7 @@ dynamic = ['readme']
 doc = [
     'Sphinx>=7.4.7',
     'sphinx-toolbox>=3.8.0',
-    'sphinx-tabs>=3.4.5',
+    'sphinx-tabs>=3.4.7',
     'sphinx-copybutton>=0.5.2',
     'sphinxcontrib-spelling>=8.0.0',
     'sphinx-lint>=1.0.0',
@@ -63,7 +63,7 @@ doc = [
 ]
 test = [
     'deepdiff>=8.0.1',
-    'rich>=13.8.1',
+    'rich>=13.9.2',
 ]
 
 [project.scripts]
@@ -182,12 +182,12 @@ labels =
     docs = docs
     build  = py{39,310,311,312,313}, pypy{39,310}, docs, build
     deploy = py{39,310,311,312,313}, pypy{39,310}, docs, build, publish
-minversion = 4.20.0
+minversion = 4.21.2
 skip_missing_interpreters = true
 requires =
     {[base]deps}
     virtualenv>=20.26.6
-    tox-backtick>=0.5.0
+    tox-backtick>=0.5.1
     tox-tags>=0.2.0
 
 [base]
@@ -227,7 +227,7 @@ commands =
     {envpython} -m coverage html
 deps =
     {[testenv]deps}
-    coverage>=7.6.1
+    coverage>=7.6.2
     covdefaults>=2.3.0
     diff-cover>=9.2.0
 

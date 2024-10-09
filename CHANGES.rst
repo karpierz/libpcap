@@ -1,6 +1,10 @@
 Changelog
 =========
 
+1.11.0b12 (2024-10-09)
+----------------------
+- Setup (dependencies) update.
+
 1.11.0b11 (2024-09-30)
 ----------------------
 - Drop support for Python 3.8

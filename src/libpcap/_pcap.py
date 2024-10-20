@@ -70,6 +70,7 @@ from ._platform import CFUNC
 from ._platform import timeval, SOCKET, INVALID_SOCKET, sockaddr
 from ._platform import SOCKET as PCAP_SOCKET
 from ._dll      import dll
+if is_windows:  import msvcrt
 
 from ._bpf import BPF_RELEASE, bpf_program
 from ._bpf import *  # noqa
@@ -658,7 +659,7 @@ if is_windows:
 
     # @CFUNC(ct.POINTER(pcap_t), ct.POINTER(FILE), ct.c_char_p)
     def fopen_offline(fp, errbuf, libc=ct.cdll.msvcrt):
-        return hopen_offline(libc._get_osfhandle(libc._fileno(fp)), errbuf)
+        return hopen_offline(msvcrt.get_osfhandle(libc._fileno(fp)), errbuf)
 
     try:  # PCAP_AVAILABLE_1_5
         hopen_offline_with_tstamp_precision = CFUNC(ct.POINTER(pcap_t),
@@ -672,7 +673,7 @@ if is_windows:
 
         # @CFUNC(ct.POINTER(pcap_t), ct.POINTER(FILE), ct.c_uint, ct.c_char_p)
         def fopen_offline_with_tstamp_precision(fp, precision, errbuf, libc=ct.cdll.msvcrt):
-            return hopen_offline_with_tstamp_precision(libc._get_osfhandle(libc._fileno(fp)),
+            return hopen_offline_with_tstamp_precision(msvcrt.get_osfhandle(libc._fileno(fp)),
                                                        precision, errbuf)
     except: pass  # noqa: E722
 else:
@@ -1074,7 +1075,7 @@ if is_windows:
 
         # @CFUNC(ct.POINTER(pcap_dumper_t), ct.POINTER(pcap_t), ct.POINTER(FILE))
         def dump_fopen(pcap, fp, libc=ct.cdll.msvcrt):
-            return dump_hopen(pcap, libc._get_osfhandle(libc._fileno(fp)))
+            return dump_hopen(pcap, msvcrt.get_osfhandle(libc._fileno(fp)))
     except: pass  # noqa: E722
 else:
     try:  # PCAP_AVAILABLE_0_9

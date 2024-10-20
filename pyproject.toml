@@ -3,11 +3,11 @@
 
 [build-system]
 build-backend = 'setuptools.build_meta'
-requires = ['setuptools>=75.1.0', 'wheel>=0.44.0', 'packaging>=24.1.0', 'tox>=4.21.2']
+requires = ['setuptools>=75.2.0', 'wheel>=0.44.0', 'packaging>=24.1.0', 'tox>=4.23.0']
 
 [project]
 name        = 'libpcap'
-version     = '1.11.0b12'
+version     = '1.11.0b13'
 description = 'Python binding for the libpcap C library.'
 urls.Homepage      = 'https://pypi.org/project/libpcap/'
 urls.Documentation = 'https://libpcap.readthedocs.io/'
@@ -45,7 +45,7 @@ classifiers = [
 requires-python = '>=3.9.0,<4.0.0'
 dependencies = [
     # mandatory
-    'setuptools>=75.1.0',
+    'setuptools>=75.2.0',
     'pkg-about>=1.2.1',
     # others
 ]
@@ -53,7 +53,7 @@ dynamic = ['readme']
 [project.optional-dependencies]
 doc = [
     'Sphinx>=7.4.7',
-    'sphinx-toolbox>=3.8.0',
+    'sphinx-toolbox>=3.8.1',
     'sphinx-tabs>=3.4.7',
     'sphinx-copybutton>=0.5.2',
     'sphinxcontrib-spelling>=8.0.0',
@@ -173,7 +173,7 @@ count = true
 [tool.tox]
 legacy_tox_ini = """
 [tox]
-envlist = py{39,310,311,312,313}, pypy{39,310}, docs
+env_list = py{39,310,311,312,313}, pypy{39,310}, docs
 labels =
     py = py{39,310,311,312,313}, pypy{39,310}
     prepare = prepare
@@ -182,35 +182,35 @@ labels =
     docs = docs
     build  = py{39,310,311,312,313}, pypy{39,310}, docs, build
     deploy = py{39,310,311,312,313}, pypy{39,310}, docs, build, publish
-minversion = 4.21.2
+min_version = 4.23.0
 skip_missing_interpreters = true
 requires =
     {[base]deps}
-    virtualenv>=20.26.6
+    virtualenv>=20.27.0
     tox-backtick>=0.5.1
     tox-tags>=0.2.0
 
 [base]
-basepython = python3.12
+base_python = python3.12
 deps =
     pip>=24.2.0
-    setuptools>=75.1.0
+    setuptools>=75.2.0
     wheel>=0.44.0
-packagesubdir = libpcap
+package_subdir = libpcap
 
 [testenv]
-passenv = WINDIR
-setenv =
+pass_env = WINDIR
+set_env =
     PYTHONDONTWRITEBYTECODE = 1
 commands =
-    {envpython} --version
-    {envpython} -m tests {posargs}
+    {env_python} --version
+    {env_python} -m tests {posargs}
 extras = test
 deps =
     {[base]deps}
 
 [testenv:prepare]
-basepython = {[base]basepython}
+base_python = {[base]base_python}
 skip_install = true
 allowlist_externals =
     cmd
@@ -219,61 +219,61 @@ commands =
     cmd /C if exist .build.cmd .build.cmd
 
 [testenv:coverage]
-basepython = {[base]basepython}
+base_python = {[base]base_python}
 commands =
-    {envpython} -m coverage erase
-    -{envpython} -m coverage run -m tests {posargs}
-    {envpython} -m coverage report
-    {envpython} -m coverage html
+    {env_python} -m coverage erase
+    -{env_python} -m coverage run -m tests {posargs}
+    {env_python} -m coverage report
+    {env_python} -m coverage html
 deps =
     {[testenv]deps}
-    coverage>=7.6.2
+    coverage>=7.6.3
     covdefaults>=2.3.0
     diff-cover>=9.2.0
 
 [testenv:docs]
-basepython = {[base]basepython}
+base_python = {[base]base_python}
 commands =
-    {envpython} -m sphinxlint --ignore .tox --ignore build --ignore dist
-   #{envpython} -m sphinx.apidoc -f {envsitepackagesdir}/{[base]packagesubdir}
-    {envpython} -m sphinx.cmd.build -W -a -b html -E   ./docs ./build/docs/html
-    {envpython} -m sphinx.cmd.build -W -a -b linkcheck ./docs ./build/docs/html
-    {envpython} -m sphinx.cmd.build -W -a -b doctest   ./docs ./build/docs/html
+    {env_python} -m sphinxlint --ignore .tox --ignore build --ignore dist
+   #{env_python} -m sphinx.apidoc -f {envsitepackagesdir}/{[base]package_subdir}
+    {env_python} -m sphinx.cmd.build -W -a -b html -E   ./docs ./build/docs/html
+    {env_python} -m sphinx.cmd.build -W -a -b linkcheck ./docs ./build/docs/html
+    {env_python} -m sphinx.cmd.build -W -a -b doctest   ./docs ./build/docs/html
 extras = doc
 deps =
 
 [testenv:build]
 depends = py{39,310,311,312,313}, pypy{39,310}, docs
-basepython = {[base]basepython}
-setenv =
-    {[testenv]setenv}
-    PKG_PVER=`{envpython} -W ignore -c "import platform ; print(''.join(platform.python_version_tuple()[:2]), end='')" 2> nul`
-    PKG_NAME=`{envpython} -W ignore -c "import setuptools ; setuptools._distutils.core._setup_stop_after='config' ; print(setuptools.setup().metadata.get_name(),     end='')" 2> nul`
-    PKG_DIST=`{envpython} -W ignore -c "import setuptools ; setuptools._distutils.core._setup_stop_after='config' ; print(setuptools.setup().metadata.get_fullname(), end='')" 2> nul`
+base_python = {[base]base_python}
+set_env =
+    {[testenv]set_env}
+    PKG_PVER=`{env_python} -W ignore -c "import platform ; print(''.join(platform.python_version_tuple()[:2]), end='')" 2> nul`
+    PKG_NAME=`{env_python} -W ignore -c "import setuptools ; setuptools._distutils.core._setup_stop_after='config' ; print(setuptools.setup().metadata.get_name(),     end='')" 2> nul`
+    PKG_DIST=`{env_python} -W ignore -c "import setuptools ; setuptools._distutils.core._setup_stop_after='config' ; print(setuptools.setup().metadata.get_fullname(), end='')" 2> nul`
 commands =
-    {envpython} -W ignore -c "from setuptools import setup ; setup()" --quiet sdist --formats=zip
-    {envpython} -W ignore -c "from setuptools import setup ; setup()" --quiet bdist_wheel
+    {env_python} -W ignore -c "from setuptools import setup ; setup()" --quiet sdist --formats=zip
+    {env_python} -W ignore -c "from setuptools import setup ; setup()" --quiet bdist_wheel
     # check out for PyPi
-    {envpython} -m twine check dist/*
+    {env_python} -m twine check dist/*
 deps =
     {[testenv]deps}
     twine>=5.1.1
 
 [testenv:publish]
 depends = build
-basepython = {[base]basepython}
+base_python = {[base]base_python}
 skip_install = true
 commands =
     # publish on PyPi
-    {envpython} -m twine upload dist/*
+    {env_python} -m twine upload dist/*
 extras =
 deps =
     twine>=5.1.1
 
 [testenv:lint]
-basepython = {[base]basepython}
+base_python = {[base]base_python}
 commands =
-    {envpython} -m flake8 {envsitepackagesdir}/{[base]packagesubdir}/
+    {env_python} -m flake8 {envsitepackagesdir}/{[base]package_subdir}/
 extras =
 deps =
     {[testenv]deps}

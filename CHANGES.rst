@@ -5,7 +5,7 @@ Changelog
 ----------------------
 - | Fix for improper use of ctypes.cdll.msvcrt._get_osfhandle.
   | Has been replaced by msvcrt.get_osfhandle.
-  } Thank you very much crackevil@Github for the fix!
+  | Thank you very much crackevil@Github for the fix!
 - Setup unification and (dependencies) update.
 
 1.11.0b12 (2024-10-09)

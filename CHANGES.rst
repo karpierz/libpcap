@@ -1,6 +1,10 @@
 Changelog
 =========
 
+1.11.0b14 (2024-10-20)
+----------------------
+- Fix improper dependiencies for docs testenv.
+
 1.11.0b13 (2024-10-20)
 ----------------------
 - | Fix for improper use of ctypes.cdll.msvcrt._get_osfhandle.

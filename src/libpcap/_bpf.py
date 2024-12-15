@@ -212,6 +212,7 @@ class bpf_program(ct.Structure):
     ("bf_insns", ct.POINTER(bpf_insn)),
 ]
 
+
 # Macros for insn array initializers.
 #
 # In case somebody's included <linux/filter.h>, or something else that

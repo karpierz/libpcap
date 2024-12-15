@@ -3,11 +3,11 @@
 
 [build-system]
 build-backend = 'setuptools.build_meta'
-requires = ['setuptools>=75.2.0', 'wheel>=0.44.0', 'packaging>=24.1.0', 'tox>=4.23.0']
+requires = ['setuptools>=75.6.0', 'packaging>=24.2.0', 'tox>=4.23.2']
 
 [project]
 name        = 'libpcap'
-version     = '1.11.0b14'
+version     = '1.11.0b15'
 description = 'Python binding for the libpcap C library.'
 urls.Homepage      = 'https://pypi.org/project/libpcap/'
 urls.Documentation = 'https://libpcap.readthedocs.io/'
@@ -45,25 +45,24 @@ classifiers = [
 requires-python = '>=3.9.0,<4.0.0'
 dependencies = [
     # mandatory
-    'setuptools>=75.2.0',
-    'pkg-about>=1.2.1',
+    'setuptools>=75.6.0',
+    'pkg-about>=1.2.6',
     # others
 ]
 dynamic = ['readme']
-[project.optional-dependencies]
-doc = [
+optional-dependencies.'doc' = [
     'Sphinx>=7.4.7',
     'sphinx-toolbox>=3.8.1',
-    'sphinx-tabs<3.4.7',
+    'sphinx-tabs>=3.4.5', # don't touch! sphinx-toolbox requires <3.4.7
     'sphinx-copybutton>=0.5.2',
     'sphinxcontrib-spelling>=8.0.0',
     'sphinx-lint>=1.0.0',
     'restructuredtext-lint>=1.4.0',
     'nbsphinx>=0.9.5',
 ]
-test = [
+optional-dependencies.'test' = [
     'deepdiff>=8.0.1',
-    'rich>=13.9.2',
+    'rich>=13.9.4',
 ]
 
 [project.scripts]
@@ -109,18 +108,19 @@ libpcap = [
 libpcap = [
 ]
 
-[tool.coverage.run]
-source = [
+[tool.coverage]
+# run
+run.source = [
     'libpcap',
     'tests',
 ]
-omit = [
+run.omit = [
 ]
-data_file = '.tox/coverage/.coverage'
-plugins = ['covdefaults']
-
-[tool.coverage.report]
-exclude_lines = [
+run.branch = true
+run.data_file = '.tox/coverage/.coverage'
+run.plugins = ['covdefaults']
+# report
+report.exclude_lines = [
     # Regexes
     # Have to re-enable the standard pragma
     '^\s*if\s+self\.debug\s*:',
@@ -130,13 +130,12 @@ exclude_lines = [
     '^\s*@unittest\.skip\(',
     '^\s*@unittest\.skipIf\(sys\.platform\.startswith\("win"\)',
 ]
-omit = [
+report.omit = [
     'tests/run.py',
 ]
-skip_covered = false
-
-[tool.coverage.html]
-directory = '.tox/coverage/.coverage.html'
+report.skip_covered = false
+# html report
+html.directory = '.tox/coverage/.coverage.html'
 
 [tool.flake8]
 filename = ['*.py','*.pyx']
@@ -153,7 +152,6 @@ ignore = ['E126','E203','E221','E251','E302','E701','E702','E731',
 #select = ['E','W','F','N','I']
 per-file-ignores = [
     '*/libpcap/_pcap.py: E305',
-    '*/libpcap/_bpf.py: E305',
     '*/libpcap/_platform/__init__.py: E305',
     '*/libpcap/_platform/_windows/__init__.py: E305',
     '*/libpcap/_platform/_macos/__init__.py: E305',
@@ -170,117 +168,129 @@ count = true
 # Configuration(s) for tox
 #
 
-[tool.tox]
-legacy_tox_ini = """
-[tox]
-env_list = py{39,310,311,312,313}, pypy{39,310}, docs
-labels =
-    py = py{39,310,311,312,313}, pypy{39,310}
-    prepare = prepare
-    coverage = coverage
-    lint = lint
-    docs = docs
-    build  = py{39,310,311,312,313}, pypy{39,310}, docs, build
-    deploy = py{39,310,311,312,313}, pypy{39,310}, docs, build, publish
-min_version = 4.23.0
+[tool.tox]  # 
+env_list = [{replace='ref',of=['tool','tox','labels','py'],extend=true}, 'lint', 'docs']
+min_version = '4.23.2'
 skip_missing_interpreters = true
-requires =
-    {[base]deps}
-    virtualenv>=20.27.0
-    tox-backtick>=0.5.1
-    tox-tags>=0.2.0
+requires = [
+    {replace='ref',of=['tool','tox','_','base','deps'],extend=true},
+    'virtualenv>=20.28.0',
+    'tox-backtick>=0.5.5',
+    'tox-tags>=0.2.0',
+]
+[tool.tox.labels]
+py = ['py39','py310','py311','py312','py313', 'pypy39','pypy310']
+prepare  = ['prepare']
+coverage = ['coverage']
+lint = ['lint']
+docs = ['docs']
+build  = [{replace='ref',of=['tool','tox','labels','py'],extend=true}, 'docs', 'build']
+deploy = [{replace='ref',of=['tool','tox','labels','build'],extend=true}, 'publish']
 
-[base]
-base_python = python3.12
-deps =
-    pip>=24.2.0
-    setuptools>=75.2.0
-    wheel>=0.44.0
-package_subdir = libpcap
+[tool.tox._.base]
+base_python = ['python3.12']
+deps = [
+    'pip>=24.3.1',
+    'setuptools>=75.6.0',
+]
+package_subdir = 'libpcap'
 
-[testenv]
-pass_env = WINDIR
-set_env =
-    PYTHONDONTWRITEBYTECODE = 1
-commands =
-    {env_python} --version
-    {env_python} -m tests {posargs}
-extras = test
-deps =
-    {[base]deps}
+[tool.tox.env_run_base]
+description = "Run tests under {base_python}"
+set_env.PYTHONDONTWRITEBYTECODE = '1'
+set_env.PKG_PVER = "`python -W ignore -c \"import platform ; print(''.join(platform.python_version_tuple()[:2]), end='')\" 2> nul`"
+set_env.PKG_NAME = "`python -W ignore -c \"import setuptools ; setuptools._distutils.core._setup_stop_after='config' ; print(setuptools.setup().metadata.get_name(),     end='')\" 2> nul`"
+set_env.PKG_DIST = "`python -W ignore -c \"import setuptools ; setuptools._distutils.core._setup_stop_after='config' ; print(setuptools.setup().metadata.get_fullname(), end='')\" 2> nul`"
+commands = [
+    ['{env_python}','--version'],
+    ['{env_python}','-m','tests',{replace='posargs',extend=true}],
+]
+extras = ['test']
+deps = [
+    {replace='ref',of=['tool','tox','_','base','deps'],extend=true},
+]
 
-[testenv:prepare]
-base_python = {[base]base_python}
+[tool.tox.env.'prepare']
+base_python = {replace='ref',of=['tool','tox','_','base','base_python']}
 skip_install = true
-allowlist_externals =
-    cmd
-    .build
-commands =
-    cmd /C if exist .build.cmd .build.cmd
+allowlist_externals = [
+    'cmd',
+    '.build',
+]
+commands = [
+    ['cmd','/C','if','exist','.build.cmd','.build.cmd'],
+]
+extras = []
+deps = []
 
-[testenv:coverage]
-base_python = {[base]base_python}
-commands =
-    {env_python} -m coverage erase
-    -{env_python} -m coverage run -m tests {posargs}
-    {env_python} -m coverage report
-    {env_python} -m coverage html
-deps =
-    {[testenv]deps}
-    coverage>=7.6.3
-    covdefaults>=2.3.0
-    diff-cover>=9.2.0
+[tool.tox.env.'coverage']
+base_python = {replace='ref',of=['tool','tox','_','base','base_python']}
+commands = [
+    ['{env_python}','-m','coverage','erase'],
+    ['-','{env_python}','-m','coverage','run','-m','tests',{replace="posargs",extend=true}],
+    ['-','{env_python}','-m','coverage','html'],
+    ['{env_python}','-m','coverage','report'],
+]
+deps = [
+    {replace='ref',of=['tool','tox','env_run_base','deps'],extend=true},
+    'coverage>=7.6.9',
+    'covdefaults>=2.3.0',
+    'diff-cover>=9.2.1',
+]
 
-[testenv:docs]
-base_python = {[base]base_python}
-commands =
-    {env_python} -m sphinxlint --ignore .tox --ignore build --ignore dist
-   #{env_python} -m sphinx.apidoc -f {envsitepackagesdir}/{[base]package_subdir}
-    {env_python} -m sphinx.cmd.build -W -a -b html -E   ./docs ./build/docs/html
-    {env_python} -m sphinx.cmd.build -W -a -b linkcheck ./docs ./build/docs/html
-    {env_python} -m sphinx.cmd.build -W -a -b doctest   ./docs ./build/docs/html
-extras = doc
-deps =
+[tool.tox.env.'docs']
+base_python = {replace='ref',of=['tool','tox','_','base','base_python']}
+commands = [
+    ['{env_python}','-m','sphinxlint','--ignore','.tox','--ignore','build','--ignore','dist'],
+   #['{env_python}','-m','sphinx.apidoc','-f','{envsitepackagesdir}/{[tool.tox._.base]package_subdir}'],
+    ['{env_python}','-m','sphinx.cmd.build','-W','-a','-b','html','-E','./docs','./build/docs/html'],
+    ['{env_python}','-m','sphinx.cmd.build','-W','-a','-b','linkcheck','./docs','./build/docs/html'],
+    ['{env_python}','-m','sphinx.cmd.build','-W','-a','-b','doctest',  './docs','./build/docs/html'],
+]
+extras = ['doc']
+deps = [
+    {replace='ref',of=['tool','tox','_','base','deps'],extend=true},
+]
 
-[testenv:build]
-depends = py{39,310,311,312,313}, pypy{39,310}, docs
-base_python = {[base]base_python}
-set_env =
-    {[testenv]set_env}
-    PKG_PVER=`{env_python} -W ignore -c "import platform ; print(''.join(platform.python_version_tuple()[:2]), end='')" 2> nul`
-    PKG_NAME=`{env_python} -W ignore -c "import setuptools ; setuptools._distutils.core._setup_stop_after='config' ; print(setuptools.setup().metadata.get_name(),     end='')" 2> nul`
-    PKG_DIST=`{env_python} -W ignore -c "import setuptools ; setuptools._distutils.core._setup_stop_after='config' ; print(setuptools.setup().metadata.get_fullname(), end='')" 2> nul`
-commands =
-    {env_python} -W ignore -c "from setuptools import setup ; setup()" --quiet sdist --formats=zip
-    {env_python} -W ignore -c "from setuptools import setup ; setup()" --quiet bdist_wheel
+[tool.tox.env.'build']
+depends = [{replace='ref',of=['tool','tox','labels','py'],extend=true}, 'docs']
+base_python = {replace='ref',of=['tool','tox','_','base','base_python']}
+commands = [
+    ['{env_python}','-W','ignore','-c','from setuptools import setup ; setup()','--quiet','sdist','--formats=gztar'],
+    ['{env_python}','-W','ignore','-c','from setuptools import setup ; setup()','--quiet','bdist_wheel'],
     # check out for PyPi
-    {env_python} -m twine check dist/*
-deps =
-    {[testenv]deps}
-    twine>=5.1.1
+    ['{env_python}','-m','twine','check','dist/*'],
+]
+deps = [
+    {replace='ref',of=['tool','tox','env_run_base','deps'],extend=true},
+    'twine>=6.0.1',
+]
 
-[testenv:publish]
-depends = build
-base_python = {[base]base_python}
+[tool.tox.env.'publish']
+depends = ['build']
+base_python = {replace='ref',of=['tool','tox','_','base','base_python']}
 skip_install = true
-commands =
+commands = [
     # publish on PyPi
-    {env_python} -m twine upload dist/*
-extras =
-deps =
-    twine>=5.1.1
+    ['{env_python}','-m','twine','upload','dist/*'],
+]
+extras = []
+deps = [
+    'twine>=6.0.1',
+]
 
-[testenv:lint]
-base_python = {[base]base_python}
-commands =
-    {env_python} -m flake8 {envsitepackagesdir}/{[base]package_subdir}/
-extras =
-deps =
-    {[testenv]deps}
-    flake8>=7.1.1
-    flake8-pyproject>=1.2.3
-    flake8-docstrings>=1.7.0
-    pep8-naming>=0.14.1
-    flake8-builtins>=2.5.0
-    flake8-deprecated>=2.2.1
-"""
+[tool.tox.env.'lint']
+base_python = {replace='ref',of=['tool','tox','_','base','base_python']}
+commands = [
+    ['{env_python}','-m','flake8','{envsitepackagesdir}/{[tool.tox._.base]package_subdir}/'],
+]
+extras = []
+deps = [
+    {replace='ref',of=['tool','tox','env_run_base','deps'],extend=true},
+    'flake8>=7.1.1',
+    'flake8-pyproject>=1.2.3',
+    'flake8-docstrings>=1.7.0',
+    'pep8-naming>=0.14.1',
+    'flake8-builtins>=2.5.0',
+    'flake8-deprecated>=2.2.1',
+]

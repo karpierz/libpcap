@@ -212,7 +212,8 @@ LT_FCS_LENGTH         = lambda x: ((x & 0xF0000000) >> 28)
 LT_FCS_DATALINK_EXT   = lambda x: (((x & 0xF) << 28) | 0x04000000)
 
 direction_t = ct.c_int
-(   PCAP_D_INOUT,
+(
+    PCAP_D_INOUT,
     PCAP_D_IN,
     PCAP_D_OUT
 ) = (0, 1, 2)
@@ -1330,6 +1331,8 @@ if is_windows:
         ct.POINTER(pcap_t))(
         ("pcap_get_airpcap_handle", dll), (
         (1, "pcap"),))
+    PCAP_DEPRECATED(get_airpcap_handle,
+                    "AirPcap support has been removed")
 
     MODE_CAPT = 0
     MODE_STAT = 1

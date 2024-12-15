@@ -11,11 +11,11 @@ is_32bit = (sys.maxsize <= 2**32)
 arch     = "x86" if is_32bit else "x64"
 arch_dir = os.path.join(this_dir, arch)
 
-def _DLL(*args, **kargs):
+def _DLL(*args, **kwargs):
     from ctypes import windll, WinDLL
     windll.kernel32.SetDllDirectoryA(os.path.dirname(args[0]).encode("utf-8"))
     try:
-        return WinDLL(*args, **kargs)
+        return WinDLL(*args, **kwargs)
     finally:
         windll.kernel32.SetDllDirectoryA(None)
 

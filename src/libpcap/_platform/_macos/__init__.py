@@ -3,6 +3,7 @@
 
 import sys
 import os
+import platform
 from functools import partial
 import ctypes as ct
 from ctypes.util import find_library
@@ -12,9 +13,7 @@ is_32bit = (sys.maxsize <= 2**32)
 arch     = "x86" if is_32bit else "x64"
 arch_dir = os.path.join(this_dir, arch)
 
-def macos_version():
-    import platform
-    return tuple(int(x) for x in platform.mac_ver()[0].split("."))[:2]
+macos_version = lambda: tuple(int(x) for x in platform.mac_ver()[0].split("."))[:2]
 
 if is_32bit:
     raise NotImplementedError("This OS is not supported in 32 bit!")

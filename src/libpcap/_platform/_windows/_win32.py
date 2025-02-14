@@ -13,7 +13,7 @@ from ctypes.wintypes import (
     WPARAM, LPARAM, FILETIME, LPFILETIME,
 )
 
-from ctypes.wintypes import WPARAM as ULONG_PTR # workaround
+from ctypes.wintypes import WPARAM as ULONG_PTR  # workaround
 PULONG_PTR = ctypes.POINTER(ULONG_PTR)
 
 ULONG32   = ctypes.c_uint32
@@ -55,7 +55,7 @@ class SECURITY_ATTRIBUTES(ctypes.Structure):
     ("lpSecurityDescriptor", LPVOID),
     ("bInheritHandle",       BOOL),
 ]
-LPSECURITY_ATTRIBUTES = ctypes.POINTER(SECURITY_ATTRIBUTES)
+LPSECURITY_ATTRIBUTES = ctypes.POINTER(SECURITY_ATTRIBUTES)  # noqa: E305
 
 LPTHREAD_START_ROUTINE = WINFUNCTYPE(DWORD, LPVOID)
 CreateThread = windll.kernel32.CreateThread
@@ -128,7 +128,7 @@ class SYSTEMTIME(ctypes.Structure):
     ("wSecond",       WORD),
     ("wMilliseconds", WORD),
 ]
-LPSYSTEMTIME = ctypes.POINTER(SYSTEMTIME)
+LPSYSTEMTIME = ctypes.POINTER(SYSTEMTIME)  # noqa: E305
 
 GetLocalTime = windll.kernel32.GetLocalTime
 GetLocalTime.restype  = None
@@ -162,7 +162,7 @@ class WSADATA(ctypes.Structure):
     ("lpVendorInfo",   ctypes.c_char_p),
 ]
 
-LPWSADATA = ctypes.POINTER(WSADATA)
+LPWSADATA = ctypes.POINTER(WSADATA)  # noqa: E305
 
 WSAStartup = windll.Ws2_32.WSAStartup
 WSAStartup.restype  = ctypes.c_int
@@ -174,4 +174,4 @@ WSACleanup.argtypes = []
 
 def MAKEWORD(blow, bhigh): return (bhigh << 8) + blow
 
-del ctypes
+del ctypes  # noqa: E305

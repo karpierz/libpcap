@@ -18,7 +18,7 @@ prune src/libpcap/pcap.h
 prune src/libpcap/pcap.npcap-sdk.h
 
 graft tests
-prune tests/tests.c
+prune tests/testprogs.c
 prune tests/fuzz
 
 global-exclude \#* \#*/**

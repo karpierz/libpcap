@@ -72,12 +72,10 @@ from ._platform import SOCKET as PCAP_SOCKET
 from ._dll      import dll
 if is_windows:  import msvcrt
 
-from ._bpf import BPF_RELEASE, bpf_program
+from ._bpf import PCAP_DEPRECATED, BPF_RELEASE, bpf_program
 from ._bpf import *  # noqa
 
 intptr_t = (ct.c_int32 if ct.sizeof(ct.c_void_p) == ct.sizeof(ct.c_int32) else ct.c_int64)
-
-PCAP_DEPRECATED = lambda func, msg: None
 
 
 class FILE(ct.Structure): pass

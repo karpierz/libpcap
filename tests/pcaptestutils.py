@@ -25,22 +25,9 @@ import os
 import ctypes as ct
 
 import libpcap as pcap
+from libpcap._platform._limits import *  # noqa
 from libpcap._platform import is_windows
-if is_windows: import _win32 as win32
-
-# include <limits.h>
-USHRT_MAX  = ct.c_ushort(-1).value
-SHRT_MAX   = USHRT_MAX >> 1
-SHRT_MIN   = -SHRT_MAX - 1
-UINT_MAX   = ct.c_uint(-1).value
-INT_MAX    = UINT_MAX >> 1
-INT_MIN    = -INT_MAX - 1
-ULONG_MAX  = ct.c_ulong(-1).value
-LONG_MAX   = ULONG_MAX >> 1
-LONG_MIN   = -LONG_MAX - 1
-ULLONG_MAX = ct.c_ulonglong(-1).value
-LLONG_MAX  = ULLONG_MAX >> 1
-LLONG_MIN  = -LLONG_MAX - 1
+if is_windows: from libpcap._platform._windows import _win32 as win32
 
 #ifndef lint
 copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
@@ -101,13 +88,13 @@ ebuf2str   = lambda ebuf: ebuf.value.decode("utf-8", "ignore")
 geterr2str = lambda pd: pcap.geterr(pd).decode("utf-8", "ignore")
 
 
-def error(fmt, *args):
+def error(fmt, *args, status=1):
     program_name = sys._getframe(1).f_globals["program_name"]
     print("{}: ".format(program_name), end="", file=sys.stderr)
     print(fmt.format(*args), end="", file=sys.stderr)
     if fmt and fmt[-1] != '\n':
         print(file=sys.stderr)
-    sys.exit(1)
+    sys.exit(status)
 
 
 def warning(fmt, *args):
@@ -116,3 +103,6 @@ def warning(fmt, *args):
     print(fmt.format(*args), end="", file=sys.stderr)
     if fmt and fmt[-1] != '\n':
         print(file=sys.stderr)
+
+
+del is_windows

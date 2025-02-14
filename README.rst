@@ -194,7 +194,7 @@ Authors
 
 .. |package| replace:: libpcap
 .. |package_bold| replace:: **libpcap**
-.. |copyright| replace:: Copyright (c) 2016-2024 Adam Karpierz
+.. |copyright| replace:: Copyright (c) 2016-2025 Adam Karpierz
 .. |respository| replace:: https://github.com/karpierz/libpcap.git
 .. _Development page: https://github.com/karpierz/libpcap
 .. _PyPI record: https://pypi.org/project/libpcap/

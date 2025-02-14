@@ -24,12 +24,14 @@
 
 import sys
 import os
+import socket
 import getopt
 import ctypes as ct
 
 import libpcap as pcap
-from libpcap._platform import defined
+from libpcap._platform import is_windows, is_linux, defined
 from pcaptestutils import *  # noqa
+from unix import *  # noqa
 
 #ifndef lint
 copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
@@ -39,7 +41,25 @@ copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
 #endif
 
 MAXIMUM_SNAPLEN = 262144
-
+ 
+if is_linux:
+    # include <linux/filter.h>  # SKF_AD_VLAN_TAG_PRESENT
+    # pcap-int.h is a private header and should not be included by programs
+    # that use libpcap.  This test program uses a special hack because it is
+    # the simplest way to test internal code paths that otherwise would require
+    # elevated privileges.  Do not do this in normal code.
+    # include <pcap-int.h>
+    #
+    # From <pcap-int.h>
+    # BPF code generation flags.
+    #
+    BPF_SPECIAL_VLAN_HANDLING = 0x00000001  # special VLAN handling for Linux
+    # Special handling of packet type and ifindex, which are some of the
+    # auxiliary data items available in Linux >= 2.6.27.  Disregard protocol
+    # and netlink attributes for now.
+    #
+    BPF_SPECIAL_BASIC_HANDLING = 0x00000002
+# endif
 
 def main(argv=sys.argv[1:]):
 
@@ -47,34 +67,39 @@ def main(argv=sys.argv[1:]):
     program_name = os.path.basename(sys.argv[0])
 
     try:
-        opts, args = getopt.getopt(argv, "dF:gm:Os:")
+        opts, args = getopt.getopt(argv, "hdF:gm:Os:lr:")
     except getopt.GetoptError:
-        usage()
+        usage(sys.stderr)
 
     if is_windows:
         wsa_data = win32.WSADATA()
         if win32.WSAStartup(win32.MAKEWORD(2, 2), ct.byref(wsa_data)) != 0:
         #if hasattr(pcap, "wsockinit") and pcap.wsockinit() != 0:
             return 1
-        # atexit((void(*)(void))win32.WSACleanup); # !!!
 
     dflag = 1
-    if defined("BDEBUG"):
-        gflag = 0
+    gflag = 0
     infile = None
+    insavefile = None
     netmask = pcap.PCAP_NETMASK_UNKNOWN
     Oflag = 1
+    lflag = 0
     snaplen = MAXIMUM_SNAPLEN
     for opt, optarg in opts:
-        if opt == '-d':
+        if opt == '-h':
+            usage(sys.stdout)
+        elif opt == '-d':
             dflag += 1
         elif opt == '-g':
             if defined("BDEBUG"):
                 gflag += 1
             else:
-                error("libpcap and filtertest not built with optimizer debugging enabled")
+                error("libpcap and filtertest not built with optimizer "
+                      "debugging enabled", status=EX_USAGE)
         elif opt == '-F':
             infile = optarg
+        elif opt == '-r':
+            insavefile = optarg
         elif opt == '-O':
             Oflag = 0
         elif opt == '-m':  # !!!
@@ -82,39 +107,83 @@ def main(argv=sys.argv[1:]):
             #     addr = socket.inet_pton(socket.AF_INET, optarg)
             # except socket.error:
             #     if r == 0:
-            #         error("invalid netmask {}", optarg)
+            #         error("invalid netmask {}", optarg, status=EX_DATAERR)
             #     elif r == -1:
-            #         error("invalid netmask {}: {}", optarg, pcap_strerror(errno))
+            #         error("invalid netmask {}: {}", optarg, pcap_strerror(errno),
+            #               status=EX_DATAERR)
             # else: # elif r == 1:
             #     addr = pcap.bpf_u_int32(addr)
-            #     netmask = addr
+            #     # inet_pton(): network byte order, pcap_compile(): host byte order.
+            #     netmask = socket.ntohl(addr)
             pass
         elif opt == '-s':
             try:
                 long_snaplen = int(optarg)
-            except:
-                error("invalid snaplen {}", optarg)
+            except Exception:
+                error("invalid snaplen {}", optarg, status=EX_DATAERR)
             if not (0 <= long_snaplen <= MAXIMUM_SNAPLEN):
-                error("invalid snaplen {}", optarg)
+                error("invalid snaplen {}", optarg, status=EX_DATAERR)
             elif long_snaplen == 0:  # <AK> fix, was: snaplen == 0:
                 snaplen = MAXIMUM_SNAPLEN
             else:
                 snaplen = long_snaplen
+        elif opt == '-l':
+            if is_linux:
+                lflag = 1  # Enable Linux BPF extensions.
+            else:
+                error("libpcap and filtertest built without Linux BPF "
+                      "extensions", status=EX_USAGE)
         else:
-            usage()
+            usage(sys.stderr)
 
-    if not args:
-        usage()
+    if insavefile:
+        expression = args[0:]
 
-    dlt_name = args[0]
-    expression = args[1:]
+        if dflag > 1:
+            warning("-d is a no-op with -r")
+        if defined("BDEBUG") and gflag:
+            warning("-g is a no-op with -r")
+        if is_linux and lflag:
+            warning("-l is a no-op with -r")
 
-    dlt = pcap.datalink_name_to_val(dlt_name.encode("utf-8"))
-    if dlt < 0:
-        try:
-            dlt = int(dlt_name)
-        except:
-            error("invalid data link type {}", dlt_name)
+        errbuf = ct.create_string_buffer(pcap.PCAP_ERRBUF_SIZE)
+        pd = pcap.open_offline(insavefile.encode("utf-8"), errbuf)
+        if not pd:
+            error("Failed opening: {}", ebuf2str(errbuf), status=EX_NOINPUT)
+        del errbuf
+    else:
+        # Must have at least one command-line argument for the DLT.
+        if not args:
+            usage(sys.stderr)
+
+        dlt_name = args[0]
+        expression = args[1:]
+
+        dlt = pcap.datalink_name_to_val(dlt_name.encode("utf-8"))
+        if dlt < 0:
+            try:
+                dlt = int(dlt_name)
+            except Exception:
+                error("invalid data link type {}", dlt_name, status=EX_DATAERR)
+
+        pd = pcap.open_dead(dlt, snaplen)
+        if not pd:
+            error("Can't open fake pcap_t", status=EX_SOFTWARE)
+        
+        if is_linux and lflag:
+            if defined("SKF_AD_VLAN_TAG_PRESENT"):
+                # Generally speaking, the fact the header defines the
+                # symbol does not necessarily mean the running kernel
+                # supports what is known as [vlanp] and everything
+                # before it, but in this use case the filter program
+                # is not meant for the kernel.
+                pd.contents.bpf_codegen_flags |= BPF_SPECIAL_VLAN_HANDLING
+            # endif // SKF_AD_VLAN_TAG_PRESENT
+            pd.contents.bpf_codegen_flags |= BPF_SPECIAL_BASIC_HANDLING
+
+        if defined("BDEBUG"):
+            pcap_set_optimizer_debug(dflag)
+            pcap_set_print_dot_graph(gflag)
 
     if infile:
         cmdbuf = read_infile(infile)
@@ -122,34 +191,44 @@ def main(argv=sys.argv[1:]):
         # concatenating arguments with spaces.
         cmdbuf = " ".join(expression).encode("utf-8")
 
-    pd = pcap.open_dead(dlt, snaplen)
-    if not pd:
-        error("Can't open fake pcap_t")
-
     fcode = pcap.bpf_program()
     if pcap.compile(pd, ct.byref(fcode), cmdbuf, Oflag, netmask) < 0:
-        error("{}", geterr2str(pd))
+        error("{}", geterr2str(pd), status=EX_DATAERR)
 
     if not pcap.bpf_validate(fcode.bf_insns, fcode.bf_len):
         warning("Filter doesn't pass validation")
 
-    if defined("BDEBUG"):
-        if cmdbuf:
+    if not insavefile:
+        if defined("BDEBUG"):
             # replace line feed with space
             mcodes = cmdbuf.decode("utf-8", "ignore")
             mcodes = mcodes.replace('\r', ' ').replace('\n', ' ')
             # only show machine code if BDEBUG defined, since dflag > 3
             print("machine codes for filter: {}".format(mcodes))
-        else:
-            print("machine codes for empty filter:")
+        pcap.bpf_dump(ct.byref(fcode), dflag)
+    else:
+        h = ct.POINTER(pcap.pkthdr)()
+        d = ct.POINTER(ct.c_ubyte)()
+        while (ret := pcap.next_ex(pd,
+                                   ct.byref(h),
+                                   ct.byref(d))) != pcap.PCAP_ERROR_BREAK:
+            if ret == pcap.PCAP_ERROR:
+                error("pcap_next_ex() failed: {}", geterr2str(pd),
+                      status=EX_IOERR)
+            if ret == 1:
+                print("{}".format(pcap.offline_filter(ct.byref(fcode), h, d)))
+            else:
+                error("pcap_next_ex() failed: {}", ret, status=EX_IOERR)
 
-    pcap.bpf_dump(ct.byref(fcode), dflag)
     del cmdbuf
 
     pcap.freecode(ct.byref(fcode))
     pcap.close(pd)
+    if is_windows:
+        # win32.WSACleanup( )  # !!!
+        pass
 
-    return 0
+    return EX_OK
 
 
 def read_infile(fname: str) -> bytes:
@@ -158,14 +237,16 @@ def read_infile(fname: str) -> bytes:
         fd = open(fname, "rb")
     except IOError as exc:
         error("can't open {}: {}",
-              fname, pcap.strerror(exc.errno).decode("utf-8", "ignore"))
+              fname, pcap.strerror(exc.errno).decode("utf-8", "ignore"),
+              status=EX_NOINPUT)
 
     with fd:
         try:
             stat = os.fstat(fd.fileno())
         except IOError as exc:
             error("can't stat {}: {}",
-                  fname, pcap.strerror(exc.errno).decode("utf-8", "ignore"))
+                  fname, pcap.strerror(exc.errno).decode("utf-8", "ignore"),
+                  status=EX_NOINPUT)
 
         # _read(), on Windows, has an unsigned int byte count and an
         # int return value, so we can't handle a file bigger than
@@ -175,16 +256,18 @@ def read_infile(fname: str) -> bytes:
         #
         if stat.st_size > INT_MAX - 1:
             error("{} is larger than {} bytes; that's too large",
-                  fname, INT_MAX - 1)
+                  fname, INT_MAX - 1, status=EX_DATAERR)
         try:
             cp = fd.read()
         except IOError as exc:
             error("read {}: {}",
-                  fname, pcap.strerror(exc.errno).decode("utf-8", "ignore"))
+                  fname, pcap.strerror(exc.errno).decode("utf-8", "ignore"),
+                  status=EX_IOERR)
 
     lcp = len(cp)
     if lcp != stat.st_size:
-        error("short read {} ({:d} != {:d})", fname, lcp, stat.st_size)
+        error("short read {} ({:d} != {:d})", fname, lcp, stat.st_size,
+              status=EX_IOERR)
 
     cp = bytearray(cp)
     # replace "# comment" with spaces
@@ -199,15 +282,49 @@ def read_infile(fname: str) -> bytes:
     return bytes(cp)
 
 
-def usage():
+def usage(file):
     print("{}, with {}".format(program_name,
-          pcap.lib_version().decode("utf-8")), file=sys.stderr)
-    print("Usage: {} [-d{}O] [ -F file ] [ -m netmask] [ -s snaplen ] dlt "
-          "[ expression ]".format(program_name,
-          "g" if defined("BDEBUG") else ""), file=sys.stderr)
-    print("e.g. ./{} EN10MB host 192.168.1.1".format(program_name),
-          file=sys.stderr)
-    sys.exit(1)
+          pcap.lib_version().decode("utf-8")), file=file)
+    print("Usage: {} [-d{}O{}] [ -F file ] [ -m netmask] [ -s snaplen ] dlt "
+          "[ expr ]".format(program_name,
+          "g" if defined("BDEBUG") else "",
+          "l" if is_linux else ""), file=file)
+    print("       (print the filter program bytecode)", file=file)
+    print("  or:  {} [-O] [ -F file ] [ -m netmask] -r file "
+          "[ expression ]".format(program_name), file=file)
+    print("       (print the filter program result for each packet)",
+          file=file)
+    print("  or:  {} -h".format(program_name), file=file)
+    print("       (print the detailed help screen)", file=file)
+    if file is sys.stdout:
+        print("\nOptions specific to {}:".format(program_name), file=file)
+        print("  <dlt>           a valid DLT name, e.g. 'EN10MB'", file=file)
+        print("  <expr>          a valid filter expression, e.g. "
+              "'tcp port 80'", file=file)
+        if is_linux:
+            print("  -l              allow the use of Linux BPF extensions",
+                  file=file)
+        if defined("BDEBUG"):
+            print("  -g              print Graphviz dot graphs for the "
+                  "optimizer steps", file=file)
+        print("  -m <netmask>    use this netmask for pcap_compile(), "
+              "e.g. 255.255.255.0", file=file)
+        print("\nOptions common with tcpdump:", file=file)
+        print("  -d              change output format (accumulates, one -d "
+              "is implicit)", file=file)
+        print("  -O              do not optimize the filter program",
+              file=file)
+        print("  -F <file>       read the filter expression from the "
+              "specified file", file=file)
+        print("  -s <snaplen>    set the snapshot length", file=file)
+        print("  -r <file>       read the packets from this savefile",
+              file=file)
+        print("\nIf no filter expression is specified, it defaults to an "
+              "empty string, which", file=file)
+        print("accepts all packets.  If the -F option is in use, it replaces "
+              "any filter", file=file)
+        print("expression specified as a command-line argument.", file=file)
+    sys.exit(EX_OK if file is sys.stdout else EX_USAGE)
 
 
 if __name__.rpartition(".")[-1] == "__main__":

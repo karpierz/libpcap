@@ -1,7 +1,8 @@
 # Copyright (c) 2016 Adam Karpierz
 # SPDX-License-Identifier: BSD-3-Clause
 
-from ._platform import DLL_PATH, DLL, dlclose
+from ._platform import DLL_PATH, DLL
+from ._platform import dlclose  # noqa: F401
 
 try:
     dll = DLL(DLL_PATH)

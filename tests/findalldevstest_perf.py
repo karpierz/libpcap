@@ -7,6 +7,7 @@ import sys
 import ctypes as ct
 
 import libpcap as pcap
+from libpcap._platform import is_windows
 from pcaptestutils import *  # noqa
 
 

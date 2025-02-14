@@ -29,6 +29,7 @@ import getopt
 import ctypes as ct
 
 import libpcap as pcap
+from libpcap._platform import is_windows
 from pcaptestutils import *  # noqa
 
 #ifndef lint
@@ -72,7 +73,7 @@ def parse_interface_number(device: bytes) -> int:
                 device = device[idx:]
     try:
         devnum = int(device)
-    except:  # ValueError:
+    except Exception:  # ValueError:
         # It's not all-numeric; return -1, so our caller
         # knows that.
         return -1
@@ -192,7 +193,7 @@ def main(argv=sys.argv[1:]):
         elif opt == '-s':
             try:
                 snaplen = int(optarg)
-            except:  # ValueError:
+            except Exception:  # ValueError:
                 error("invalid snaplen {} (must be >= 0)", optarg)
         elif opt == '-w':
             savefile = optarg.encode("utf-8")

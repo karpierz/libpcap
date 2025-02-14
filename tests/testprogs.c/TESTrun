@@ -1,0 +1,6758 @@
+#!/usr/bin/env perl
+
+# Copyright (c) 2024 The Tcpdump Group
+# All rights reserved.
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+# Usage:
+# <this file>               run all tests
+# <this file> <test label>  run only the test with the label (if any)
+#
+# Set FILTERTEST_TIMEOUT to 0 to disable the timeout completely or to any other
+# value to override the default timeout.  The timeout applies to every test.
+# If TIMEOUT_BIN is not set, the timeout applies iff the default "timeout"
+# binary works.  If it is set (on macOS there is no default "timeout" and the
+# binary from GNU coreutils package may be available as "gtimeout" only), the
+# custom binary must work.
+#
+# FILTERTEST_BIN and CONFIG_H allow to specify custom paths to respective files
+# if the current working directory is not the directory where the build output
+# files go to.  Otherwise by default this script finds the files for both
+# Autoconf and CMake, both in-tree and out-of-tree builds.
+#
+# TESTRUN_JOBS allows to specify the number of tester threads (1 by default).
+
+use sigtrap qw(die normal-signals);
+use strict;
+use warnings FATAL => qw(uninitialized);
+require $FindBin::RealBin . '/TESTlib.pm';
+# TESTlib.pm
+use subs qw(
+	file_get_contents
+	file_put_contents
+	get_diff_flags
+	init_tmpdir
+	mytmpfile
+	read_config_h
+	result_failed
+	result_passed
+	result_skipped
+	result_timed_out
+	run_skip_test
+	skip_config_def1
+	skip_config_have_decl
+	skip_config_undef
+	skip_os
+	skip_os_not
+	string_in_file
+	test_and_report
+);
+
+BEGIN {
+	require 5.8.4; # Solaris 10
+	use Config;
+	use FindBin;
+	if (defined $ENV{TESTRUN_PERL}) {
+		my $newperl = $ENV{TESTRUN_PERL};
+		delete $ENV{TESTRUN_PERL};
+		print "INFO: Re-launching using TESTRUN_PERL='$newperl'.\n";
+		exec ($newperl, $FindBin::RealBin . '/' . $FindBin::RealScript, @ARGV);
+		die 'ERROR: Failed to re-launch.';
+	}
+	require $FindBin::RealBin . '/TEST' . ($Config{useithreads} ? 'mt' : 'st') . '.pm';
+}
+
+use constant SAVEFILE_DIR => $FindBin::RealBin . '/../tests/filter/';
+# See RFC 6761 Section 6.4.
+my $nonexistent = 'host.invalid';
+
+my $config_h = defined $ENV{CONFIG_H} ? $ENV{CONFIG_H} : './config.h';
+# Enable all shared skip functions to be able to declare the tests below.
+read_config_h ($config_h);
+
+# In accept_blocks the top-level keys are test block names.  Each test block
+# defines one or more tests.  When possible, a test block name should be easy
+# to relate with the main filter expression, for example, ip_multicast for
+# "ip multicast" etc.  However, because in Perl hashes the keys are not ordered,
+# sometimes the easiest way to group the tests in the alphabetically-sorted
+# output is to use an artificial prefix, for example, mtp2_ for "fisu", "lssu",
+# "msu" etc.  The top-level values are in turn hashes, where the keys have the
+# following meaning:
+#
+# * DLT (mandatory, string): the name of the DLT to use for the test
+# * snaplen (optional, int): the snapshot length to use for the test
+# * expr (mandatory, string): the filter expression
+# * opt (optional, [multi-line] string): the expected optimised bytecode
+# * unopt (optional, [multi-line] string): the expected unoptimised bytecode
+# * aliases (optional, array of strings): each string is a filter expression
+#   and must produce exactly the same bytecode as "expr" (applies to "opt" and
+#   "unopt" separately)
+# * skip (optional, string): if defined and is not equal to an empty string,
+#   causes the test to skip using the string as the reason
+# * linuxext (optional, int): if defined and is equal to 1, use Linux BPF
+#   extensions.
+# * netmask (optional, string, dotted-quad): the netmask for pcap_compile()
+#
+# At least one of "opt" and "unopt" must be defined in each accept test block.
+
+my %accept_blocks = (
+	empty => {
+		DLT => 'EN10MB',
+		expr => '',
+		unopt => '
+			(000) ret      #262144
+			',
+	},
+
+	greater => {
+		DLT => 'RAW',
+		snaplen => 200,
+		expr => 'greater 100',
+		aliases => ['len >= 100', 'length >= 100'],
+		# Only the optimized bytecode is equivalent!
+		opt => '
+			(000) ld       #pktlen
+			(001) jge      #0x64            jt 2	jf 3
+			(002) ret      #200
+			(003) ret      #0
+			',
+	}, # greater
+	less => {
+		DLT => 'RAW',
+		snaplen => 200,
+		expr => 'less 200',
+		aliases => ['len <= 200', 'length <= 200'],
+		# Only the optimized bytecode is equivalent!
+		opt => '
+			(000) ld       #pktlen
+			(001) jgt      #0xc8            jt 2	jf 3
+			(002) ret      #0
+			(003) ret      #200
+			',
+	}, # less
+
+	link_index_byte => {
+		DLT => 'EN10MB',
+		expr => 'link[5] == 0x12',
+		aliases => [
+			'ether[5] == 0x12',
+			'fddi[5] == 0x12',
+			'ppp[5] == 0x12',
+			'slip[5] == 0x12',
+			'tr[5] == 0x12',
+			'wlan[5] == 0x12',
+			'ether[5:1] == 0x12',
+			'fddi[5:1] == 0x12',
+			'ppp[5:1] == 0x12',
+			'slip[5:1] == 0x12',
+			'tr[5:1] == 0x12',
+			'wlan[5:1] == 0x12',
+		],
+		opt => '
+			(000) ldb      [5]
+			(001) jeq      #0x12            jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # link_index_byte
+	link_index_halfword => {
+		DLT => 'EN10MB',
+		expr => 'link[7:2] == 0x1234',
+		aliases => [
+			'ether[7:2] == 0x1234',
+			'fddi[7:2] == 0x1234',
+			'ppp[7:2] == 0x1234',
+			'slip[7:2] == 0x1234',
+			'tr[7:2] == 0x1234',
+			'wlan[7:2] == 0x1234',
+		],
+		opt => '
+			(000) ldh      [7]
+			(001) jeq      #0x1234          jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # link_index_halfword
+	link_index_word => {
+		DLT => 'EN10MB',
+		expr => 'link[10:4] == 0x12345678',
+		aliases => [
+			'ether[10:4] == 0x12345678',
+			'fddi[10:4] == 0x12345678',
+			'ppp[10:4] == 0x12345678',
+			'slip[10:4] == 0x12345678',
+			'tr[10:4] == 0x12345678',
+			'wlan[10:4] == 0x12345678',
+		],
+		opt => '
+			(000) ld       [10]
+			(001) jeq      #0x12345678      jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # link_index_word
+
+	icmp_index_icmptype => {
+		DLT => 'EN10MB',
+		snaplen => 16000,
+		# Verify that the named offset resolves to the same constant and that the
+		# protocol supports index operation.
+		expr => 'icmp[icmptype] != 0xff',
+		aliases => ['icmp[0] != 0xff'],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x800           jt 2	jf 10
+			(002) ldb      [23]
+			(003) jeq      #0x1             jt 4	jf 10
+			(004) ldh      [20]
+			(005) jset     #0x1fff          jt 10	jf 6
+			(006) ldxb     4*([14]&0xf)
+			(007) ldb      [x + 14]
+			(008) jeq      #0xff            jt 10	jf 9
+			(009) ret      #16000
+			(010) ret      #0
+			',
+	}, # icmp_index_icmptype
+	icmp_index_icmpcode => {
+		DLT => 'EN10MB',
+		snaplen => 16000,
+		# Same as for icmp[icmptype] above.
+		expr => 'icmp[icmpcode] != 0xff',
+		aliases => ['icmp[1] != 0xff'],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x800           jt 2	jf 10
+			(002) ldb      [23]
+			(003) jeq      #0x1             jt 4	jf 10
+			(004) ldh      [20]
+			(005) jset     #0x1fff          jt 10	jf 6
+			(006) ldxb     4*([14]&0xf)
+			(007) ldb      [x + 15]
+			(008) jeq      #0xff            jt 10	jf 9
+			(009) ret      #16000
+			(010) ret      #0
+			',
+	}, # icmp_index_icmpcode
+	icmp6_index_icmp6type => {
+		DLT => 'IPV6',
+		snaplen => 10000,
+		# Same as for icmp[icmptype] above.
+		expr => 'icmp6[icmp6type] != 0xff',
+		aliases => ['icmp6[0] != 0xff'],
+		opt => '
+			(000) ld       #0x0
+			(001) ldb      [6]
+			(002) jeq      #0x3a            jt 3	jf 6
+			(003) ldb      [40]
+			(004) jeq      #0xff            jt 6	jf 5
+			(005) ret      #10000
+			(006) ret      #0
+			',
+	}, # icmp6_index_icmp6type
+	icmp6_index_icmp6code => {
+		DLT => 'IPV6',
+		snaplen => 10000,
+		# Same as for icmp[icmptype] above.
+		expr => 'icmp6[icmp6code] != 0xff',
+		aliases => ['icmp6[1] != 0xff'],
+		opt => '
+			(000) ld       #0x0
+			(001) ldb      [6]
+			(002) jeq      #0x3a            jt 3	jf 6
+			(003) ldb      [41]
+			(004) jeq      #0xff            jt 6	jf 5
+			(005) ret      #10000
+			(006) ret      #0
+			',
+	}, # icmp6_index_icmp6code
+	udp_index_halfword => {
+		DLT => 'RAW',
+		snaplen => 65535,
+		# The implementation is IPv4-only.
+		expr => 'udp[8:2] == 0xabcd',
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xf0
+			(002) jeq      #0x40            jt 3	jf 11
+			(003) ldb      [9]
+			(004) jeq      #0x11            jt 5	jf 11
+			(005) ldh      [6]
+			(006) jset     #0x1fff          jt 11	jf 7
+			(007) ldxb     4*([0]&0xf)
+			(008) ldh      [x + 8]
+			(009) jeq      #0xabcd          jt 10	jf 11
+			(010) ret      #65535
+			(011) ret      #0
+			',
+	}, # udp_index_halfword
+	tcp_index_byte => {
+		DLT => 'RAW',
+		snaplen => 262144,
+		# Same as for icmp[icmptype] above.
+		# The implementation is IPv4-only.
+		expr => 'tcp[tcpflags] == 0xFF',
+		aliases => ['tcp[13] == 0xFF'],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xf0
+			(002) jeq      #0x40            jt 3	jf 11
+			(003) ldb      [9]
+			(004) jeq      #0x6             jt 5	jf 11
+			(005) ldh      [6]
+			(006) jset     #0x1fff          jt 11	jf 7
+			(007) ldxb     4*([0]&0xf)
+			(008) ldb      [x + 13]
+			(009) jeq      #0xff            jt 10	jf 11
+			(010) ret      #262144
+			(011) ret      #0
+			',
+	}, # tcp_index_byte
+	linux_sll_inbound => {
+		DLT => 'LINUX_SLL',
+		snaplen => 65535,
+		expr => 'inbound',
+		unopt => '
+			(000) ldh      [0]
+			(001) jeq      #0x4             jt 2	jf 3
+			(002) ret      #0
+			(003) ret      #65535
+			',
+	}, # linux_sll_inbound
+	linux_sll_outbound => {
+		DLT => 'LINUX_SLL',
+		snaplen => 65535,
+		expr => 'outbound',
+		unopt => '
+			(000) ldh      [0]
+			(001) jeq      #0x4             jt 2	jf 3
+			(002) ret      #65535
+			(003) ret      #0
+			',
+	}, # linux_sll_outbound
+	linux_sll2_inbound => {
+		DLT => 'LINUX_SLL2',
+		snaplen => 65535,
+		expr => 'inbound',
+		unopt => '
+			(000) ldb      [10]
+			(001) jeq      #0x4             jt 2	jf 3
+			(002) ret      #0
+			(003) ret      #65535
+			',
+	}, # linux_sll2_inbound
+	linux_sll2_outbound => {
+		DLT => 'LINUX_SLL2',
+		snaplen => 65535,
+		expr => 'outbound',
+		unopt => '
+			(000) ldb      [10]
+			(001) jeq      #0x4             jt 2	jf 3
+			(002) ret      #65535
+			(003) ret      #0
+			',
+	}, # linux_sll2_outbound
+	linux_sll2_ifindex => {
+		DLT => 'LINUX_SLL2',
+		snaplen => 65535,
+		expr => 'ifindex 7',
+		unopt => '
+			(000) ld       [4]
+			(001) jeq      #0x7             jt 2	jf 3
+			(002) ret      #65535
+			(003) ret      #0
+			',
+	}, # linux_sll2_ifindex
+	slip_inbound => {
+		DLT => 'SLIP',
+		snaplen => 100,
+		expr => 'inbound',
+		opt => '
+			(000) ldb      [0]
+			(001) jeq      #0x0             jt 2	jf 3
+			(002) ret      #100
+			(003) ret      #0
+			',
+	}, # slip_inbound
+	slip_outbound => {
+		DLT => 'SLIP',
+		snaplen => 100,
+		expr => 'outbound',
+		opt => '
+			(000) ldb      [0]
+			(001) jeq      #0x0             jt 2	jf 3
+			(002) ret      #0
+			(003) ret      #100
+			',
+	}, # slip_outbound
+	ipnet_inbound => {
+		DLT => 'IPNET',
+		snaplen => 1000,
+		expr => 'inbound',
+		unopt => '
+			(000) ldh      [2]
+			(001) jeq      #0x2             jt 2	jf 3
+			(002) ret      #1000
+			(003) ret      #0
+			',
+	}, # ipnet_inbound
+	ipnet_outbound => {
+		DLT => 'IPNET',
+		snaplen => 1000,
+		expr => 'outbound',
+		unopt => '
+			(000) ldh      [2]
+			(001) jeq      #0x1             jt 2	jf 3
+			(002) ret      #1000
+			(003) ret      #0
+			',
+	}, # ipnet_outbound
+	pflog_inbound => {
+		DLT => 'PFLOG',
+		expr => 'inbound',
+		unopt => '
+			(000) ldb      [60]
+			(001) jeq      #0x1             jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # pflog_inbound
+	pflog_outbound => {
+		DLT => 'PFLOG',
+		expr => 'outbound',
+		unopt => '
+			(000) ldb      [60]
+			(001) jeq      #0x2             jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # pflog_outbound
+	ppp_pppd_inbound => {
+		DLT => 'PPP_PPPD',
+		expr => 'inbound',
+		unopt => '
+			(000) ldb      [0]
+			(001) jeq      #0x0             jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # ppp_pppd_inbound
+	ppp_pppd_oubound => {
+		DLT => 'PPP_PPPD',
+		expr => 'outbound',
+		unopt => '
+			(000) ldb      [0]
+			(001) jeq      #0x1             jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # ppp_pppd_oubound
+	juniper_mfr_inbound => {
+		DLT => 'JUNIPER_MFR',
+		expr => 'inbound',
+		unopt => '
+			(000) ldb      [3]
+			(001) and      #0x1
+			(002) jeq      #0x1             jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # juniper_mfr_inbound
+	juniper_mfr_outbound => {
+		DLT => 'JUNIPER_MFR',
+		expr => 'outbound',
+		unopt => '
+			(000) ldb      [3]
+			(001) and      #0x1
+			(002) jeq      #0x0             jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # juniper_mfr_outbound
+	inbound_linuxext => {
+		skip => skip_os_not ('linux'),
+		linuxext => 1,
+		DLT => 'EN10MB',
+		expr => 'inbound',
+		unopt => '
+			(000) ldh      [type]
+			(001) jeq      #0x4             jt 2	jf 3
+			(002) ret      #0
+			(003) ret      #262144
+			',
+	}, # inbound_linuxext
+	outbound_linuxext => {
+		skip => skip_os_not ('linux'),
+		linuxext => 1,
+		DLT => 'EN10MB',
+		expr => 'outbound',
+		unopt => '
+			(000) ldh      [type]
+			(001) jeq      #0x4             jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # outbound_linuxext
+	ifindex_linuxext => {
+		skip => skip_os_not ('linux'),
+		linuxext => 1,
+		DLT => 'EN10MB',
+		expr => 'ifindex 10',
+		unopt => '
+			(000) ld       [ifidx]
+			(001) jeq      #0xa             jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # ifindex_linuxext
+
+	mtp2_fisu => {
+		DLT => 'MTP2',
+		expr => 'fisu',
+		opt => '
+			(000) ldb      [2]
+			(001) jset     #0x3f            jt 2	jf 3
+			(002) ret      #0
+			(003) ret      #262144
+			',
+	}, # mtp2_fisu
+	mtp2_lssu => {
+		DLT => 'MTP2',
+		expr => 'lssu',
+		aliases => ['lsu'], # Not documented (and probably should not be).
+		opt => '
+			(000) ldb      [2]
+			(001) and      #0x3f
+			(002) jgt      #0x0             jt 3	jf 7
+			(003) ldb      [2]
+			(004) and      #0x3f
+			(005) jgt      #0x2             jt 7	jf 6
+			(006) ret      #262144
+			(007) ret      #0
+			',
+	}, # mtp2_lssu
+	mtp2_msu => {
+		DLT => 'MTP2',
+		expr => 'msu',
+		opt => '
+			(000) ldb      [2]
+			(001) and      #0x3f
+			(002) jgt      #0x2             jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # mtp2_msu
+	mtp2_sio => {
+		DLT => 'MTP2',
+		expr => 'sio 0xd2',
+		aliases => [
+			'sio = 0xd2',
+			'sio == 0xd2',
+			'sio (0xd2)',
+			'sio (0xd2 or 0xd2)',
+		],
+		opt => '
+			(000) ldb      [3]
+			(001) jeq      #0xd2            jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # mtp2_sio
+	mtp2_sio_gt => {
+		DLT => 'MTP2',
+		expr => 'sio > 0xa1',
+		unopt => '
+			(000) ldb      [3]
+			(001) jgt      #0xa1            jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # mtp2_sio_gt
+	mtp2_sio_ge => {
+		DLT => 'MTP2',
+		expr => 'sio >= 0xa2',
+		unopt => '
+			(000) ldb      [3]
+			(001) jge      #0xa2            jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # mtp2_sio_ge
+	mtp2_sio_le => {
+		DLT => 'MTP2',
+		expr => 'sio <= 0xa3',
+		unopt => '
+			(000) ldb      [3]
+			(001) jgt      #0xa3            jt 2	jf 3
+			(002) ret      #0
+			(003) ret      #262144
+			',
+	}, # mtp2_sio_le
+	mtp2_sio_lt => {
+		DLT => 'MTP2',
+		expr => 'sio < 0xa4',
+		unopt => '
+			(000) ldb      [3]
+			(001) jge      #0xa4            jt 2	jf 3
+			(002) ret      #0
+			(003) ret      #262144
+			',
+	}, # mtp2_sio_lt
+	mtp2_sio_ne => {
+		DLT => 'MTP2',
+		expr => 'sio != 0xa5',
+		unopt => '
+			(000) ldb      [3]
+			(001) jeq      #0xa5            jt 2	jf 3
+			(002) ret      #0
+			(003) ret      #262144
+			',
+	}, # mtp2_sio_ne
+	mtp2_sio_nary => {
+		DLT => 'MTP2',
+		expr => 'sio (73 or 74 or 75)',
+		opt => '
+			(000) ldb      [3]
+			(001) jeq      #0x49            jt 4	jf 2
+			(002) jeq      #0x4a            jt 4	jf 3
+			(003) jeq      #0x4b            jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # mtp2_sio_nary
+	mtp3_dpc => {
+		DLT => 'MTP2',
+		expr => 'dpc 0x31d6',
+		aliases => [
+			'dpc = 0x31d6',
+			'dpc == 0x31d6',
+			'dpc (0x31d6)',
+			'dpc (0x31d6 or 0x31d6)',
+		],
+		opt => '
+			(000) ldh      [4]
+			(001) and      #0xff3f
+			(002) jeq      #0xd631          jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # mtp3_dpc
+	mtp3_dpc_gt => {
+		DLT => 'MTP2',
+		expr => 'dpc > 0x1273',
+		unopt => '
+			(000) ldh      [4]
+			(001) and      #0xff3f
+			(002) jgt      #0x7312          jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # mtp3_dpc_gt
+	mtp3_dpc_ge => {
+		DLT => 'MTP2',
+		expr => 'dpc >= 0x1273',
+		unopt => '
+			(000) ldh      [4]
+			(001) and      #0xff3f
+			(002) jge      #0x7312          jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # mtp3_dpc_ge
+	mtp3_dpc_le => {
+		DLT => 'MTP2',
+		expr => 'dpc <= 0x1273',
+		unopt => '
+			(000) ldh      [4]
+			(001) and      #0xff3f
+			(002) jgt      #0x7312          jt 3	jf 4
+			(003) ret      #0
+			(004) ret      #262144
+			',
+	}, # mtp3_dpc_le
+	mtp3_dpc_lt => {
+		DLT => 'MTP2',
+		expr => 'dpc < 0x1273',
+		unopt => '
+			(000) ldh      [4]
+			(001) and      #0xff3f
+			(002) jge      #0x7312          jt 3	jf 4
+			(003) ret      #0
+			(004) ret      #262144
+			',
+	}, # mtp3_dpc_lt
+	mtp3_dpc_ne => {
+		DLT => 'MTP2',
+		expr => 'dpc != 0x1273',
+		unopt => '
+			(000) ldh      [4]
+			(001) and      #0xff3f
+			(002) jeq      #0x7312          jt 3	jf 4
+			(003) ret      #0
+			(004) ret      #262144
+			',
+	}, # mtp3_dpc_ne
+	mtp3_dpc_nary => {
+		DLT => 'MTP2',
+		expr => 'dpc (0x1274 or 0x1275 or 0x1276)',
+		unopt => '
+			(000) ldh      [4]
+			(001) and      #0xff3f
+			(002) jeq      #0x7412          jt 9	jf 3
+			(003) ldh      [4]
+			(004) and      #0xff3f
+			(005) jeq      #0x7512          jt 9	jf 6
+			(006) ldh      [4]
+			(007) and      #0xff3f
+			(008) jeq      #0x7612          jt 9	jf 10
+			(009) ret      #262144
+			(010) ret      #0
+			',
+	}, # mtp3_dpc_nary
+	mtp3_opc => {
+		DLT => 'MTP2',
+		expr => 'opc 0x3b35',
+		aliases => [
+			'opc = 0x3b35',
+			'opc == 0x3b35',
+			'opc (0x3b35)',
+			'opc (0x3b35 or 0x3b35)',
+		],
+		opt => '
+			(000) ld       [4]
+			(001) and      #0xc0ff0f
+			(002) jeq      #0x40cd0e        jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # mtp3_opc
+	mtp3_opc_gt => {
+		DLT => 'MTP2',
+		expr => 'opc > 0x607',
+		unopt => '
+			(000) ld       [4]
+			(001) and      #0xc0ff0f
+			(002) jgt      #0xc08101        jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # mtp3_opc_gt
+	mtp3_opc_ge => {
+		DLT => 'MTP2',
+		expr => 'opc >= 0x607',
+		unopt => '
+			(000) ld       [4]
+			(001) and      #0xc0ff0f
+			(002) jge      #0xc08101        jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # mtp3_opc_ge
+	mtp3_opc_le => {
+		DLT => 'MTP2',
+		expr => 'opc <= 0x607',
+		unopt => '
+			(000) ld       [4]
+			(001) and      #0xc0ff0f
+			(002) jgt      #0xc08101        jt 3	jf 4
+			(003) ret      #0
+			(004) ret      #262144
+			',
+	}, # mtp3_opc_le
+	mtp3_opc_lt => {
+		DLT => 'MTP2',
+		expr => 'opc < 0x607',
+		unopt => '
+			(000) ld       [4]
+			(001) and      #0xc0ff0f
+			(002) jge      #0xc08101        jt 3	jf 4
+			(003) ret      #0
+			(004) ret      #262144
+			',
+	}, # mtp3_opc_lt
+	mtp3_opc_ne => {
+		DLT => 'MTP2',
+		expr => 'opc != 0x607',
+		unopt => '
+			(000) ld       [4]
+			(001) and      #0xc0ff0f
+			(002) jeq      #0xc08101        jt 3	jf 4
+			(003) ret      #0
+			(004) ret      #262144
+			',
+	}, # mtp3_opc_ne
+	mtp2_opc_nary => {
+		DLT => 'MTP2',
+		expr => 'opc (0x608 or 0x609 or 0x60a)',
+		unopt => '
+			(000) ld       [4]
+			(001) and      #0xc0ff0f
+			(002) jeq      #0x8201          jt 9	jf 3
+			(003) ld       [4]
+			(004) and      #0xc0ff0f
+			(005) jeq      #0x408201        jt 9	jf 6
+			(006) ld       [4]
+			(007) and      #0xc0ff0f
+			(008) jeq      #0x808201        jt 9	jf 10
+			(009) ret      #262144
+			(010) ret      #0
+			',
+	}, # mtp2_opc_nary
+	mtp3_sls => {
+		DLT => 'MTP2',
+		expr => 'sls 3',
+		aliases => [
+			'sls = 3',
+			'sls == 3',
+			'sls (3)',
+			'sls (3 or 3)',
+		],
+		opt => '
+			(000) ldb      [7]
+			(001) and      #0xf0
+			(002) jeq      #0x30            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # mtp3_sls
+	mtp3_sls_gt => {
+		DLT => 'MTP2',
+		expr => 'sls > 1',
+		unopt => '
+			(000) ldb      [7]
+			(001) and      #0xf0
+			(002) jgt      #0x10            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # mtp3_sls_gt
+	mtp3_sls_ge => {
+		DLT => 'MTP2',
+		expr => 'sls >= 2',
+		unopt => '
+			(000) ldb      [7]
+			(001) and      #0xf0
+			(002) jge      #0x20            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # mtp3_sls_ge
+	mtp3_sls_le => {
+		DLT => 'MTP2',
+		expr => 'sls <= 4',
+		unopt => '
+			(000) ldb      [7]
+			(001) and      #0xf0
+			(002) jgt      #0x40            jt 3	jf 4
+			(003) ret      #0
+			(004) ret      #262144
+			',
+	}, # mtp3_sls_le
+	mtp3_sls_lt => {
+		DLT => 'MTP2',
+		expr => 'sls < 5',
+		unopt => '
+			(000) ldb      [7]
+			(001) and      #0xf0
+			(002) jge      #0x50            jt 3	jf 4
+			(003) ret      #0
+			(004) ret      #262144
+			',
+	}, # mtp3_sls_lt
+	mtp3_sls_ne => {
+		DLT => 'MTP2',
+		expr => 'sls != 8',
+		unopt => '
+			(000) ldb      [7]
+			(001) and      #0xf0
+			(002) jeq      #0x80            jt 3	jf 4
+			(003) ret      #0
+			(004) ret      #262144
+			',
+	}, # mtp3_sls_ne
+	mtp3_sls_nary => {
+		DLT => 'MTP2',
+		expr => 'sls (3 or 4 or 5)',
+		unopt => '
+			(000) ldb      [7]
+			(001) and      #0xf0
+			(002) jeq      #0x30            jt 9	jf 3
+			(003) ldb      [7]
+			(004) and      #0xf0
+			(005) jeq      #0x40            jt 9	jf 6
+			(006) ldb      [7]
+			(007) and      #0xf0
+			(008) jeq      #0x50            jt 9	jf 10
+			(009) ret      #262144
+			(010) ret      #0
+			',
+	}, # mtp3_sls_nary
+	mtp2_hfisu => {
+		DLT => 'MTP2',
+		expr => 'hfisu',
+		opt => '
+			(000) ldh      [4]
+			(001) jset     #0xff80          jt 2	jf 3
+			(002) ret      #0
+			(003) ret      #262144
+			',
+	}, # mtp2_hfisu
+	mtp2_hlssu => {
+		DLT => 'MTP2',
+		expr => 'hlssu',
+		opt => '
+			(000) ldh      [4]
+			(001) and      #0xff80
+			(002) jgt      #0x0             jt 3	jf 7
+			(003) ldh      [4]
+			(004) and      #0xff80
+			(005) jgt      #0x100           jt 7	jf 6
+			(006) ret      #262144
+			(007) ret      #0
+			',
+	}, # mtp2_hlssu
+	mtp2_hmsu => {
+		DLT => 'MTP2',
+		expr => 'hmsu',
+		opt => '
+			(000) ldh      [4]
+			(001) and      #0xff80
+			(002) jgt      #0x100           jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # mtp2_hmsu
+	mtp2_hsio => {
+		DLT => 'MTP2',
+		expr => 'hsio 0x41',
+		aliases => [
+			'hsio = 0x41',
+			'hsio == 0x41',
+			'hsio (0x41)',
+			'hsio (0x41 or 0x41)',
+		],
+		opt => '
+			(000) ldb      [6]
+			(001) jeq      #0x41            jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # mtp2_hsio
+	mtp2_hsio_gt => {
+		DLT => 'MTP2',
+		expr => 'hsio > 0x41',
+		unopt => '
+			(000) ldb      [6]
+			(001) jgt      #0x41            jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # mtp2_hsio_gt
+	mtp2_hsio_ge => {
+		DLT => 'MTP2',
+		expr => 'hsio >= 0x41',
+		unopt => '
+			(000) ldb      [6]
+			(001) jge      #0x41            jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # mtp2_hsio_ge
+	mtp2_hsio_le => {
+		DLT => 'MTP2',
+		expr => 'hsio <= 0x41',
+		unopt => '
+			(000) ldb      [6]
+			(001) jgt      #0x41            jt 2	jf 3
+			(002) ret      #0
+			(003) ret      #262144
+			',
+	}, # mtp2_hsio_le
+	mtp2_hsio_lt => {
+		DLT => 'MTP2',
+		expr => 'hsio < 0x41',
+		unopt => '
+			(000) ldb      [6]
+			(001) jge      #0x41            jt 2	jf 3
+			(002) ret      #0
+			(003) ret      #262144
+			',
+	}, # mtp2_hsio_lt
+	mtp2_hsio_ne => {
+		DLT => 'MTP2',
+		expr => 'hsio != 0x41',
+		unopt => '
+			(000) ldb      [6]
+			(001) jeq      #0x41            jt 2	jf 3
+			(002) ret      #0
+			(003) ret      #262144
+			',
+	}, # mtp2_hsio_ne
+	mtp2_hsio_nary => {
+		DLT => 'MTP2',
+		expr => 'hsio (0x42 or 0x43 or 0x44)',
+		opt => '
+			(000) ldb      [6]
+			(001) jeq      #0x42            jt 4	jf 2
+			(002) jeq      #0x43            jt 4	jf 3
+			(003) jeq      #0x44            jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # mtp2_hsio_nary
+	mtp3_hdpc => {
+		DLT => 'MTP2',
+		expr => 'hdpc 0x0ab5',
+		aliases => [
+			'hdpc = 0x0ab5',
+			'hdpc == 0x0ab5',
+			'hdpc (0x0ab5)',
+			'hdpc (0x0ab5 or 0x0ab5)',
+		],
+		opt => '
+			(000) ldh      [7]
+			(001) and      #0xff3f
+			(002) jeq      #0xb50a          jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # mtp3_hdpc
+	mtp3_hdpc_gt => {
+		DLT => 'MTP2',
+		expr => 'hdpc > 0x0ab5',
+		unopt => '
+			(000) ldh      [7]
+			(001) and      #0xff3f
+			(002) jgt      #0xb50a          jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # mtp3_hdpc_gt
+	mtp3_hdpc_ge => {
+		DLT => 'MTP2',
+		expr => 'hdpc >= 0x0ab5',
+		unopt => '
+			(000) ldh      [7]
+			(001) and      #0xff3f
+			(002) jge      #0xb50a          jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # mtp3_hdpc_ge
+	mtp3_hdpc_le => {
+		DLT => 'MTP2',
+		expr => 'hdpc <= 0x0ab5',
+		unopt => '
+			(000) ldh      [7]
+			(001) and      #0xff3f
+			(002) jgt      #0xb50a          jt 3	jf 4
+			(003) ret      #0
+			(004) ret      #262144
+			',
+	}, # mtp3_hdpc_le
+	mtp3_hdpc_lt => {
+		DLT => 'MTP2',
+		expr => 'hdpc < 0x0ab5',
+		unopt => '
+			(000) ldh      [7]
+			(001) and      #0xff3f
+			(002) jge      #0xb50a          jt 3	jf 4
+			(003) ret      #0
+			(004) ret      #262144
+			',
+	}, # mtp3_hdpc_lt
+	mtp3_hdpc_ne => {
+		DLT => 'MTP2',
+		expr => 'hdpc != 0x0ab5',
+		unopt => '
+			(000) ldh      [7]
+			(001) and      #0xff3f
+			(002) jeq      #0xb50a          jt 3	jf 4
+			(003) ret      #0
+			(004) ret      #262144
+			',
+	}, # mtp3_hdpc_ne
+	mtp3_hdpc_nary => {
+		DLT => 'MTP2',
+		expr => 'hdpc (0x0ab6 or 0x0ab7 or 0x0ab8)',
+		unopt => '
+			(000) ldh      [7]
+			(001) and      #0xff3f
+			(002) jeq      #0xb60a          jt 9	jf 3
+			(003) ldh      [7]
+			(004) and      #0xff3f
+			(005) jeq      #0xb70a          jt 9	jf 6
+			(006) ldh      [7]
+			(007) and      #0xff3f
+			(008) jeq      #0xb80a          jt 9	jf 10
+			(009) ret      #262144
+			(010) ret      #0
+			',
+	}, # mtp3_hdpc_nary
+	mtp3_hopc => {
+		DLT => 'MTP2',
+		expr => 'hopc 0x3aba',
+		aliases => [
+			'hopc = 0x3aba',
+			'hopc == 0x3aba',
+			'hopc (0x3aba)',
+			'hopc (0x3aba or 0x3aba)',
+		],
+		opt => '
+			(000) ld       [7]
+			(001) and      #0xc0ff0f
+			(002) jeq      #0x80ae0e        jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # mtp3_hopc
+	mtp3_hopc_gt => {
+		DLT => 'MTP2',
+		expr => 'hopc > 0x3aba',
+		unopt => '
+			(000) ld       [7]
+			(001) and      #0xc0ff0f
+			(002) jgt      #0x80ae0e        jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # mtp3_hopc_gt
+	mtp3_hopc_ge => {
+		DLT => 'MTP2',
+		expr => 'hopc >= 0x3aba',
+		unopt => '
+			(000) ld       [7]
+			(001) and      #0xc0ff0f
+			(002) jge      #0x80ae0e        jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # mtp3_hopc_ge
+	mtp3_hopc_le => {
+		DLT => 'MTP2',
+		expr => 'hopc <= 0x3aba',
+		unopt => '
+			(000) ld       [7]
+			(001) and      #0xc0ff0f
+			(002) jgt      #0x80ae0e        jt 3	jf 4
+			(003) ret      #0
+			(004) ret      #262144
+			',
+	}, # mtp3_hopc_le
+	mtp3_hopc_lt => {
+		DLT => 'MTP2',
+		expr => 'hopc < 0x3aba',
+		unopt => '
+			(000) ld       [7]
+			(001) and      #0xc0ff0f
+			(002) jge      #0x80ae0e        jt 3	jf 4
+			(003) ret      #0
+			(004) ret      #262144
+			',
+	}, # mtp3_hopc_lt
+	mtp3_hopc_ne => {
+		DLT => 'MTP2',
+		expr => 'hopc != 0x3aba',
+		unopt => '
+			(000) ld       [7]
+			(001) and      #0xc0ff0f
+			(002) jeq      #0x80ae0e        jt 3	jf 4
+			(003) ret      #0
+			(004) ret      #262144
+			',
+	}, # mtp3_hopc_ne
+	mtp3_hopc_nary => {
+		DLT => 'MTP2',
+		expr => 'hopc (9000 or 10000 or 9001)',
+		unopt => '
+			(000) ld       [7]
+			(001) and      #0xc0ff0f
+			(002) jeq      #0xca08          jt 9	jf 3
+			(003) ld       [7]
+			(004) and      #0xc0ff0f
+			(005) jeq      #0xc409          jt 9	jf 6
+			(006) ld       [7]
+			(007) and      #0xc0ff0f
+			(008) jeq      #0x40ca08        jt 9	jf 10
+			(009) ret      #262144
+			(010) ret      #0
+			',
+	}, # mtp3_hopc_nary
+	mtp3_hsls => {
+		DLT => 'MTP2',
+		expr => 'hsls 5',
+		aliases => [
+			'hsls = 5',
+			'hsls == 5',
+			'hsls (5)',
+			'hsls (5 or 5)',
+		],
+		opt => '
+			(000) ldb      [10]
+			(001) and      #0xf0
+			(002) jeq      #0x50            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # mtp3_hsls
+	mtp3_hsls_gt => {
+		DLT => 'MTP2',
+		expr => 'hsls > 6',
+		unopt => '
+			(000) ldb      [10]
+			(001) and      #0xf0
+			(002) jgt      #0x60            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # mtp3_hsls_gt
+	mtp3_hsls_ge => {
+		DLT => 'MTP2',
+		expr => 'hsls >= 7',
+		unopt => '
+			(000) ldb      [10]
+			(001) and      #0xf0
+			(002) jge      #0x70            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # mtp3_hsls_ge
+	mtp3_hsls_le => {
+		DLT => 'MTP2',
+		expr => 'hsls <= 8',
+		unopt => '
+			(000) ldb      [10]
+			(001) and      #0xf0
+			(002) jgt      #0x80            jt 3	jf 4
+			(003) ret      #0
+			(004) ret      #262144
+			',
+	}, # mtp3_hsls_le
+	mtp3_hsls_lt => {
+		DLT => 'MTP2',
+		expr => 'hsls < 9',
+		unopt => '
+			(000) ldb      [10]
+			(001) and      #0xf0
+			(002) jge      #0x90            jt 3	jf 4
+			(003) ret      #0
+			(004) ret      #262144
+			',
+	}, # mtp3_hsls_lt
+	mtp3_hsls_ne => {
+		DLT => 'MTP2',
+		expr => 'hsls != 10',
+		unopt => '
+			(000) ldb      [10]
+			(001) and      #0xf0
+			(002) jeq      #0xa0            jt 3	jf 4
+			(003) ret      #0
+			(004) ret      #262144
+			',
+	}, # mtp3_hsls_ne
+	mtp3_hsls_nary => {
+		DLT => 'MTP2',
+		expr => 'hsls (13 or 12 or 11)',
+		unopt => '
+			(000) ldb      [10]
+			(001) and      #0xf0
+			(002) jeq      #0xd0            jt 9	jf 3
+			(003) ldb      [10]
+			(004) and      #0xf0
+			(005) jeq      #0xc0            jt 9	jf 6
+			(006) ldb      [10]
+			(007) and      #0xf0
+			(008) jeq      #0xb0            jt 9	jf 10
+			(009) ret      #262144
+			(010) ret      #0
+			',
+	}, # mtp3_hsls_nary
+
+	atm_vpi => {
+		DLT => 'SUNATM',
+		expr => 'vpi 10',
+		aliases => [
+			'vpi = 10',
+			'vpi == 10',
+			'vpi (10)',
+			'vpi (10 or 10)',
+		],
+		opt => '
+			(000) ldb      [1]
+			(001) jeq      #0xa             jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # atm_vpi
+	atm_vpi_gt => {
+		DLT => 'SUNATM',
+		expr => 'vpi > 100',
+		unopt => '
+			(000) ldb      [1]
+			(001) jgt      #0x64            jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # atm_vpi_gt
+	atm_vpi_ge => {
+		DLT => 'SUNATM',
+		expr => 'vpi >= 101',
+		unopt => '
+			(000) ldb      [1]
+			(001) jge      #0x65            jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # atm_vpi_ge
+	atm_vpi_le => {
+		DLT => 'SUNATM',
+		expr => 'vpi <= 102',
+		unopt => '
+			(000) ldb      [1]
+			(001) jgt      #0x66            jt 2	jf 3
+			(002) ret      #0
+			(003) ret      #262144
+			',
+	}, # atm_vpi_le
+	atm_vpi_lt => {
+		DLT => 'SUNATM',
+		expr => 'vpi < 103',
+		unopt => '
+			(000) ldb      [1]
+			(001) jge      #0x67            jt 2	jf 3
+			(002) ret      #0
+			(003) ret      #262144
+			',
+	}, # atm_vpi_lt
+	atm_vpi_ne => {
+		DLT => 'SUNATM',
+		expr => 'vpi != 104',
+		unopt => '
+			(000) ldb      [1]
+			(001) jeq      #0x68            jt 2	jf 3
+			(002) ret      #0
+			(003) ret      #262144
+			',
+	}, # atm_vpi_ne
+	atm_vpi_nary => {
+		DLT => 'SUNATM',
+		expr => 'vpi (105 or 0x7a or 0311)',
+		# The bytecode preserves the order of values, hence no aliases for the
+		# permutations.
+		opt => '
+			(000) ldb      [1]
+			(001) jeq      #0x69            jt 4	jf 2
+			(002) jeq      #0x7a            jt 4	jf 3
+			(003) jeq      #0xc9            jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # atm_vpi_nary
+	atm_vci => {
+		DLT => 'SUNATM',
+		expr => 'vci 20',
+		aliases => [
+			'vci = 20',
+			'vci == 20',
+			'vci (20)',
+			'vci (20 or 20)',
+		],
+		opt => '
+			(000) ldh      [2]
+			(001) jeq      #0x14            jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # atm_vci
+	atm_vci_gt => {
+		DLT => 'SUNATM',
+		expr => 'vci > 20001',
+		unopt => '
+			(000) ldh      [2]
+			(001) jgt      #0x4e21          jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # atm_vci_gt
+	atm_vci_ge => {
+		DLT => 'SUNATM',
+		expr => 'vci >= 20002',
+		unopt => '
+			(000) ldh      [2]
+			(001) jge      #0x4e22          jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # atm_vci_ge
+	atm_vci_le => {
+		DLT => 'SUNATM',
+		expr => 'vci <= 20003',
+		unopt => '
+			(000) ldh      [2]
+			(001) jgt      #0x4e23          jt 2	jf 3
+			(002) ret      #0
+			(003) ret      #262144
+			',
+	}, # atm_vci_le
+	atm_vci_lt => {
+		DLT => 'SUNATM',
+		expr => 'vci < 20004',
+		unopt => '
+			(000) ldh      [2]
+			(001) jge      #0x4e24          jt 2	jf 3
+			(002) ret      #0
+			(003) ret      #262144
+			',
+	}, # atm_vci_lt
+	atm_vci_ne => {
+		DLT => 'SUNATM',
+		expr => 'vci != 20005',
+		unopt => '
+			(000) ldh      [2]
+			(001) jeq      #0x4e25          jt 2	jf 3
+			(002) ret      #0
+			(003) ret      #262144
+			',
+	}, # atm_vci_ne
+	atm_vci_nary => {
+		DLT => 'SUNATM',
+		expr => 'vci (10 or 0xdb or 0700)',
+		opt => '
+			(000) ldh      [2]
+			(001) jeq      #0xa             jt 4	jf 2
+			(002) jeq      #0xdb            jt 4	jf 3
+			(003) jeq      #0x1c0           jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # atm_vci_nary
+	atm_lane => {
+		DLT => 'SUNATM',
+		expr => 'lane',
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xf
+			(002) jeq      #0x1             jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # atm_lane
+	atm_oamf4sc => {
+		DLT => 'SUNATM',
+		expr => 'oamf4sc',
+		opt => '
+			(000) ldb      [1]
+			(001) jeq      #0x0             jt 2	jf 5
+			(002) ldh      [2]
+			(003) jeq      #0x3             jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # atm_oamf4sc
+	atm_oamf4ec => {
+		DLT => 'SUNATM',
+		expr => 'oamf4ec',
+		opt => '
+			(000) ldb      [1]
+			(001) jeq      #0x0             jt 2	jf 5
+			(002) ldh      [2]
+			(003) jeq      #0x4             jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # atm_oamf4ec
+	atm_oamf4 => {
+		DLT => 'SUNATM',
+		expr => 'oamf4',
+		aliases => ['oam'],
+		opt => '
+			(000) ldb      [1]
+			(001) jeq      #0x0             jt 2	jf 6
+			(002) ldh      [2]
+			(003) jeq      #0x3             jt 5	jf 4
+			(004) jeq      #0x4             jt 5	jf 6
+			(005) ret      #262144
+			(006) ret      #0
+			',
+	}, # atm_oamf4
+	atm_metac => {
+		DLT => 'SUNATM',
+		expr => 'metac',
+		opt => '
+			(000) ldb      [1]
+			(001) jeq      #0x0             jt 2	jf 5
+			(002) ldh      [2]
+			(003) jeq      #0x1             jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # atm_metac
+	atm_bcc => {
+		DLT => 'SUNATM',
+		expr => 'bcc',
+		opt => '
+			(000) ldb      [1]
+			(001) jeq      #0x0             jt 2	jf 5
+			(002) ldh      [2]
+			(003) jeq      #0x2             jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # atm_bcc
+	atm_sc => {
+		DLT => 'SUNATM',
+		expr => 'sc',
+		opt => '
+			(000) ldb      [1]
+			(001) jeq      #0x0             jt 2	jf 5
+			(002) ldh      [2]
+			(003) jeq      #0x5             jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # atm_sc
+	atm_ilmic => {
+		DLT => 'SUNATM',
+		expr => 'ilmic',
+		opt => '
+			(000) ldb      [1]
+			(001) jeq      #0x0             jt 2	jf 5
+			(002) ldh      [2]
+			(003) jeq      #0x10            jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # atm_ilmic
+	atm_connectmsg => {
+		DLT => 'SUNATM',
+		expr => 'connectmsg',
+		opt => '
+			(000) ldb      [1]
+			(001) jeq      #0x0             jt 2	jf 12
+			(002) ldh      [2]
+			(003) jeq      #0x5             jt 4	jf 12
+			(004) ldb      [9]
+			(005) jeq      #0x5a            jt 11	jf 6
+			(006) jeq      #0x4d            jt 11	jf 7
+			(007) jeq      #0xf             jt 11	jf 8
+			(008) jeq      #0x7             jt 11	jf 9
+			(009) jeq      #0x5             jt 11	jf 10
+			(010) jeq      #0x2             jt 11	jf 12
+			(011) ret      #262144
+			(012) ret      #0
+			',
+	}, # atm_connectmsg
+	atm_metaconnect => {
+		DLT => 'SUNATM',
+		expr => 'metaconnect',
+		opt => '
+			(000) ldb      [1]
+			(001) jeq      #0x0             jt 2	jf 11
+			(002) ldh      [2]
+			(003) jeq      #0x1             jt 4	jf 11
+			(004) ldb      [9]
+			(005) jeq      #0x5a            jt 10	jf 6
+			(006) jeq      #0x4d            jt 10	jf 7
+			(007) jeq      #0x7             jt 10	jf 8
+			(008) jeq      #0x5             jt 10	jf 9
+			(009) jeq      #0x2             jt 10	jf 11
+			(010) ret      #262144
+			(011) ret      #0
+			',
+	}, # atm_metaconnect
+
+	# Do not permutate all possible aliases for "link", just the ones that
+	# obviously make sense for the DLT.
+	arcnet_broadcast_multicast => {
+		DLT => 'ARCNET',
+		expr => 'broadcast',
+		aliases => [
+			'multicast',
+			'link broadcast',
+			'link multicast',
+			'link dst $00',
+		],
+		unopt => '
+			(000) ldb      [1]
+			(001) jeq      #0x0             jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # arcnet_broadcast_multicast
+	arcnet_host => {
+		DLT => 'ARCNET',
+		expr => 'link host $0e',
+		aliases => [
+			'link src or dst host $0e',
+			'link src or dst $0e',
+			'link host $e',
+			'link src or dst host $e',
+			'link src or dst $e',
+		],
+		unopt => '
+			(000) ldb      [0]
+			(001) jeq      #0xe             jt 4	jf 2
+			(002) ldb      [1]
+			(003) jeq      #0xe             jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # arcnet_host
+	arcnet_src_host => {
+		DLT => 'ARCNET',
+		expr => 'link src host $8c',
+		aliases => ['link src $8c'],
+		unopt => '
+			(000) ldb      [0]
+			(001) jeq      #0x8c            jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # arcnet_src_host
+	arcnet_dst_host => {
+		DLT => 'ARCNET',
+		expr => 'link dst host $a4',
+		aliases => ['link dst $a4'],
+		unopt => '
+			(000) ldb      [1]
+			(001) jeq      #0xa4            jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # arcnet_dst_host
+	fddi_broadcast => {
+		DLT => 'FDDI',
+		expr => 'broadcast',
+		aliases => [
+			'fddi broadcast',
+			'link broadcast',
+		],
+		unopt => '
+			(000) ld       [3]
+			(001) jeq      #0xffffffff      jt 2	jf 5
+			(002) ldh      [1]
+			(003) jeq      #0xffff          jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # fddi_broadcast
+	fddi_multicast => {
+		DLT => 'FDDI',
+		expr => 'multicast',
+		aliases => [
+			'fddi multicast',
+			'link multicast',
+		],
+		unopt => '
+			(000) ldb      [1]
+			(001) jset     #0x1             jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # fddi_multicast
+	ieee802_broadcast => {
+		DLT => 'IEEE802',
+		expr => 'broadcast',
+		aliases => [
+			'tr broadcast',
+			'link broadcast',
+		],
+		unopt => '
+			(000) ld       [4]
+			(001) jeq      #0xffffffff      jt 2	jf 5
+			(002) ldh      [2]
+			(003) jeq      #0xffff          jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # ieee802_broadcast
+	ieee802_multicast => {
+		DLT => 'IEEE802',
+		expr => 'multicast',
+		aliases => [
+			'tr multicast',
+			'link multicast',
+		],
+		unopt => '
+			(000) ldb      [2]
+			(001) jset     #0x1             jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # ieee802_multicast
+	ieee802_11_broadcast => {
+		DLT => 'IEEE802_11',
+		expr => 'broadcast',
+		aliases => [
+			'wlan broadcast',
+			'ether broadcast',
+			'link broadcast',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) jset     #0x4             jt 14	jf 2
+			(002) jset     #0x8             jt 3	jf 9
+			(003) ldb      [1]
+			(004) jset     #0x1             jt 5	jf 9
+			(005) ld       [18]
+			(006) jeq      #0xffffffff      jt 7	jf 14
+			(007) ldh      [16]
+			(008) jeq      #0xffff          jt 13	jf 14
+			(009) ld       [6]
+			(010) jeq      #0xffffffff      jt 11	jf 14
+			(011) ldh      [4]
+			(012) jeq      #0xffff          jt 13	jf 14
+			(013) ret      #262144
+			(014) ret      #0
+			',
+	}, # ieee802_11_broadcast
+	ieee802_11_multicast => {
+		DLT => 'IEEE802_11',
+		expr => 'multicast',
+		aliases => [
+			'wlan multicast',
+			'ether multicast',
+			'link multicast',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) jset     #0x4             jt 10	jf 2
+			(002) jset     #0x8             jt 3	jf 7
+			(003) ldb      [1]
+			(004) jset     #0x1             jt 5	jf 7
+			(005) ldb      [16]
+			(006) jset     #0x1             jt 9	jf 10
+			(007) ldb      [4]
+			(008) jset     #0x1             jt 9	jf 10
+			(009) ret      #262144
+			(010) ret      #0
+			',
+	}, # ieee802_11_multicast
+	ip_over_fc_broadcast => {
+		DLT => 'IP_OVER_FC',
+		expr => 'broadcast',
+		aliases => ['link broadcast'],
+		unopt => '
+			(000) ld       [4]
+			(001) jeq      #0xffffffff      jt 2	jf 5
+			(002) ldh      [2]
+			(003) jeq      #0xffff          jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # ip_over_fc_broadcast
+	ip_over_fc_multicast => {
+		DLT => 'IP_OVER_FC',
+		expr => 'multicast',
+		aliases => ['link multicast'],
+		opt => '
+			(000) ldb      [2]
+			(001) jset     #0x1             jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # ip_over_fc_multicast
+
+
+	ether_broadcast => {
+		DLT => 'EN10MB',
+		snaplen => 16000,
+		expr => 'broadcast',
+		aliases => [
+			'ether broadcast',
+			'link broadcast',
+		],
+		opt => '
+			(000) ld       [2]
+			(001) jeq      #0xffffffff      jt 2	jf 5
+			(002) ldh      [0]
+			(003) jeq      #0xffff          jt 4	jf 5
+			(004) ret      #16000
+			(005) ret      #0
+			',
+	}, # ether_broadcast
+	ether_multicast => {
+		DLT => 'EN10MB',
+		snaplen => 16000,
+		expr => 'multicast',
+		aliases => [
+			'ether multicast',
+			'link multicast',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) jset     #0x1             jt 2	jf 3
+			(002) ret      #16000
+			(003) ret      #0
+			',
+	}, # ether_multicast
+	ether_host => {
+		DLT => 'EN10MB',
+		expr => 'ether host ab:cd:ef:0:0:1',
+		aliases => [
+			'ether src or dst host ab.CD.ef.0.0.1',
+			'ether src or dst Ab.cD.ef.00.0.01',
+		],
+		opt => '
+			(000) ld       [8]
+			(001) jeq      #0xef000001      jt 2	jf 4
+			(002) ldh      [6]
+			(003) jeq      #0xabcd          jt 8	jf 4
+			(004) ld       [2]
+			(005) jeq      #0xef000001      jt 6	jf 9
+			(006) ldh      [0]
+			(007) jeq      #0xabcd          jt 8	jf 9
+			(008) ret      #262144
+			(009) ret      #0
+			',
+	}, # ether_host
+	ether_src_host => {
+		DLT => 'EN10MB',
+		expr => 'ether src host ab-cd-ef-00-00-02',
+		aliases => ['ether src ab.cd.ef.00.00.02'],
+		opt => '
+			(000) ld       [8]
+			(001) jeq      #0xef000002      jt 2	jf 5
+			(002) ldh      [6]
+			(003) jeq      #0xabcd          jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # ether_src_host
+	ether_dst_host => {
+		DLT => 'EN10MB',
+		expr => 'ether dst host abcd.ef00.0003',
+		aliases => ['ether dst abcdef000003'],
+		opt => '
+			(000) ld       [2]
+			(001) jeq      #0xef000003      jt 2	jf 5
+			(002) ldh      [0]
+			(003) jeq      #0xabcd          jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # ether_dst_host
+
+	ether_proto_aarp => {
+		DLT => 'EN10MB',
+		expr => 'ether proto \aarp',
+		aliases => ['aarp'],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x80f3          jt 7	jf 2
+			(002) jgt      #0x5dc           jt 8	jf 3
+			(003) ld       [18]
+			(004) jeq      #0x80f3          jt 5	jf 8
+			(005) ld       [14]
+			(006) jeq      #0xaaaa0300      jt 7	jf 8
+			(007) ret      #262144
+			(008) ret      #0
+			',
+	}, # ether_proto_aarp
+	ether_proto_arp => {
+		DLT => 'EN10MB',
+		expr => 'ether proto \arp',
+		aliases => ['arp'],
+		unopt => '
+			(000) ldh      [12]
+			(001) jeq      #0x806           jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # ether_proto_arp
+	ether_proto_atalk => {
+		DLT => 'EN10MB',
+		expr => 'ether proto \atalk',
+		aliases => ['atalk'],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x809b          jt 7	jf 2
+			(002) jgt      #0x5dc           jt 8	jf 3
+			(003) ld       [18]
+			(004) jeq      #0x7809b         jt 5	jf 8
+			(005) ld       [14]
+			(006) jeq      #0xaaaa0308      jt 7	jf 8
+			(007) ret      #262144
+			(008) ret      #0
+			',
+	}, # ether_proto_atalk
+	ether_proto_decnet => {
+		DLT => 'EN10MB',
+		expr => 'ether proto \decnet',
+		aliases => ['decnet'],
+		unopt => '
+			(000) ldh      [12]
+			(001) jeq      #0x6003          jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # ether_proto_decnet
+	ether_proto_ip => {
+		DLT => 'EN10MB',
+		expr => 'ether proto \ip',
+		aliases => ['ip'],
+		unopt => '
+			(000) ldh      [12]
+			(001) jeq      #0x800           jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # ether_proto_ip
+	ether_proto_ip6 => {
+		DLT => 'EN10MB',
+		skip => skip_config_undef ('INET6'),
+		expr => 'ether proto \ip6',
+		unopt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # ether_proto_ip6
+	ip6 => {
+		DLT => 'EN10MB',
+		expr => 'ip6',
+		unopt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # ip6
+	ether_proto_ipx => {
+		DLT => 'EN10MB',
+		expr => 'ether proto \ipx',
+		aliases => ['ipx'],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x8137          jt 11	jf 2
+			(002) jgt      #0x5dc           jt 12	jf 3
+			(003) ld       [18]
+			(004) jeq      #0x8137          jt 5	jf 7
+			(005) ld       [14]
+			(006) jeq      #0xaaaa0300      jt 11	jf 7
+			(007) ldb      [14]
+			(008) jeq      #0xe0            jt 11	jf 9
+			(009) ldh      [14]
+			(010) jeq      #0xffff          jt 11	jf 12
+			(011) ret      #262144
+			(012) ret      #0
+			',
+	}, # ether_proto_ipx
+	ether_proto_iso => {
+		DLT => 'EN10MB',
+		expr => 'ether proto \iso',
+		aliases => ['iso'],
+		unopt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 5	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xfefe          jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # ether_proto_iso
+	ether_proto_lat => {
+		DLT => 'EN10MB',
+		expr => 'ether proto \lat',
+		aliases => ['lat'],
+		unopt => '
+			(000) ldh      [12]
+			(001) jeq      #0x6004          jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # ether_proto_lat
+	ether_proto_loopback => {
+		DLT => 'EN10MB',
+		# No backslash escaping and no alias (the identifier is not a keyword).
+		expr => 'ether proto loopback',
+		unopt => '
+			(000) ldh      [12]
+			(001) jeq      #0x9000          jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # ether_proto_loopback
+	ether_proto_mopdl => {
+		DLT => 'EN10MB',
+		expr => 'ether proto \mopdl',
+		aliases => ['mopdl'],
+		unopt => '
+			(000) ldh      [12]
+			(001) jeq      #0x6001          jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # ether_proto_mopdl
+	ether_proto_moprc => {
+		DLT => 'EN10MB',
+		expr => 'ether proto \moprc',
+		aliases => ['moprc'],
+		unopt => '
+			(000) ldh      [12]
+			(001) jeq      #0x6002          jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # ether_proto_
+	ether_proto_netbeui => {
+		DLT => 'EN10MB',
+		expr => 'ether proto \netbeui',
+		aliases => ['netbeui'],
+		unopt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 5	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xf0f0          jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # ether_proto_netbeui
+	ether_proto_rarp => {
+		DLT => 'EN10MB',
+		expr => 'ether proto \rarp',
+		aliases => ['rarp'],
+		unopt => '
+			(000) ldh      [12]
+			(001) jeq      #0x8035          jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # ether_proto_rarp
+	ether_proto_sca => {
+		DLT => 'EN10MB',
+		expr => 'ether proto \sca',
+		aliases => ['sca'],
+		unopt => '
+			(000) ldh      [12]
+			(001) jeq      #0x6007          jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # ether_proto_sca
+	ether_proto_stp => {
+		DLT => 'EN10MB',
+		expr => 'ether proto \stp',
+		aliases => ['stp'],
+		opt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 5	jf 2
+			(002) ldb      [14]
+			(003) jeq      #0x42            jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # ether_proto_stp
+
+	vlan_eth_nullary => {
+		DLT => 'EN10MB',
+		expr => 'vlan',
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x8100          jt 4	jf 2
+			(002) jeq      #0x88a8          jt 4	jf 3
+			(003) jeq      #0x9100          jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # vlan_eth_nullary
+	vlan_eth_unary => {
+		DLT => 'EN10MB',
+		expr => 'vlan 4095',
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x8100          jt 4	jf 2
+			(002) jeq      #0x88a8          jt 4	jf 3
+			(003) jeq      #0x9100          jt 4	jf 8
+			(004) ldh      [14]
+			(005) and      #0xfff
+			(006) jeq      #0xfff           jt 7	jf 8
+			(007) ret      #262144
+			(008) ret      #0
+			',
+	}, # vlan_eth_unary
+	vlan_and_vlan_eth => {
+		DLT => 'EN10MB',
+		expr => 'vlan and vlan',
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x8100          jt 4	jf 2
+			(002) jeq      #0x88a8          jt 4	jf 3
+			(003) jeq      #0x9100          jt 4	jf 9
+			(004) ldh      [16]
+			(005) jeq      #0x8100          jt 8	jf 6
+			(006) jeq      #0x88a8          jt 8	jf 7
+			(007) jeq      #0x9100          jt 8	jf 9
+			(008) ret      #262144
+			(009) ret      #0
+			',
+	}, # vlan_and_vlan_eth
+	vlan_netanalyzer_nullary => {
+		DLT => 'NETANALYZER',
+		expr => 'vlan',
+		opt => '
+			(000) ldh      [16]
+			(001) jeq      #0x8100          jt 4	jf 2
+			(002) jeq      #0x88a8          jt 4	jf 3
+			(003) jeq      #0x9100          jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # vlan_netanalyzer_nullary
+	vlan_netanalyzer_unary => {
+		DLT => 'NETANALYZER',
+		expr => 'vlan 10',
+		opt => '
+			(000) ldh      [16]
+			(001) jeq      #0x8100          jt 4	jf 2
+			(002) jeq      #0x88a8          jt 4	jf 3
+			(003) jeq      #0x9100          jt 4	jf 8
+			(004) ldh      [18]
+			(005) and      #0xfff
+			(006) jeq      #0xa             jt 7	jf 8
+			(007) ret      #262144
+			(008) ret      #0
+			',
+	}, # vlan_netanalyzer_unary
+	vlan_eth_linuxext_nullary => {
+		skip => (skip_os_not ('linux') or skip_config_have_decl ('SKF_AD_VLAN_TAG_PRESENT', 0)),
+		DLT => 'EN10MB',
+		linuxext => 1,
+		expr => 'vlan',
+		opt => '
+			(000) ldb      [vlanp]
+			(001) jeq      #0x1             jt 6	jf 2
+			(002) ldh      [12]
+			(003) jeq      #0x8100          jt 6	jf 4
+			(004) jeq      #0x88a8          jt 6	jf 5
+			(005) jeq      #0x9100          jt 6	jf 7
+			(006) ret      #262144
+			(007) ret      #0
+			',
+	}, # vlan_eth_linuxext_nullary
+	vlan_eth_linuxext_unary => {
+		skip => (skip_os_not ('linux') or skip_config_have_decl ('SKF_AD_VLAN_TAG_PRESENT', 0)),
+		DLT => 'EN10MB',
+		linuxext => 1,
+		expr => 'vlan 10',
+		opt => '
+			(000) ldb      [vlanp]
+			(001) jeq      #0x1             jt 6	jf 2
+			(002) ldh      [12]
+			(003) jeq      #0x8100          jt 6	jf 4
+			(004) jeq      #0x88a8          jt 6	jf 5
+			(005) jeq      #0x9100          jt 6	jf 14
+			(006) ldb      [vlanp]
+			(007) jeq      #0x1             jt 8	jf 10
+			(008) ldh      [vlan_tci]
+			(009) ja       11
+			(010) ldh      [14]
+			(011) and      #0xfff
+			(012) jeq      #0xa             jt 13	jf 14
+			(013) ret      #262144
+			(014) ret      #0
+			',
+	}, # vlan_eth_linuxext_unary
+	vlan_and_vlan_eth_linuxext => {
+		skip => (skip_os_not ('linux') or skip_config_have_decl ('SKF_AD_VLAN_TAG_PRESENT', 0)),
+		DLT => 'EN10MB',
+		linuxext => 1,
+		expr => 'vlan and vlan',
+		opt => '
+			(000) ld       #0x0
+			(001) st       M[1]
+			(002) ldb      [vlanp]
+			(003) jeq      #0x1             jt 10	jf 4
+			(004) ld       #0x4
+			(005) st       M[1]
+			(006) ldh      [12]
+			(007) jeq      #0x8100          jt 10	jf 8
+			(008) jeq      #0x88a8          jt 10	jf 9
+			(009) jeq      #0x9100          jt 10	jf 16
+			(010) ldx      M[1]
+			(011) ldh      [x + 12]
+			(012) jeq      #0x8100          jt 15	jf 13
+			(013) jeq      #0x88a8          jt 15	jf 14
+			(014) jeq      #0x9100          jt 15	jf 16
+			(015) ret      #262144
+			(016) ret      #0
+			',
+	}, # vlan_and_vlan_eth_linuxext
+
+	mpls_eth_nullary => {
+		DLT => 'EN10MB',
+		expr => 'mpls',
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x8847          jt 2	jf 3
+			(002) ret      #262144
+			(003) ret      #0
+			',
+	}, # mpls_eth_nullary
+	mpls_eth_unary => {
+		DLT => 'EN10MB',
+		expr => 'mpls 100',
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x8847          jt 2	jf 6
+			(002) ld       [14]
+			(003) and      #0xfffff000
+			(004) jeq      #0x64000         jt 5	jf 6
+			(005) ret      #262144
+			(006) ret      #0
+			',
+	}, # mpls_eth_unary
+	mpls_and_mpls_eth => {
+		DLT => 'EN10MB',
+		expr => 'mpls and mpls',
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x8847          jt 2	jf 5
+			(002) ldb      [16]
+			(003) jset     #0x1             jt 5	jf 4
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # mpls_and_mpls_eth
+	mpls_ppp_unary => {
+		DLT => 'PPP',
+		expr => 'mpls 100',
+		opt => '
+			(000) ldh      [2]
+			(001) jeq      #0x281           jt 2	jf 6
+			(002) ld       [4]
+			(003) and      #0xfffff000
+			(004) jeq      #0x64000         jt 5	jf 6
+			(005) ret      #262144
+			(006) ret      #0
+			',
+	}, # mpls_ppp_unary
+
+	wlan_host => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan host 12:34:56:78:9a:bc',
+		aliases => [
+			'wlan src or dst host 12:34:56:78:9a:bc',
+			'wlan src or dst 12:34:56:78:9a:bc',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) jset     #0x4             jt 33	jf 2
+			(002) jset     #0x8             jt 3	jf 24
+			(003) ldb      [1]
+			(004) jset     #0x2             jt 5	jf 14
+			(005) jset     #0x1             jt 6	jf 10
+			(006) ld       [26]
+			(007) jeq      #0x56789abc      jt 8	jf 20
+			(008) ldh      [24]
+			(009) jeq      #0x1234          jt 32	jf 20
+			(010) ld       [18]
+			(011) jeq      #0x56789abc      jt 12	jf 28
+			(012) ldh      [16]
+			(013) jeq      #0x1234          jt 32	jf 28
+			(014) ld       [12]
+			(015) jeq      #0x56789abc      jt 16	jf 18
+			(016) ldh      [10]
+			(017) jeq      #0x1234          jt 32	jf 18
+			(018) ldb      [1]
+			(019) jset     #0x1             jt 20	jf 28
+			(020) ld       [18]
+			(021) jeq      #0x56789abc      jt 22	jf 33
+			(022) ldh      [16]
+			(023) jeq      #0x1234          jt 32	jf 33
+			(024) ld       [12]
+			(025) jeq      #0x56789abc      jt 26	jf 28
+			(026) ldh      [10]
+			(027) jeq      #0x1234          jt 32	jf 28
+			(028) ld       [6]
+			(029) jeq      #0x56789abc      jt 30	jf 33
+			(030) ldh      [4]
+			(031) jeq      #0x1234          jt 32	jf 33
+			(032) ret      #262144
+			(033) ret      #0
+			',
+	}, # wlan_host
+	wlan_src_host => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan src host 12:34:56:78:9a:bc',
+		aliases => ['wlan src 12:34:56:78:9a:bc'],
+		opt => '
+			(000) ldb      [0]
+			(001) jset     #0x4             jt 19	jf 2
+			(002) jset     #0x8             jt 3	jf 14
+			(003) ldb      [1]
+			(004) jset     #0x2             jt 5	jf 14
+			(005) jset     #0x1             jt 6	jf 10
+			(006) ld       [26]
+			(007) jeq      #0x56789abc      jt 8	jf 19
+			(008) ldh      [24]
+			(009) jeq      #0x1234          jt 18	jf 19
+			(010) ld       [18]
+			(011) jeq      #0x56789abc      jt 12	jf 19
+			(012) ldh      [16]
+			(013) jeq      #0x1234          jt 18	jf 19
+			(014) ld       [12]
+			(015) jeq      #0x56789abc      jt 16	jf 19
+			(016) ldh      [10]
+			(017) jeq      #0x1234          jt 18	jf 19
+			(018) ret      #262144
+			(019) ret      #0
+			',
+	}, # wlan_src_host
+	wlan_dst_host => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan dst host 12:34:56:78:9a:bc',
+		aliases => ['wlan dst 12:34:56:78:9a:bc'],
+		opt => '
+			(000) ldb      [0]
+			(001) jset     #0x4             jt 14	jf 2
+			(002) jset     #0x8             jt 3	jf 9
+			(003) ldb      [1]
+			(004) jset     #0x1             jt 5	jf 9
+			(005) ld       [18]
+			(006) jeq      #0x56789abc      jt 7	jf 14
+			(007) ldh      [16]
+			(008) jeq      #0x1234          jt 13	jf 14
+			(009) ld       [6]
+			(010) jeq      #0x56789abc      jt 11	jf 14
+			(011) ldh      [4]
+			(012) jeq      #0x1234          jt 13	jf 14
+			(013) ret      #262144
+			(014) ret      #0
+			',
+	}, # wlan_dst_host
+	wlan_ra => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan ra 12:34:56:78:9a:bc',
+		opt => '
+			(000) ldb      [0]
+			(001) jset     #0x8             jt 2	jf 7
+			(002) ld       [6]
+			(003) jeq      #0x56789abc      jt 4	jf 7
+			(004) ldh      [4]
+			(005) jeq      #0x1234          jt 6	jf 7
+			(006) ret      #262144
+			(007) ret      #0
+			',
+	}, # wlan_ra
+	wlan_ta => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan ta 12:34:56:78:9a:bc',
+		opt => '
+			(000) ldb      [0]
+			(001) jset     #0x8             jt 2	jf 15
+			(002) and      #0xc
+			(003) jeq      #0x4             jt 4	jf 10
+			(004) ldb      [0]
+			(005) and      #0xf0
+			(006) jeq      #0xc0            jt 15	jf 7
+			(007) ldb      [0]
+			(008) and      #0xf0
+			(009) jeq      #0xd0            jt 15	jf 10
+			(010) ld       [12]
+			(011) jeq      #0x56789abc      jt 12	jf 15
+			(012) ldh      [10]
+			(013) jeq      #0x1234          jt 14	jf 15
+			(014) ret      #262144
+			(015) ret      #0
+			',
+	}, # wlan_ta
+	wlan_addr1 => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan addr1 12:34:56:78:9a:bc',
+		aliases => ['wlan address1 12:34:56:78:9a:bc'],
+		opt => '
+			(000) ld       [6]
+			(001) jeq      #0x56789abc      jt 2	jf 5
+			(002) ldh      [4]
+			(003) jeq      #0x1234          jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # wlan_addr1
+	wlan_addr2 => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan addr2 12:34:56:78:9a:bc',
+		aliases => ['wlan address2 12:34:56:78:9a:bc'],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xc
+			(002) jeq      #0x4             jt 3	jf 9
+			(003) ldb      [0]
+			(004) and      #0xf0
+			(005) jeq      #0xc0            jt 14	jf 6
+			(006) ldb      [0]
+			(007) and      #0xf0
+			(008) jeq      #0xd0            jt 14	jf 9
+			(009) ld       [12]
+			(010) jeq      #0x56789abc      jt 11	jf 14
+			(011) ldh      [10]
+			(012) jeq      #0x1234          jt 13	jf 14
+			(013) ret      #262144
+			(014) ret      #0
+			',
+	}, # wlan_addr2
+	wlan_addr3 => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan addr3 12:34:56:78:9a:bc',
+		aliases => ['wlan address3 12:34:56:78:9a:bc'],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xc
+			(002) jeq      #0x4             jt 8	jf 3
+			(003) ld       [18]
+			(004) jeq      #0x56789abc      jt 5	jf 8
+			(005) ldh      [16]
+			(006) jeq      #0x1234          jt 7	jf 8
+			(007) ret      #262144
+			(008) ret      #0
+			',
+	}, # wlan_addr3
+	wlan_addr4 => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan addr4 12:34:56:78:9a:bc',
+		aliases => ['wlan address4 12:34:56:78:9a:bc'],
+		opt => '
+			(000) ldb      [1]
+			(001) and      #0x3
+			(002) jeq      #0x3             jt 3	jf 8
+			(003) ld       [26]
+			(004) jeq      #0x56789abc      jt 5	jf 8
+			(005) ldh      [24]
+			(006) jeq      #0x1234          jt 7	jf 8
+			(007) ret      #262144
+			(008) ret      #0
+			',
+	}, # wlan_addr4
+	wlan_type_mgt => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan type mgt',
+		aliases => [
+			'type mgt',
+			'wlan type 0',
+			'type 0',
+			'wlan type management',
+			'type management',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) jset     #0xc             jt 2	jf 3
+			(002) ret      #0
+			(003) ret      #262144
+			',
+	}, # type_mgt
+	wlan_subtype_assoc_req => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype assoc-req',
+		aliases => [
+			'subtype assoc-req',
+			'wlan type mgt subtype assoc-req',
+			'type mgt subtype assoc-req',
+			'wlan type 0 subtype assoc-req',
+			'type 0 subtype assoc-req',
+			'wlan type mgt subtype 0x00',
+			'type mgt subtype 0x00',
+			'wlan type 0 subtype 0x00',
+			'type 0 subtype 0x00',
+			'wlan subtype assocreq',
+			'subtype assocreq',
+			'wlan type mgt subtype assocreq',
+			'type mgt subtype assocreq',
+			'wlan type 0 subtype assocreq',
+			'type 0 subtype assocreq',
+			'wlan type management subtype assoc-req',
+			'type management subtype assoc-req',
+			'wlan type management subtype 0x00',
+			'type management subtype 0x00',
+			'wlan type management subtype assocreq',
+			'type management subtype assocreq',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) jset     #0xfc            jt 2	jf 3
+			(002) ret      #0
+			(003) ret      #262144
+			',
+	}, # wlan_type_mgt_subtype_assoc_req
+	wlan_subtype_assoc_resp => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype assoc-resp',
+		aliases => [
+			'subtype assoc-resp',
+			'wlan type mgt subtype assoc-resp',
+			'type mgt subtype assoc-resp',
+			'wlan type 0 subtype assoc-resp',
+			'type 0 subtype assoc-resp',
+			'wlan type mgt subtype 0x10',
+			'type mgt subtype 0x10',
+			'wlan type 0 subtype 0x10',
+			'type 0 subtype 0x10',
+			'wlan subtype assocresp',
+			'subtype assocresp',
+			'wlan type mgt subtype assocresp',
+			'type mgt subtype assocresp',
+			'wlan type 0 subtype assocresp',
+			'type 0 subtype assocresp',
+			'wlan type management subtype assoc-resp',
+			'type management subtype assoc-resp',
+			'wlan type management subtype 0x10',
+			'type management subtype 0x10',
+			'wlan type management subtype assocresp',
+			'type management subtype assocresp',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0x10            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_assoc_resp
+	wlan_subtype_reassoc_req => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype reassoc-req',
+		aliases => [
+			'subtype reassoc-req',
+			'wlan type mgt subtype reassoc-req',
+			'type mgt subtype reassoc-req',
+			'wlan type 0 subtype reassoc-req',
+			'type 0 subtype reassoc-req',
+			'wlan type mgt subtype 0x20',
+			'type mgt subtype 0x20',
+			'wlan type 0 subtype 0x20',
+			'type 0 subtype 0x20',
+			'wlan subtype reassocreq',
+			'subtype reassocreq',
+			'wlan type mgt subtype reassocreq',
+			'type mgt subtype reassocreq',
+			'wlan type 0 subtype reassocreq',
+			'type 0 subtype reassocreq',
+			'wlan type management subtype reassoc-req',
+			'type management subtype reassoc-req',
+			'wlan type management subtype 0x20',
+			'type management subtype 0x20',
+			'wlan type management subtype reassocreq',
+			'type management subtype reassocreq',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0x20            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_reassoc_req
+	wlan_subtype_reassoc_resp => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype reassoc-resp',
+		aliases => [
+			'subtype reassoc-resp',
+			'wlan type mgt subtype reassoc-resp',
+			'type mgt subtype reassoc-resp',
+			'wlan type 0 subtype reassoc-resp',
+			'type 0 subtype reassoc-resp',
+			'wlan type mgt subtype 0x30',
+			'type mgt subtype 0x30',
+			'wlan type 0 subtype 0x30',
+			'type 0 subtype 0x30',
+			'wlan subtype reassocresp',
+			'subtype reassocresp',
+			'wlan type mgt subtype reassocresp',
+			'type mgt subtype reassocresp',
+			'wlan type 0 subtype reassocresp',
+			'type 0 subtype reassocresp',
+			'wlan type management subtype reassoc-resp',
+			'type management subtype reassoc-resp',
+			'wlan type management subtype 0x30',
+			'type management subtype 0x30',
+			'wlan type management subtype reassocresp',
+			'type management subtype reassocresp',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0x30            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_mgt_subtype_reassoc_resp
+	wlan_subtype_probe_req => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype probe-req',
+		aliases => [
+			'subtype probe-req',
+			'wlan type mgt subtype probe-req',
+			'type mgt subtype probe-req',
+			'wlan type 0 subtype probe-req',
+			'type 0 subtype probe-req',
+			'wlan type mgt subtype 0x40',
+			'type mgt subtype 0x40',
+			'wlan type 0 subtype 0x40',
+			'type 0 subtype 0x40',
+			'wlan subtype probereq',
+			'subtype probereq',
+			'wlan type mgt subtype probereq',
+			'type mgt subtype probereq',
+			'wlan type 0 subtype probereq',
+			'type 0 subtype probereq',
+			'wlan type management subtype probe-req',
+			'type management subtype probe-req',
+			'wlan type management subtype 0x40',
+			'type management subtype 0x40',
+			'wlan type management subtype probereq',
+			'type management subtype probereq',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0x40            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_probe_req
+	wlan_subtype_probe_resp => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype probe-resp',
+		aliases => [
+			'subtype probe-resp',
+			'wlan type mgt subtype probe-resp',
+			'type mgt subtype probe-resp',
+			'wlan type 0 subtype probe-resp',
+			'type 0 subtype probe-resp',
+			'wlan type mgt subtype 0x50',
+			'type mgt subtype 0x50',
+			'wlan type 0 subtype 0x50',
+			'type 0 subtype 0x50',
+			'wlan subtype proberesp',
+			'subtype proberesp',
+			'wlan type mgt subtype proberesp',
+			'type mgt subtype proberesp',
+			'wlan type 0 subtype proberesp',
+			'type 0 subtype proberesp',
+			'wlan type management subtype probe-resp',
+			'type management subtype probe-resp',
+			'wlan type management subtype 0x50',
+			'type management subtype 0x50',
+			'wlan type management subtype proberesp',
+			'type management subtype proberesp',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0x50            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_probe_resp
+	wlan_subtype_beacon => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype beacon',
+		aliases => [
+			'subtype beacon',
+			'wlan type mgt subtype beacon',
+			'type mgt subtype beacon',
+			'wlan type 0 subtype beacon',
+			'type 0 subtype beacon',
+			'wlan type mgt subtype 0x80',
+			'type mgt subtype 0x80',
+			'wlan type 0 subtype 0x80',
+			'type 0 subtype 0x80',
+			'wlan type management subtype beacon',
+			'type management subtype beacon',
+			'wlan type management subtype 0x80',
+			'type management subtype 0x80',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0x80            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_beacon
+	wlan_subtype_atim => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype atim',
+		aliases => [
+			'subtype atim',
+			'wlan type mgt subtype atim',
+			'type mgt subtype atim',
+			'wlan type 0 subtype atim',
+			'type 0 subtype atim',
+			'wlan type mgt subtype 0x90',
+			'type mgt subtype 0x90',
+			'wlan type 0 subtype 0x90',
+			'type 0 subtype 0x90',
+			'wlan type management subtype atim',
+			'type management subtype atim',
+			'wlan type management subtype 0x90',
+			'type management subtype 0x90',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0x90            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_atim
+	wlan_subtype_disassoc => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype disassoc',
+		aliases => [
+			'subtype disassoc',
+			'wlan type mgt subtype disassoc',
+			'type mgt subtype disassoc',
+			'wlan type 0 subtype disassoc',
+			'type 0 subtype disassoc',
+			'wlan type mgt subtype 0xa0',
+			'type mgt subtype 0xa0',
+			'wlan type 0 subtype 0xa0',
+			'type 0 subtype 0xa0',
+			'wlan subtype disassociation',
+			'subtype disassociation',
+			'wlan type mgt subtype disassociation',
+			'type mgt subtype disassociation',
+			'wlan type 0 subtype disassociation',
+			'type 0 subtype disassociation',
+			'wlan type management subtype disassoc',
+			'type management subtype disassoc',
+			'wlan type management subtype 0xa0',
+			'type management subtype 0xa0',
+			'wlan type management subtype disassociation',
+			'type management subtype disassociation',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0xa0            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_disassoc
+	wlan_subtype_auth => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype auth',
+		aliases => [
+			'subtype auth',
+			'wlan type mgt subtype auth',
+			'type mgt subtype auth',
+			'wlan type 0 subtype auth',
+			'type 0 subtype auth',
+			'wlan type mgt subtype 0xb0',
+			'type mgt subtype 0xb0',
+			'wlan type 0 subtype 0xb0',
+			'type 0 subtype 0xb0',
+			'wlan subtype authentication',
+			'subtype authentication',
+			'wlan type mgt subtype authentication',
+			'type mgt subtype authentication',
+			'wlan type 0 subtype authentication',
+			'type 0 subtype authentication',
+			'wlan type management subtype auth',
+			'type management subtype auth',
+			'wlan type management subtype 0xb0',
+			'type management subtype 0xb0',
+			'wlan type management subtype authentication',
+			'type management subtype authentication',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0xb0            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_auth
+	wlan_subtype_deauth => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype deauth',
+		aliases => [
+			'subtype deauth',
+			'wlan type mgt subtype deauth',
+			'type mgt subtype deauth',
+			'wlan type 0 subtype deauth',
+			'type 0 subtype deauth',
+			'wlan type mgt subtype 0xc0',
+			'type mgt subtype 0xc0',
+			'wlan type 0 subtype 0xc0',
+			'type 0 subtype 0xc0',
+			'wlan subtype deauthentication',
+			'subtype deauthentication',
+			'wlan type mgt subtype deauthentication',
+			'type mgt subtype deauthentication',
+			'wlan type 0 subtype deauthentication',
+			'type 0 subtype deauthentication',
+			'wlan type management subtype deauth',
+			'type management subtype deauth',
+			'wlan type management subtype 0xc0',
+			'type management subtype 0xc0',
+			'wlan type management subtype deauthentication',
+			'type management subtype deauthentication',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0xc0            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_deauth
+	wlan_type_ctl => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan type ctl',
+		aliases => [
+			'type ctl',
+			'wlan type 4',
+			'type 4',
+			'wlan type control',
+			'type control',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xc
+			(002) jeq      #0x4             jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # type_ctl
+	wlan_subtype_bar => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype bar',
+		aliases => [
+			'subtype bar',
+			'wlan type ctl subtype bar',
+			'type ctl subtype bar',
+			'wlan type 4 subtype bar',
+			'type 4 subtype bar',
+			'wlan type ctl subtype 0x80',
+			'type ctl subtype 0x80',
+			'wlan type 4 subtype 0x80',
+			'type 4 subtype 0x80',
+			'wlan type control subtype bar',
+			'type control subtype bar',
+			'wlan type control subtype 0x80',
+			'type control subtype 0x80',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0x84            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_bar
+	wlan_subtype_ba => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype ba',
+		aliases => [
+			'subtype ba',
+			'wlan type ctl subtype ba',
+			'type ctl subtype ba',
+			'wlan type 4 subtype ba',
+			'type 4 subtype ba',
+			'wlan type ctl subtype 0x90',
+			'type ctl subtype 0x90',
+			'wlan type 4 subtype 0x90',
+			'type 4 subtype 0x90',
+			'wlan type control subtype ba',
+			'type control subtype ba',
+			'wlan type control subtype 0x90',
+			'type control subtype 0x90',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0x94            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_ba
+	wlan_subtype_ps_poll => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype ps-poll',
+		aliases => [
+			'subtype ps-poll',
+			'wlan type ctl subtype ps-poll',
+			'type ctl subtype ps-poll',
+			'wlan type 4 subtype ps-poll',
+			'type 4 subtype ps-poll',
+			'wlan type ctl subtype 0xa0',
+			'type ctl subtype 0xa0',
+			'wlan type 4 subtype 0xa0',
+			'type 4 subtype 0xa0',
+			'wlan type control subtype ps-poll',
+			'type control subtype ps-poll',
+			'wlan type control subtype 0xa0',
+			'type control subtype 0xa0',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0xa4            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_ps_poll
+	wlan_subtype_rts => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype rts',
+		aliases => [
+			'subtype rts',
+			'wlan type ctl subtype rts',
+			'type ctl subtype rts',
+			'wlan type 4 subtype rts',
+			'type 4 subtype rts',
+			'wlan type ctl subtype 0xb0',
+			'type ctl subtype 0xb0',
+			'wlan type 4 subtype 0xb0',
+			'type 4 subtype 0xb0',
+			'wlan type control subtype rts',
+			'type control subtype rts',
+			'wlan type control subtype 0xb0',
+			'type control subtype 0xb0',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0xb4            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_rts
+	wlan_subtype_cts => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype cts',
+		aliases => [
+			'subtype cts',
+			'wlan type ctl subtype cts',
+			'type ctl subtype cts',
+			'wlan type 4 subtype cts',
+			'type 4 subtype cts',
+			'wlan type ctl subtype 0xc0',
+			'type ctl subtype 0xc0',
+			'wlan type 4 subtype 0xc0',
+			'type 4 subtype 0xc0',
+			'wlan type control subtype cts',
+			'type control subtype cts',
+			'wlan type control subtype 0xc0',
+			'type control subtype 0xc0',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0xc4            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_cts
+	wlan_subtype_ack => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype ack',
+		aliases => [
+			'subtype ack',
+			'wlan type ctl subtype ack',
+			'type ctl subtype ack',
+			'wlan type 4 subtype ack',
+			'type 4 subtype ack',
+			'wlan type ctl subtype 0xd0',
+			'type ctl subtype 0xd0',
+			'wlan type 4 subtype 0xd0',
+			'type 4 subtype 0xd0',
+			'wlan type control subtype ack',
+			'type control subtype ack',
+			'wlan type control subtype 0xd0',
+			'type control subtype 0xd0',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0xd4            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_ack
+	wlan_subtype_cf_end => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype cf-end',
+		aliases => [
+			'subtype cf-end',
+			'wlan type ctl subtype cf-end',
+			'type ctl subtype cf-end',
+			'wlan type 4 subtype cf-end',
+			'type 4 subtype cf-end',
+			'wlan type ctl subtype 0xe0',
+			'type ctl subtype 0xe0',
+			'wlan type 4 subtype 0xe0',
+			'type 4 subtype 0xe0',
+			'wlan type control subtype cf-end',
+			'type control subtype cf-end',
+			'wlan type control subtype 0xe0',
+			'type control subtype 0xe0',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0xe4            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_cf_end
+	wlan_subtype_cf_end_ack => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype cf-end-ack',
+		aliases => [
+			'subtype cf-end-ack',
+			'wlan type ctl subtype cf-end-ack',
+			'type ctl subtype cf-end-ack',
+			'wlan type 4 subtype cf-end-ack',
+			'type 4 subtype cf-end-ack',
+			'wlan type ctl subtype 0xf0',
+			'type ctl subtype 0xf0',
+			'wlan type 4 subtype 0xf0',
+			'type 4 subtype 0xf0',
+			'wlan type control subtype cf-end-ack',
+			'type control subtype cf-end-ack',
+			'wlan type control subtype 0xf0',
+			'type control subtype 0xf0',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0xf4            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_cf_end_ack
+	wlan_type_data => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan type data',
+		aliases => [
+			'type data',
+			'wlan type 8',
+			'type 8',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xc
+			(002) jeq      #0x8             jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_type_data
+	wlan_subtype_data => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype data',
+		aliases => [
+			'subtype data',
+			'wlan type data subtype data',
+			'type data subtype data',
+			'wlan type 8 subtype data',
+			'type 8 subtype data',
+			'wlan type data subtype 0x00',
+			'type data subtype 0x00',
+			'wlan type 8 subtype 0x00',
+			'type 8 subtype 0x00',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0x8             jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_data
+	wlan_subtype_data_cf_ack => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype data-cf-ack',
+		aliases => [
+			'subtype data-cf-ack',
+			'wlan type data subtype data-cf-ack',
+			'type data subtype data-cf-ack',
+			'wlan type 8 subtype data-cf-ack',
+			'type 8 subtype data-cf-ack',
+			'wlan type data subtype 0x10',
+			'type data subtype 0x10',
+			'wlan type 8 subtype 0x10',
+			'type 8 subtype 0x10',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0x18            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_data_cf_ack
+	wlan_subtype_data_cf_poll => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype data-cf-poll',
+		aliases => [
+			'subtype data-cf-poll',
+			'wlan type data subtype data-cf-poll',
+			'type data subtype data-cf-poll',
+			'wlan type 8 subtype data-cf-poll',
+			'type 8 subtype data-cf-poll',
+			'wlan type data subtype 0x20',
+			'type data subtype 0x20',
+			'wlan type 8 subtype 0x20',
+			'type 8 subtype 0x20',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0x28            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_data_cf_poll
+	wlan_subtype_data_cf_ack_poll => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype data-cf-ack-poll',
+		aliases => [
+			'subtype data-cf-ack-poll',
+			'wlan type data subtype data-cf-ack-poll',
+			'type data subtype data-cf-ack-poll',
+			'wlan type 8 subtype data-cf-ack-poll',
+			'type 8 subtype data-cf-ack-poll',
+			'wlan type data subtype 0x30',
+			'type data subtype 0x30',
+			'wlan type 8 subtype 0x30',
+			'type 8 subtype 0x30',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0x38            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_data_cf_ack_poll
+	wlan_subtype_null => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype null',
+		aliases => [
+			'subtype null',
+			'wlan type data subtype null',
+			'type data subtype null',
+			'wlan type 8 subtype null',
+			'type 8 subtype null',
+			'wlan type data subtype 0x40',
+			'type data subtype 0x40',
+			'wlan type 8 subtype 0x40',
+			'type 8 subtype 0x40',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0x48            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_null
+	wlan_subtype_cf_ack => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype cf-ack',
+		aliases => [
+			'subtype cf-ack',
+			'wlan type data subtype cf-ack',
+			'type data subtype cf-ack',
+			'wlan type 8 subtype cf-ack',
+			'type 8 subtype cf-ack',
+			'wlan type data subtype 0x50',
+			'type data subtype 0x50',
+			'wlan type 8 subtype 0x50',
+			'type 8 subtype 0x50',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0x58            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_cf_ack
+	wlan_subtype_cf_poll => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype cf-poll',
+		aliases => [
+			'subtype cf-poll',
+			'wlan type data subtype cf-poll',
+			'type data subtype cf-poll',
+			'wlan type 8 subtype cf-poll',
+			'type 8 subtype cf-poll',
+			'wlan type data subtype 0x60',
+			'type data subtype 0x60',
+			'wlan type 8 subtype 0x60',
+			'type 8 subtype 0x60',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0x68            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_cf_poll
+	wlan_subtype_cf_ack_poll => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype cf-ack-poll',
+		aliases => [
+			'subtype cf-ack-poll',
+			'wlan type data subtype cf-ack-poll',
+			'type data subtype cf-ack-poll',
+			'wlan type 8 subtype cf-ack-poll',
+			'type 8 subtype cf-ack-poll',
+			'wlan type data subtype 0x70',
+			'type data subtype 0x70',
+			'wlan type 8 subtype 0x70',
+			'type 8 subtype 0x70',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0x78            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_cf_ack_poll
+	wlan_subtype_qos_data => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype qos-data',
+		aliases => [
+			'subtype qos-data',
+			'wlan type data subtype qos-data',
+			'type data subtype qos-data',
+			'wlan type 8 subtype qos-data',
+			'type 8 subtype qos-data',
+			'wlan type data subtype 0x80',
+			'type data subtype 0x80',
+			'wlan type 8 subtype 0x80',
+			'type 8 subtype 0x80',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0x88            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_qos_data
+	wlan_subtype_qos_data_cf_ack => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype qos-data-cf-ack',
+		aliases => [
+			'subtype qos-data-cf-ack',
+			'wlan type data subtype qos-data-cf-ack',
+			'type data subtype qos-data-cf-ack',
+			'wlan type 8 subtype qos-data-cf-ack',
+			'type 8 subtype qos-data-cf-ack',
+			'wlan type data subtype 0x90',
+			'type data subtype 0x90',
+			'wlan type 8 subtype 0x90',
+			'type 8 subtype 0x90',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0x98            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_qos_data_cf_ack
+	wlan_subtype_qos_data_cf_poll => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype qos-data-cf-poll',
+		aliases => [
+			'subtype qos-data-cf-poll',
+			'wlan type data subtype qos-data-cf-poll',
+			'type data subtype qos-data-cf-poll',
+			'wlan type 8 subtype qos-data-cf-poll',
+			'type 8 subtype qos-data-cf-poll',
+			'wlan type data subtype 0xa0',
+			'type data subtype 0xa0',
+			'wlan type 8 subtype 0xa0',
+			'type 8 subtype 0xa0',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0xa8            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_qos_data_cf_poll
+	wlan_subtype_qos_data_cf_ack_poll => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype qos-data-cf-ack-poll',
+		aliases => [
+			'subtype qos-data-cf-ack-poll',
+			'wlan type data subtype qos-data-cf-ack-poll',
+			'type data subtype qos-data-cf-ack-poll',
+			'wlan type 8 subtype qos-data-cf-ack-poll',
+			'type 8 subtype qos-data-cf-ack-poll',
+			'wlan type data subtype 0xb0',
+			'type data subtype 0xb0',
+			'wlan type 8 subtype 0xb0',
+			'type 8 subtype 0xb0',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0xb8            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_qos_data_cf_ack_poll
+	wlan_subtype_qos => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype qos',
+		aliases => [
+			'subtype qos',
+			'wlan type data subtype qos',
+			'type data subtype qos',
+			'wlan type 8 subtype qos',
+			'type 8 subtype qos',
+			'wlan type data subtype 0xc0',
+			'type data subtype 0xc0',
+			'wlan type 8 subtype 0xc0',
+			'type 8 subtype 0xc0',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0xc8            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_qos
+	wlan_subtype_qos_cf_poll => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype qos-cf-poll',
+		aliases => [
+			'subtype qos-cf-poll',
+			'wlan type data subtype qos-cf-poll',
+			'type data subtype qos-cf-poll',
+			'wlan type 8 subtype qos-cf-poll',
+			'type 8 subtype qos-cf-poll',
+			'wlan type data subtype 0xe0',
+			'type data subtype 0xe0',
+			'wlan type 8 subtype 0xe0',
+			'type 8 subtype 0xe0',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0xe8            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_qos_cf_poll
+	wlan_subtype_qos_cf_ack_poll => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan subtype qos-cf-ack-poll',
+		aliases => [
+			'subtype qos-cf-ack-poll',
+			'wlan type data subtype qos-cf-ack-poll',
+			'type data subtype qos-cf-ack-poll',
+			'wlan type 8 subtype qos-cf-ack-poll',
+			'type 8 subtype qos-cf-ack-poll',
+			'wlan type data subtype 0xf0',
+			'type data subtype 0xf0',
+			'wlan type 8 subtype 0xf0',
+			'type 8 subtype 0xf0',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xfc
+			(002) jeq      #0xf8            jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_subtype_qos_cf_ack_poll
+	wlan_type_reserved => {
+		DLT => 'IEEE802_11',
+		# Reserved frame type, no name.
+		expr => 'wlan type 12',
+		aliases => ['type 12'],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xc
+			(002) jeq      #0xc             jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_type_reserved
+	wlan_dir_nods => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan dir nods',
+		aliases => [
+			'wlan dir 0',
+			'dir nods',
+			'dir 0',
+			'wlan direction nods',
+			'wlan direction 0',
+			'direction nods',
+			'direction 0',
+		],
+		opt => '
+			(000) ldb      [1]
+			(001) jset     #0x3             jt 2	jf 3
+			(002) ret      #0
+			(003) ret      #262144
+			',
+	}, # wlan_dir_nods
+	wlan_dir_tods => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan dir tods',
+		aliases => [
+			'wlan dir 1',
+			'dir tods',
+			'dir 1',
+			'wlan direction tods',
+			'wlan direction 1',
+			'direction tods',
+			'direction 1',
+		],
+		opt => '
+			(000) ldb      [1]
+			(001) and      #0x3
+			(002) jeq      #0x1             jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_dir_tods
+	wlan_dir_fromds => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan dir fromds',
+		aliases => [
+			'wlan dir 2',
+			'dir fromds',
+			'dir 2',
+			'wlan direction fromds',
+			'wlan direction 2',
+			'direction fromds',
+			'direction 2',
+		],
+		opt => '
+			(000) ldb      [1]
+			(001) and      #0x3
+			(002) jeq      #0x2             jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_dir_fromds
+	wlan_dir_dstods => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan dir dstods',
+		aliases => [
+			'wlan dir 3',
+			'dir dstods',
+			'dir 3',
+			'wlan direction dstods',
+			'wlan direction 3',
+			'direction dstods',
+			'direction 3',
+		],
+		opt => '
+			(000) ldb      [1]
+			(001) and      #0x3
+			(002) jeq      #0x3             jt 3	jf 4
+			(003) ret      #262144
+			(004) ret      #0
+			',
+	}, # wlan_dir_dstods
+
+	pppoed => {
+		snaplen => 200,
+		DLT => 'EN10MB',
+		expr => 'pppoed',
+		unopt => '
+			(000) ldh      [12]
+			(001) jeq      #0x8863          jt 2	jf 3
+			(002) ret      #200
+			(003) ret      #0
+			',
+	}, # pppoed
+	pppoes_nullary => {
+		snaplen => 200,
+		DLT => 'EN10MB',
+		expr => 'pppoes',
+		unopt => '
+			(000) ldh      [12]
+			(001) jeq      #0x8864          jt 2	jf 3
+			(002) ret      #200
+			(003) ret      #0
+			',
+	}, # pppoes_nullary
+	pppoes_unary => {
+		snaplen => 200,
+		DLT => 'EN10MB',
+		expr => 'pppoes 1234',
+		unopt => '
+			(000) ldh      [12]
+			(001) jeq      #0x8864          jt 2	jf 5
+			(002) ldh      [16]
+			(003) jeq      #0x4d2           jt 4	jf 5
+			(004) ret      #200
+			(005) ret      #0
+			',
+	}, # pppoes_unary
+
+	llc => {
+		snaplen => 200,
+		DLT => 'EN10MB',
+		expr => 'llc',
+		unopt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 4	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xffff          jt 4	jf 5
+			(004) ret      #0
+			(005) ret      #200
+			',
+	}, # llc_nullary
+	llc_i => {
+		snaplen => 100,
+		DLT => 'EN10MB',
+		expr => 'llc i',
+		unopt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 6	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xffff          jt 6	jf 4
+			(004) ldb      [16]
+			(005) jset     #0x1             jt 6	jf 7
+			(006) ret      #0
+			(007) ret      #100
+			',
+	}, # llc_i
+	llc_s => {
+		snaplen => 100,
+		DLT => 'EN10MB',
+		expr => 'llc s',
+		unopt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 8	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xffff          jt 8	jf 4
+			(004) ldb      [16]
+			(005) and      #0x3
+			(006) jeq      #0x1             jt 7	jf 8
+			(007) ret      #100
+			(008) ret      #0
+			',
+	}, # llc_s
+	llc_u => {
+		snaplen => 100,
+		DLT => 'EN10MB',
+		expr => 'llc u',
+		unopt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 8	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xffff          jt 8	jf 4
+			(004) ldb      [16]
+			(005) and      #0x3
+			(006) jeq      #0x3             jt 7	jf 8
+			(007) ret      #100
+			(008) ret      #0
+			',
+	}, # llc_u
+	llc_rr => {
+		snaplen => 100,
+		DLT => 'EN10MB',
+		expr => 'llc rr',
+		unopt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 8	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xffff          jt 8	jf 4
+			(004) ldb      [16]
+			(005) and      #0xf
+			(006) jeq      #0x1             jt 7	jf 8
+			(007) ret      #100
+			(008) ret      #0
+			',
+	}, # llc_rr
+	llc_rnr => {
+		snaplen => 100,
+		DLT => 'EN10MB',
+		expr => 'llc rnr',
+		unopt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 8	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xffff          jt 8	jf 4
+			(004) ldb      [16]
+			(005) and      #0xf
+			(006) jeq      #0x5             jt 7	jf 8
+			(007) ret      #100
+			(008) ret      #0
+			',
+	}, # llc_rnr
+	llc_rej => {
+		snaplen => 100,
+		DLT => 'EN10MB',
+		expr => 'llc rej',
+		unopt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 8	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xffff          jt 8	jf 4
+			(004) ldb      [16]
+			(005) and      #0xf
+			(006) jeq      #0x9             jt 7	jf 8
+			(007) ret      #100
+			(008) ret      #0
+			',
+	}, # llc_rej
+	llc_ui => {
+		snaplen => 100,
+		DLT => 'EN10MB',
+		expr => 'llc ui',
+		unopt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 8	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xffff          jt 8	jf 4
+			(004) ldb      [16]
+			(005) and      #0xef
+			(006) jeq      #0x3             jt 7	jf 8
+			(007) ret      #100
+			(008) ret      #0
+			',
+	}, # llc_ui
+	llc_ua => {
+		snaplen => 100,
+		DLT => 'EN10MB',
+		expr => 'llc ua',
+		unopt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 8	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xffff          jt 8	jf 4
+			(004) ldb      [16]
+			(005) and      #0xef
+			(006) jeq      #0x63            jt 7	jf 8
+			(007) ret      #100
+			(008) ret      #0
+			',
+	}, # llc_ua
+	llc_disc => {
+		snaplen => 100,
+		DLT => 'EN10MB',
+		expr => 'llc disc',
+		unopt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 8	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xffff          jt 8	jf 4
+			(004) ldb      [16]
+			(005) and      #0xef
+			(006) jeq      #0x43            jt 7	jf 8
+			(007) ret      #100
+			(008) ret      #0
+			',
+	}, # llc_disc
+	llc_dm => {
+		snaplen => 100,
+		DLT => 'EN10MB',
+		expr => 'llc dm',
+		unopt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 8	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xffff          jt 8	jf 4
+			(004) ldb      [16]
+			(005) and      #0xef
+			(006) jeq      #0xf             jt 7	jf 8
+			(007) ret      #100
+			(008) ret      #0
+			',
+	}, # llc_dm
+	llc_sabme => {
+		snaplen => 100,
+		DLT => 'EN10MB',
+		expr => 'llc sabme',
+		unopt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 8	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xffff          jt 8	jf 4
+			(004) ldb      [16]
+			(005) and      #0xef
+			(006) jeq      #0x6f            jt 7	jf 8
+			(007) ret      #100
+			(008) ret      #0
+			',
+	}, # llc_sabme
+	llc_test => {
+		snaplen => 100,
+		DLT => 'EN10MB',
+		expr => 'llc test',
+		unopt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 8	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xffff          jt 8	jf 4
+			(004) ldb      [16]
+			(005) and      #0xef
+			(006) jeq      #0xe3            jt 7	jf 8
+			(007) ret      #100
+			(008) ret      #0
+			',
+	}, # llc_test
+	llc_xid => {
+		snaplen => 100,
+		DLT => 'EN10MB',
+		expr => 'llc xid',
+		unopt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 8	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xffff          jt 8	jf 4
+			(004) ldb      [16]
+			(005) and      #0xef
+			(006) jeq      #0xaf            jt 7	jf 8
+			(007) ret      #100
+			(008) ret      #0
+			',
+	}, # llc_xid
+	llc_frmr => {
+		snaplen => 100,
+		DLT => 'EN10MB',
+		expr => 'llc frmr',
+		unopt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 8	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xffff          jt 8	jf 4
+			(004) ldb      [16]
+			(005) and      #0xef
+			(006) jeq      #0x87            jt 7	jf 8
+			(007) ret      #100
+			(008) ret      #0
+			',
+	}, # llc_frmr
+
+	decnet_host => {
+		DLT => 'EN10MB',
+		expr => 'decnet host 50.764',
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x6003          jt 2	jf 39
+			(002) ldb      [16]
+			(003) and      #0x7
+			(004) jeq      #0x2             jt 5	jf 7
+			(005) ldh      [19]
+			(006) jeq      #0xfcca          jt 38	jf 7
+			(007) ldh      [16]
+			(008) and      #0xff07
+			(009) jeq      #0x8102          jt 10	jf 12
+			(010) ldh      [20]
+			(011) jeq      #0xfcca          jt 38	jf 12
+			(012) ldb      [16]
+			(013) and      #0x7
+			(014) jeq      #0x6             jt 15	jf 17
+			(015) ldh      [31]
+			(016) jeq      #0xfcca          jt 38	jf 17
+			(017) ldh      [16]
+			(018) and      #0xff07
+			(019) jeq      #0x8106          jt 20	jf 22
+			(020) ldh      [32]
+			(021) jeq      #0xfcca          jt 38	jf 22
+			(022) ld       [16]
+			(023) and      #0x7ffff00
+			(024) jeq      #0x2fcca00       jt 38	jf 25
+			(025) ld       [16]
+			(026) and      #0xff07ffff
+			(027) jeq      #0x8102fcca      jt 38	jf 28
+			(028) ldb      [16]
+			(029) and      #0x7
+			(030) jeq      #0x6             jt 31	jf 33
+			(031) ldh      [23]
+			(032) jeq      #0xfcca          jt 38	jf 33
+			(033) ldh      [16]
+			(034) and      #0xff07
+			(035) jeq      #0x8106          jt 36	jf 39
+			(036) ldh      [24]
+			(037) jeq      #0xfcca          jt 38	jf 39
+			(038) ret      #262144
+			(039) ret      #0
+			',
+		unopt => '
+			(000) ldh      [12]
+			(001) jeq      #0x6003          jt 2	jf 39
+			(002) ldb      [16]
+			(003) and      #0x7
+			(004) jeq      #0x2             jt 5	jf 7
+			(005) ldh      [19]
+			(006) jeq      #0xfcca          jt 38	jf 7
+			(007) ldh      [16]
+			(008) and      #0xff07
+			(009) jeq      #0x8102          jt 10	jf 12
+			(010) ldh      [20]
+			(011) jeq      #0xfcca          jt 38	jf 12
+			(012) ldb      [16]
+			(013) and      #0x7
+			(014) jeq      #0x6             jt 15	jf 17
+			(015) ldh      [31]
+			(016) jeq      #0xfcca          jt 38	jf 17
+			(017) ldh      [16]
+			(018) and      #0xff07
+			(019) jeq      #0x8106          jt 20	jf 22
+			(020) ldh      [32]
+			(021) jeq      #0xfcca          jt 38	jf 22
+			(022) ld       [16]
+			(023) and      #0x7ffff00
+			(024) jeq      #0x2fcca00       jt 38	jf 25
+			(025) ld       [16]
+			(026) and      #0xff07ffff
+			(027) jeq      #0x8102fcca      jt 38	jf 28
+			(028) ldb      [16]
+			(029) and      #0x7
+			(030) jeq      #0x6             jt 31	jf 33
+			(031) ldh      [23]
+			(032) jeq      #0xfcca          jt 38	jf 33
+			(033) ldh      [16]
+			(034) and      #0xff07
+			(035) jeq      #0x8106          jt 36	jf 39
+			(036) ldh      [24]
+			(037) jeq      #0xfcca          jt 38	jf 39
+			(038) ret      #262144
+			(039) ret      #0
+			',
+	}, # decnet_host
+	decnet_src_host => {
+		DLT => 'EN10MB',
+		expr => 'decnet src host 50.764',
+		aliases => ['decnet src 50.764'],
+		unopt => '
+			(000) ldh      [12]
+			(001) jeq      #0x6003          jt 2	jf 23
+			(002) ldb      [16]
+			(003) and      #0x7
+			(004) jeq      #0x2             jt 5	jf 7
+			(005) ldh      [19]
+			(006) jeq      #0xfcca          jt 22	jf 7
+			(007) ldh      [16]
+			(008) and      #0xff07
+			(009) jeq      #0x8102          jt 10	jf 12
+			(010) ldh      [20]
+			(011) jeq      #0xfcca          jt 22	jf 12
+			(012) ldb      [16]
+			(013) and      #0x7
+			(014) jeq      #0x6             jt 15	jf 17
+			(015) ldh      [31]
+			(016) jeq      #0xfcca          jt 22	jf 17
+			(017) ldh      [16]
+			(018) and      #0xff07
+			(019) jeq      #0x8106          jt 20	jf 23
+			(020) ldh      [32]
+			(021) jeq      #0xfcca          jt 22	jf 23
+			(022) ret      #262144
+			(023) ret      #0
+			',
+	}, # decnet_src_host
+	decnet_dst_host => {
+		DLT => 'EN10MB',
+		expr => 'decnet dst host 50.764',
+		aliases => ['decnet dst 50.764'],
+		unopt => '
+			(000) ldh      [12]
+			(001) jeq      #0x6003          jt 2	jf 19
+			(002) ld       [16]
+			(003) and      #0x7ffff00
+			(004) jeq      #0x2fcca00       jt 18	jf 5
+			(005) ld       [16]
+			(006) and      #0xff07ffff
+			(007) jeq      #0x8102fcca      jt 18	jf 8
+			(008) ldb      [16]
+			(009) and      #0x7
+			(010) jeq      #0x6             jt 11	jf 13
+			(011) ldh      [23]
+			(012) jeq      #0xfcca          jt 18	jf 13
+			(013) ldh      [16]
+			(014) and      #0xff07
+			(015) jeq      #0x8106          jt 16	jf 19
+			(016) ldh      [24]
+			(017) jeq      #0xfcca          jt 18	jf 19
+			(018) ret      #262144
+			(019) ret      #0
+			',
+	}, # decnet_dst_host
+
+	iso_proto_clnp => {
+		DLT => 'EN10MB',
+		expr => 'iso proto \clnp',
+		aliases => ['clnp', 'iso proto 0x81'],
+		unopt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 7	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xfefe          jt 4	jf 7
+			(004) ldb      [17]
+			(005) jeq      #0x81            jt 6	jf 7
+			(006) ret      #262144
+			(007) ret      #0
+			',
+	}, # iso_proto_clnp
+	iso_proto_esis => {
+		DLT => 'EN10MB',
+		expr => 'iso proto \esis',
+		aliases => ['esis', 'es-is', 'iso proto 0x82'],
+		unopt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 7	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xfefe          jt 4	jf 7
+			(004) ldb      [17]
+			(005) jeq      #0x82            jt 6	jf 7
+			(006) ret      #262144
+			(007) ret      #0
+			',
+	}, # iso_proto_esis
+	iso_proto_isis => {
+		DLT => 'EN10MB',
+		expr => 'iso proto \isis',
+		aliases => ['isis', 'is-is', 'iso proto 0x83'],
+		unopt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 7	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xfefe          jt 4	jf 7
+			(004) ldb      [17]
+			(005) jeq      #0x83            jt 6	jf 7
+			(006) ret      #262144
+			(007) ret      #0
+			',
+	}, # iso_proto_isis
+	isis_l1 => {
+		DLT => 'EN10MB',
+		expr => 'l1',
+		opt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 13	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xfefe          jt 4	jf 13
+			(004) ldb      [17]
+			(005) jeq      #0x83            jt 6	jf 13
+			(006) ldb      [21]
+			(007) jeq      #0x1a            jt 12	jf 8
+			(008) jeq      #0x18            jt 12	jf 9
+			(009) jeq      #0x12            jt 12	jf 10
+			(010) jeq      #0xf             jt 12	jf 11
+			(011) jeq      #0x11            jt 12	jf 13
+			(012) ret      #262144
+			(013) ret      #0
+			',
+	}, # isis_l1
+	isis_l2 => {
+		DLT => 'EN10MB',
+		expr => 'l2',
+		opt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 13	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xfefe          jt 4	jf 13
+			(004) ldb      [17]
+			(005) jeq      #0x83            jt 6	jf 13
+			(006) ldb      [21]
+			(007) jeq      #0x1b            jt 12	jf 8
+			(008) jeq      #0x19            jt 12	jf 9
+			(009) jeq      #0x14            jt 12	jf 10
+			(010) jeq      #0x10            jt 12	jf 11
+			(011) jeq      #0x11            jt 12	jf 13
+			(012) ret      #262144
+			(013) ret      #0
+			',
+	}, # isis_l2
+	isis_iih => {
+		DLT => 'EN10MB',
+		expr => 'iih',
+		opt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 11	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xfefe          jt 4	jf 11
+			(004) ldb      [17]
+			(005) jeq      #0x83            jt 6	jf 11
+			(006) ldb      [21]
+			(007) jeq      #0x11            jt 10	jf 8
+			(008) jeq      #0xf             jt 10	jf 9
+			(009) jeq      #0x10            jt 10	jf 11
+			(010) ret      #262144
+			(011) ret      #0
+			',
+	}, # isis_iih
+	isis_lsp => {
+		DLT => 'EN10MB',
+		expr => 'lsp',
+		opt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 10	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xfefe          jt 4	jf 10
+			(004) ldb      [17]
+			(005) jeq      #0x83            jt 6	jf 10
+			(006) ldb      [21]
+			(007) jeq      #0x12            jt 9	jf 8
+			(008) jeq      #0x14            jt 9	jf 10
+			(009) ret      #262144
+			(010) ret      #0
+			',
+	}, # isis_lsp
+	isis_snp => {
+		DLT => 'EN10MB',
+		expr => 'snp',
+		opt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 12	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xfefe          jt 4	jf 12
+			(004) ldb      [17]
+			(005) jeq      #0x83            jt 6	jf 12
+			(006) ldb      [21]
+			(007) jeq      #0x1b            jt 11	jf 8
+			(008) jeq      #0x1a            jt 11	jf 9
+			(009) jeq      #0x18            jt 11	jf 10
+			(010) jeq      #0x19            jt 11	jf 12
+			(011) ret      #262144
+			(012) ret      #0
+			',
+	}, # isis_snp
+	isis_csnp => {
+		DLT => 'EN10MB',
+		expr => 'csnp',
+		opt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 10	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xfefe          jt 4	jf 10
+			(004) ldb      [17]
+			(005) jeq      #0x83            jt 6	jf 10
+			(006) ldb      [21]
+			(007) jeq      #0x18            jt 9	jf 8
+			(008) jeq      #0x19            jt 9	jf 10
+			(009) ret      #262144
+			(010) ret      #0
+			',
+	}, # isis_csnp
+	isis_psnp => {
+		DLT => 'EN10MB',
+		expr => 'psnp',
+		opt => '
+			(000) ldh      [12]
+			(001) jgt      #0x5dc           jt 10	jf 2
+			(002) ldh      [14]
+			(003) jeq      #0xfefe          jt 4	jf 10
+			(004) ldb      [17]
+			(005) jeq      #0x83            jt 6	jf 10
+			(006) ldb      [21]
+			(007) jeq      #0x1a            jt 9	jf 8
+			(008) jeq      #0x1b            jt 9	jf 10
+			(009) ret      #262144
+			(010) ret      #0
+			',
+	}, # isis_psnp
+
+	ip_multicast => {
+		snaplen => 1000,
+		DLT => 'IPV4',
+		expr => 'ip multicast',
+		opt => '
+			(000) ld       #0x0
+			(001) ldb      [16]
+			(002) jge      #0xe0            jt 3	jf 4
+			(003) ret      #1000
+			(004) ret      #0
+			',
+	}, # ip_multicast
+	ip_broadcast_30 => {
+		DLT => 'IPV4',
+		netmask => '255.255.255.252',
+		expr => 'ip broadcast',
+		unopt => '
+			(000) ld       #0x0
+			(001) jeq      #0x0             jt 2	jf 9
+			(002) ld       [16]
+			(003) and      #0x3
+			(004) jeq      #0x0             jt 8	jf 5
+			(005) ld       [16]
+			(006) and      #0x3
+			(007) jeq      #0x3             jt 8	jf 9
+			(008) ret      #262144
+			(009) ret      #0
+			',
+	}, # ip_broadcast_30
+	ip_broadcast_24 => {
+		DLT => 'IPV4',
+		netmask => '255.255.255.0',
+		expr => 'ip broadcast',
+		opt => '
+			(000) ld       #0x0
+			(001) ld       [16]
+			(002) jset     #0xff            jt 3	jf 6
+			(003) and      #0xff
+			(004) jeq      #0xff            jt 6	jf 5
+			(005) ret      #0
+			(006) ret      #262144
+			',
+	}, # ip_broadcast_24
+
+	ip_proto => {
+		DLT => 'EN10MB',
+		# In this expression the protocol name is subject to external resolution
+		# (typically via /etc/protocols), so pick something that is most likely
+		# to resolve on all supported OSes.
+		expr => 'ip proto \tcp',
+		aliases => ['ip proto 6'],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x800           jt 2	jf 5
+			(002) ldb      [23]
+			(003) jeq      #0x6             jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # ip6_proto
+	ip6_proto => {
+		DLT => 'EN10MB',
+		expr => 'ip6 proto \tcp', # Same as above.
+		aliases => ['ip6 proto 6'],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 8
+			(002) ldb      [20]
+			(003) jeq      #0x6             jt 7	jf 4
+			(004) jeq      #0x2c            jt 5	jf 8
+			(005) ldb      [54]
+			(006) jeq      #0x6             jt 7	jf 8
+			(007) ret      #262144
+			(008) ret      #0
+			',
+	}, # ip6_proto
+	proto => {
+		DLT => 'EN10MB',
+		expr => 'proto \tcp', # Same as above.
+		aliases => ['proto 6'],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x800           jt 2	jf 4
+			(002) ldb      [23]
+			(003) jeq      #0x6             jt 10	jf 11
+			(004) jeq      #0x86dd          jt 5	jf 11
+			(005) ldb      [20]
+			(006) jeq      #0x6             jt 10	jf 7
+			(007) jeq      #0x2c            jt 8	jf 11
+			(008) ldb      [54]
+			(009) jeq      #0x6             jt 10	jf 11
+			(010) ret      #262144
+			(011) ret      #0
+			',
+	}, # proto
+	ip_host => {
+		# For this and some other single-stack qualifiers below use DLT_RAW to
+		# verify that the bytecode does not try to match the other protocol too.
+		DLT => 'RAW',
+		snaplen => 2000,
+		expr => 'ip host 192.168.170.211',
+		aliases => [
+			'host 192.168.170.211',
+			'src or dst host 192.168.170.211',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xf0
+			(002) jeq      #0x40            jt 3	jf 8
+			(003) ld       [12]
+			(004) jeq      #0xc0a8aad3      jt 7	jf 5
+			(005) ld       [16]
+			(006) jeq      #0xc0a8aad3      jt 7	jf 8
+			(007) ret      #2000
+			(008) ret      #0
+			',
+	}, # host
+	ip_src_host => {
+		DLT => 'RAW',
+		snaplen => 2000,
+		expr => 'ip src host 10.0.0.2',
+		aliases => [
+			'ip src 10.0.0.2',
+			'src host 10.0.0.2',
+			'src 10.0.0.2',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xf0
+			(002) jeq      #0x40            jt 3	jf 6
+			(003) ld       [12]
+			(004) jeq      #0xa000002       jt 5	jf 6
+			(005) ret      #2000
+			(006) ret      #0
+			',
+	}, # ip_src_host
+	ip_dst_host => {
+		DLT => 'RAW',
+		snaplen => 2000,
+		expr => 'ip dst host 172.17.89.30',
+		aliases => [
+			'ip dst 172.17.89.30',
+			'dst host 172.17.89.30',
+			'dst 172.17.89.30',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xf0
+			(002) jeq      #0x40            jt 3	jf 6
+			(003) ld       [16]
+			(004) jeq      #0xac11591e      jt 5	jf 6
+			(005) ret      #2000
+			(006) ret      #0
+			',
+	}, # ip_dst_host
+	ip_net => {
+		DLT => 'RAW',
+		snaplen => 2000,
+		expr => 'ip net 192.168.0.0/16',
+		aliases => [
+			'net 192.168.0.0/16',
+			'src or dst net 192.168.0.0/16',
+		],
+		# Only the optimized bytecode is equivalent!
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xf0
+			(002) jeq      #0x40            jt 3	jf 10
+			(003) ld       [12]
+			(004) and      #0xffff0000
+			(005) jeq      #0xc0a80000      jt 9	jf 6
+			(006) ld       [16]
+			(007) and      #0xffff0000
+			(008) jeq      #0xc0a80000      jt 9	jf 10
+			(009) ret      #2000
+			(010) ret      #0
+			',
+	}, # ip_net
+	ip_src_net => {
+		DLT => 'RAW',
+		snaplen => 2000,
+		expr => 'ip src net 10.0.1.0/24',
+		aliases => ['src net 10.0.1.0/24'],
+		# Only the optimized bytecode is equivalent!
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xf0
+			(002) jeq      #0x40            jt 3	jf 7
+			(003) ld       [12]
+			(004) and      #0xffffff00
+			(005) jeq      #0xa000100       jt 6	jf 7
+			(006) ret      #2000
+			(007) ret      #0
+			',
+	}, # ip_src_net
+	ip_dst_net => {
+		DLT => 'RAW',
+		snaplen => 2000,
+		expr => 'ip dst net 10.0.2.0/24',
+		aliases => ['dst net 10.0.2.0/24'],
+		# Only the optimized bytecode is equivalent!
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xf0
+			(002) jeq      #0x40            jt 3	jf 7
+			(003) ld       [16]
+			(004) and      #0xffffff00
+			(005) jeq      #0xa000200       jt 6	jf 7
+			(006) ret      #2000
+			(007) ret      #0
+			',
+	}, # ip_dst_net
+
+	carp => {
+		DLT => 'EN10MB',
+		expr => 'carp',
+		aliases => ['vrrp', 'ip proto 112'],
+		unopt => '
+			(000) ldh      [12]
+			(001) jeq      #0x800           jt 2	jf 5
+			(002) ldb      [23]
+			(003) jeq      #0x70            jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # carp
+	icmp => {
+		DLT => 'EN10MB',
+		expr => 'icmp',
+		aliases => ['ip proto 1'],
+		unopt => '
+			(000) ldh      [12]
+			(001) jeq      #0x800           jt 2	jf 5
+			(002) ldb      [23]
+			(003) jeq      #0x1             jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # icmp
+	igmp => {
+		DLT => 'EN10MB',
+		expr => 'igmp',
+		aliases => ['ip proto 2'],
+		unopt => '
+			(000) ldh      [12]
+			(001) jeq      #0x800           jt 2	jf 5
+			(002) ldb      [23]
+			(003) jeq      #0x2             jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # igmp
+	igrp => {
+		# "igrp" uses IPPROTO_IGRP, which FreeBSD and its derivatives define, but
+		# other supported OSes don't (thus libpcap uses its own value, which is
+		# different from FreeBSD).  Skip the test until it is clear how to resolve
+		# this discrepancy.
+		skip => (skip_os ('freebsd') or skip_os ('darwin') or skip_os ('dragonfly')),
+		DLT => 'EN10MB',
+		expr => 'igrp',
+		aliases => ['ip proto 9'],
+		unopt => '
+			(000) ldh      [12]
+			(001) jeq      #0x800           jt 2	jf 5
+			(002) ldb      [23]
+			(003) jeq      #0x9             jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # igrp
+	icmp6 => {
+		DLT => 'EN10MB',
+		expr => 'icmp6',
+		aliases => ['ip6 proto 58'],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 8
+			(002) ldb      [20]
+			(003) jeq      #0x3a            jt 7	jf 4
+			(004) jeq      #0x2c            jt 5	jf 8
+			(005) ldb      [54]
+			(006) jeq      #0x3a            jt 7	jf 8
+			(007) ret      #262144
+			(008) ret      #0
+			',
+	}, # icmp6
+	ah => {
+		DLT => 'RAW',
+		expr => 'ah',
+		aliases => ['proto 51'], # not "proto \ah"
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xf0
+			(002) jeq      #0x40            jt 3	jf 5
+			(003) ldb      [9]
+			(004) jeq      #0x33            jt 13	jf 14
+			(005) ldb      [0]
+			(006) and      #0xf0
+			(007) jeq      #0x60            jt 8	jf 14
+			(008) ldb      [6]
+			(009) jeq      #0x33            jt 13	jf 10
+			(010) jeq      #0x2c            jt 11	jf 14
+			(011) ldb      [40]
+			(012) jeq      #0x33            jt 13	jf 14
+			(013) ret      #262144
+			(014) ret      #0
+			',
+	}, # ah
+	esp => {
+		DLT => 'RAW',
+		expr => 'esp',
+		aliases => ['proto 50'], # not "proto \esp"
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xf0
+			(002) jeq      #0x40            jt 3	jf 5
+			(003) ldb      [9]
+			(004) jeq      #0x32            jt 13	jf 14
+			(005) ldb      [0]
+			(006) and      #0xf0
+			(007) jeq      #0x60            jt 8	jf 14
+			(008) ldb      [6]
+			(009) jeq      #0x32            jt 13	jf 10
+			(010) jeq      #0x2c            jt 11	jf 14
+			(011) ldb      [40]
+			(012) jeq      #0x32            jt 13	jf 14
+			(013) ret      #262144
+			(014) ret      #0
+			',
+	}, # esp
+	pim => {
+		DLT => 'RAW',
+		expr => 'pim',
+		aliases => ['proto 103'], # not "proto \pim"
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xf0
+			(002) jeq      #0x40            jt 3	jf 5
+			(003) ldb      [9]
+			(004) jeq      #0x67            jt 13	jf 14
+			(005) ldb      [0]
+			(006) and      #0xf0
+			(007) jeq      #0x60            jt 8	jf 14
+			(008) ldb      [6]
+			(009) jeq      #0x67            jt 13	jf 10
+			(010) jeq      #0x2c            jt 11	jf 14
+			(011) ldb      [40]
+			(012) jeq      #0x67            jt 13	jf 14
+			(013) ret      #262144
+			(014) ret      #0
+			',
+	}, # pim
+	sctp => {
+		DLT => 'RAW',
+		expr => 'sctp',
+		aliases => ['proto 132'], # not "proto \sctp"
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xf0
+			(002) jeq      #0x40            jt 3	jf 5
+			(003) ldb      [9]
+			(004) jeq      #0x84            jt 13	jf 14
+			(005) ldb      [0]
+			(006) and      #0xf0
+			(007) jeq      #0x60            jt 8	jf 14
+			(008) ldb      [6]
+			(009) jeq      #0x84            jt 13	jf 10
+			(010) jeq      #0x2c            jt 11	jf 14
+			(011) ldb      [40]
+			(012) jeq      #0x84            jt 13	jf 14
+			(013) ret      #262144
+			(014) ret      #0
+			',
+	}, # sctp
+	tcp => {
+		DLT => 'RAW',
+		expr => 'tcp',
+		aliases => ['proto 6'], # not "proto \tcp"
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xf0
+			(002) jeq      #0x40            jt 3	jf 5
+			(003) ldb      [9]
+			(004) jeq      #0x6             jt 13	jf 14
+			(005) ldb      [0]
+			(006) and      #0xf0
+			(007) jeq      #0x60            jt 8	jf 14
+			(008) ldb      [6]
+			(009) jeq      #0x6             jt 13	jf 10
+			(010) jeq      #0x2c            jt 11	jf 14
+			(011) ldb      [40]
+			(012) jeq      #0x6             jt 13	jf 14
+			(013) ret      #262144
+			(014) ret      #0
+			',
+	}, # tcp
+	udp => {
+		DLT => 'RAW',
+		expr => 'udp',
+		aliases => ['proto 17'], # not "proto \udp"
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xf0
+			(002) jeq      #0x40            jt 3	jf 5
+			(003) ldb      [9]
+			(004) jeq      #0x11            jt 13	jf 14
+			(005) ldb      [0]
+			(006) and      #0xf0
+			(007) jeq      #0x60            jt 8	jf 14
+			(008) ldb      [6]
+			(009) jeq      #0x11            jt 13	jf 10
+			(010) jeq      #0x2c            jt 11	jf 14
+			(011) ldb      [40]
+			(012) jeq      #0x11            jt 13	jf 14
+			(013) ret      #262144
+			(014) ret      #0
+			',
+	}, # udp
+
+	ip6_host => {
+		skip => skip_config_undef ('INET6'),
+		DLT => 'RAW',
+		expr => 'ip6 host ::1',
+		aliases => [
+			'ip6 src or dst host ::1',
+			'ip6 src or dst ::1',
+			'host ::1',
+			'src or dst host ::1',
+			'src or dst ::1',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xf0
+			(002) jeq      #0x60            jt 3	jf 20
+			(003) ld       [8]
+			(004) jeq      #0x0             jt 5	jf 11
+			(005) ld       [12]
+			(006) jeq      #0x0             jt 7	jf 11
+			(007) ld       [16]
+			(008) jeq      #0x0             jt 9	jf 11
+			(009) ld       [20]
+			(010) jeq      #0x1             jt 19	jf 11
+			(011) ld       [24]
+			(012) jeq      #0x0             jt 13	jf 20
+			(013) ld       [28]
+			(014) jeq      #0x0             jt 15	jf 20
+			(015) ld       [32]
+			(016) jeq      #0x0             jt 17	jf 20
+			(017) ld       [36]
+			(018) jeq      #0x1             jt 19	jf 20
+			(019) ret      #262144
+			(020) ret      #0
+			',
+	}, # ip6_host
+	ip6_src_host => {
+		skip => skip_config_undef ('INET6'),
+		DLT => 'RAW',
+		expr => 'ip6 src host fe80::1122:33ff:fe44:5566',
+		aliases => [
+			'ip6 src fe80::1122:33ff:fe44:5566',
+			'src host fe80::1122:33ff:fe44:5566',
+			'src fe80::1122:33ff:fe44:5566',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xf0
+			(002) jeq      #0x60            jt 3	jf 12
+			(003) ld       [8]
+			(004) jeq      #0xfe800000      jt 5	jf 12
+			(005) ld       [12]
+			(006) jeq      #0x0             jt 7	jf 12
+			(007) ld       [16]
+			(008) jeq      #0x112233ff      jt 9	jf 12
+			(009) ld       [20]
+			(010) jeq      #0xfe445566      jt 11	jf 12
+			(011) ret      #262144
+			(012) ret      #0
+			',
+	}, # ip6_src_host
+	ip6_dst_host => {
+		skip => skip_config_undef ('INET6'),
+		DLT => 'RAW',
+		expr => 'ip6 dst host fe80::7788:99ff:feaa:bbcc',
+		aliases => [
+			'ip6 dst fe80::7788:99ff:feaa:bbcc',
+			'dst host fe80::7788:99ff:feaa:bbcc',
+			'dst fe80::7788:99ff:feaa:bbcc',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xf0
+			(002) jeq      #0x60            jt 3	jf 12
+			(003) ld       [24]
+			(004) jeq      #0xfe800000      jt 5	jf 12
+			(005) ld       [28]
+			(006) jeq      #0x0             jt 7	jf 12
+			(007) ld       [32]
+			(008) jeq      #0x778899ff      jt 9	jf 12
+			(009) ld       [36]
+			(010) jeq      #0xfeaabbcc      jt 11	jf 12
+			(011) ret      #262144
+			(012) ret      #0
+			',
+	}, # ip6_dst_host
+	ip6_net => {
+		skip => skip_config_undef ('INET6'),
+		DLT => 'RAW',
+		expr => 'ip6 net fe80::/10',
+		aliases => [
+			'net fe80::/10',
+			'src or dst net fe80::/10',
+			'ip6 src or dst net fe80::/10',
+		],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xf0
+			(002) jeq      #0x60            jt 3	jf 10
+			(003) ld       [8]
+			(004) and      #0xffc00000
+			(005) jeq      #0xfe800000      jt 9	jf 6
+			(006) ld       [24]
+			(007) and      #0xffc00000
+			(008) jeq      #0xfe800000      jt 9	jf 10
+			(009) ret      #262144
+			(010) ret      #0
+			',
+	}, # ip6_net
+	ip6_src_net => {
+		skip => skip_config_undef ('INET6'),
+		DLT => 'RAW',
+		expr => 'ip6 src net 2000::/3',
+		aliases => ['src net 2000::/3'],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xf0
+			(002) jeq      #0x60            jt 3	jf 7
+			(003) ld       [8]
+			(004) and      #0xe0000000
+			(005) jeq      #0x20000000      jt 6	jf 7
+			(006) ret      #262144
+			(007) ret      #0
+			',
+	}, # ip6_src_net
+	ip6_dst_net => {
+		skip => skip_config_undef ('INET6'),
+		DLT => 'RAW',
+		expr => 'ip6 dst net ff00::/8',
+		aliases => ['dst net ff00::/8'],
+		opt => '
+			(000) ldb      [0]
+			(001) and      #0xf0
+			(002) jeq      #0x60            jt 3	jf 7
+			(003) ld       [24]
+			(004) and      #0xff000000
+			(005) jeq      #0xff000000      jt 6	jf 7
+			(006) ret      #262144
+			(007) ret      #0
+			',
+	}, # ip6_net
+	ip6_multicast => {
+		DLT => 'IPV6',
+		expr => 'ip6 multicast',
+		unopt => '
+			(000) ld       #0x0
+			(001) jeq      #0x0             jt 2	jf 5
+			(002) ldb      [24]
+			(003) jeq      #0xff            jt 4	jf 5
+			(004) ret      #262144
+			(005) ret      #0
+			',
+	}, # ip6_multicast
+
+	icmp_types => {
+		DLT => 'EN10MB',
+		expr => '
+			0 == icmp-echoreply &&
+			3 == icmp-unreach &&
+			4 == icmp-sourcequench &&
+			5 == icmp-redirect &&
+			8 == icmp-echo &&
+			9 == icmp-routeradvert &&
+			10 == icmp-routersolicit &&
+			11 == icmp-timxceed &&
+			12 == icmp-paramprob &&
+			13 == icmp-tstamp &&
+			14 == icmp-tstampreply &&
+			15 == icmp-ireq &&
+			16 == icmp-ireqreply &&
+			17 == icmp-maskreq &&
+			18 == icmp-maskreply
+			',
+		opt => '
+			(000) ret      #262144
+			',
+	}, # icmp_types
+	icmp6_types => {
+		DLT => 'IPV6',
+		expr => '
+			1 == icmp6-destinationunreach &&
+			2 == icmp6-packettoobig &&
+			3 == icmp6-timeexceeded &&
+			4 == icmp6-parameterproblem &&
+			128 == icmp6-echo &&
+			129 == icmp6-echoreply &&
+			130 == icmp6-multicastlistenerquery &&
+			131 == icmp6-multicastlistenerreportv1 &&
+			132 == icmp6-multicastlistenerdone &&
+			133 == icmp6-routersolicit &&
+			134 == icmp6-routeradvert &&
+			135 == icmp6-neighborsolicit &&
+			136 == icmp6-neighboradvert &&
+			137 == icmp6-redirect &&
+			138 == icmp6-routerrenum &&
+			139 == icmp6-nodeinformationquery &&
+			140 == icmp6-nodeinformationresponse &&
+			141 == icmp6-ineighbordiscoverysolicit &&
+			142 == icmp6-ineighbordiscoveryadvert &&
+			143 == icmp6-multicastlistenerreportv2 &&
+			144 == icmp6-homeagentdiscoveryrequest &&
+			145 == icmp6-homeagentdiscoveryreply &&
+			146 == icmp6-mobileprefixsolicit &&
+			147 == icmp6-mobileprefixadvert &&
+			148 == icmp6-certpathsolicit &&
+			149 == icmp6-certpathadvert &&
+			151 == icmp6-multicastrouteradvert &&
+			152 == icmp6-multicastroutersolicit &&
+			153 == icmp6-multicastrouterterm
+			',
+		opt => '
+			(000) ret      #262144
+			',
+	}, # icmp6_types
+
+	tcp_flags => {
+		DLT => 'EN10MB',
+		expr => '
+			0x01 == tcp-fin &&
+			0x02 == tcp-syn &&
+			0x04 == tcp-rst &&
+			0x08 == tcp-push &&
+			0x10 == tcp-ack &&
+			0x20 == tcp-urg &&
+			0x40 == tcp-ece &&
+			0x80 == tcp-cwr
+			',
+		opt => '
+			(000) ret      #262144
+			',
+	}, # tcp_flags
+
+	named_offsets => {
+		DLT => 'EN10MB',
+		expr => '
+			icmptype == 0 &&
+			icmpcode == 1 &&
+			icmp6type == 0 &&
+			icmp6code == 1 &&
+			tcpflags == 13
+			',
+		opt => '
+			(000) ret      #262144
+			',
+	}, # offsets
+
+	# In the tests below "smtp" depends on getaddrinfo().
+	tcp_port => {
+		DLT=> 'EN10MB',
+		expr => 'tcp port 25',
+		aliases => [
+			'tcp port smtp',
+			'tcp src or dst port 25',
+			'tcp src or dst port smtp',
+		],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 8
+			(002) ldb      [20]
+			(003) jeq      #0x6             jt 4	jf 19
+			(004) ldh      [54]
+			(005) jeq      #0x19            jt 18	jf 6
+			(006) ldh      [56]
+			(007) jeq      #0x19            jt 18	jf 19
+			(008) jeq      #0x800           jt 9	jf 19
+			(009) ldb      [23]
+			(010) jeq      #0x6             jt 11	jf 19
+			(011) ldh      [20]
+			(012) jset     #0x1fff          jt 19	jf 13
+			(013) ldxb     4*([14]&0xf)
+			(014) ldh      [x + 14]
+			(015) jeq      #0x19            jt 18	jf 16
+			(016) ldh      [x + 16]
+			(017) jeq      #0x19            jt 18	jf 19
+			(018) ret      #262144
+			(019) ret      #0
+			',
+	}, # tcp_port
+	tcp_src_port => {
+		DLT=> 'EN10MB',
+		expr => 'tcp src port 25',
+		aliases => ['tcp src port smtp'],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 6
+			(002) ldb      [20]
+			(003) jeq      #0x6             jt 4	jf 15
+			(004) ldh      [54]
+			(005) jeq      #0x19            jt 14	jf 15
+			(006) jeq      #0x800           jt 7	jf 15
+			(007) ldb      [23]
+			(008) jeq      #0x6             jt 9	jf 15
+			(009) ldh      [20]
+			(010) jset     #0x1fff          jt 15	jf 11
+			(011) ldxb     4*([14]&0xf)
+			(012) ldh      [x + 14]
+			(013) jeq      #0x19            jt 14	jf 15
+			(014) ret      #262144
+			(015) ret      #0
+			',
+	}, # tcp_src_port
+	tcp_dst_port => {
+		DLT=> 'EN10MB',
+		expr => 'tcp dst port 25',
+		aliases => ['tcp dst port smtp'],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 6
+			(002) ldb      [20]
+			(003) jeq      #0x6             jt 4	jf 15
+			(004) ldh      [56]
+			(005) jeq      #0x19            jt 14	jf 15
+			(006) jeq      #0x800           jt 7	jf 15
+			(007) ldb      [23]
+			(008) jeq      #0x6             jt 9	jf 15
+			(009) ldh      [20]
+			(010) jset     #0x1fff          jt 15	jf 11
+			(011) ldxb     4*([14]&0xf)
+			(012) ldh      [x + 16]
+			(013) jeq      #0x19            jt 14	jf 15
+			(014) ret      #262144
+			(015) ret      #0
+			',
+	}, # tcp_dst_port
+	tcp_portrange => {
+		DLT=> 'EN10MB',
+		expr => 'tcp portrange 25-53',
+		aliases => [
+			'tcp portrange 25-domain',
+			'tcp portrange smtp-53',
+			'tcp portrange smtp-domain',
+			'tcp portrange 53-25',
+			'tcp portrange domain-25',
+			'tcp portrange 53-smtp',
+			'tcp portrange domain-smtp',
+			'tcp src or dst portrange 25-53',
+			'tcp src or dst portrange 25-domain',
+			'tcp src or dst portrange smtp-53',
+			'tcp src or dst portrange smtp-domain',
+			'tcp src or dst portrange 53-25',
+			'tcp src or dst portrange domain-25',
+			'tcp src or dst portrange 53-smtp',
+			'tcp src or dst portrange domain-smtp',
+		],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 9
+			(002) ldb      [20]
+			(003) jeq      #0x6             jt 4	jf 22
+			(004) ldh      [54]
+			(005) jge      #0x19            jt 6	jf 7
+			(006) jgt      #0x35            jt 7	jf 21
+			(007) ldh      [56]
+			(008) jge      #0x19            jt 20	jf 22
+			(009) jeq      #0x800           jt 10	jf 22
+			(010) ldb      [23]
+			(011) jeq      #0x6             jt 12	jf 22
+			(012) ldh      [20]
+			(013) jset     #0x1fff          jt 22	jf 14
+			(014) ldxb     4*([14]&0xf)
+			(015) ldh      [x + 14]
+			(016) jge      #0x19            jt 17	jf 18
+			(017) jgt      #0x35            jt 18	jf 21
+			(018) ldh      [x + 16]
+			(019) jge      #0x19            jt 20	jf 22
+			(020) jgt      #0x35            jt 22	jf 21
+			(021) ret      #262144
+			(022) ret      #0
+			',
+	}, # tcp_portrange
+	tcp_src_portrange => {
+		DLT=> 'EN10MB',
+		expr => 'tcp src portrange 25-53',
+		aliases => [
+			'tcp src portrange 25-domain',
+			'tcp src portrange smtp-53',
+			'tcp src portrange smtp-domain',
+			'tcp src portrange 53-25',
+			'tcp src portrange domain-25',
+			'tcp src portrange 53-smtp',
+			'tcp src portrange domain-smtp',
+		],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 6
+			(002) ldb      [20]
+			(003) jeq      #0x6             jt 4	jf 16
+			(004) ldh      [54]
+			(005) jge      #0x19            jt 14	jf 16
+			(006) jeq      #0x800           jt 7	jf 16
+			(007) ldb      [23]
+			(008) jeq      #0x6             jt 9	jf 16
+			(009) ldh      [20]
+			(010) jset     #0x1fff          jt 16	jf 11
+			(011) ldxb     4*([14]&0xf)
+			(012) ldh      [x + 14]
+			(013) jge      #0x19            jt 14	jf 16
+			(014) jgt      #0x35            jt 16	jf 15
+			(015) ret      #262144
+			(016) ret      #0
+			',
+	}, # tcp_src_portrange
+	tcp_dst_portrange => {
+		DLT=> 'EN10MB',
+		expr => 'tcp dst portrange 25-53',
+		aliases => [
+			'tcp dst portrange 25-domain',
+			'tcp dst portrange smtp-53',
+			'tcp dst portrange smtp-domain',
+			'tcp dst portrange 53-25',
+			'tcp dst portrange domain-25',
+			'tcp dst portrange 53-smtp',
+			'tcp dst portrange domain-smtp',
+		],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 6
+			(002) ldb      [20]
+			(003) jeq      #0x6             jt 4	jf 16
+			(004) ldh      [56]
+			(005) jge      #0x19            jt 14	jf 16
+			(006) jeq      #0x800           jt 7	jf 16
+			(007) ldb      [23]
+			(008) jeq      #0x6             jt 9	jf 16
+			(009) ldh      [20]
+			(010) jset     #0x1fff          jt 16	jf 11
+			(011) ldxb     4*([14]&0xf)
+			(012) ldh      [x + 16]
+			(013) jge      #0x19            jt 14	jf 16
+			(014) jgt      #0x35            jt 16	jf 15
+			(015) ret      #262144
+			(016) ret      #0
+			',
+	}, # tcp_dst_portrange
+	tcp_portrange_degenerate => {
+		DLT=> 'EN10MB',
+		expr => 'tcp portrange 25-25',
+		# "25" is a valid port range, but "smtp" is not.
+		aliases => [
+			'tcp portrange 25-smtp',
+			'tcp portrange smtp-25',
+			'tcp portrange smtp-smtp',
+			'tcp portrange 25',
+			'tcp src or dst portrange 25-25',
+			'tcp src or dst portrange 25-smtp',
+			'tcp src or dst portrange smtp-25',
+			'tcp src or dst portrange smtp-smtp',
+			'tcp src or dst portrange 25',
+		],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 9
+			(002) ldb      [20]
+			(003) jeq      #0x6             jt 4	jf 22
+			(004) ldh      [54]
+			(005) jge      #0x19            jt 6	jf 7
+			(006) jgt      #0x19            jt 7	jf 21
+			(007) ldh      [56]
+			(008) jge      #0x19            jt 20	jf 22
+			(009) jeq      #0x800           jt 10	jf 22
+			(010) ldb      [23]
+			(011) jeq      #0x6             jt 12	jf 22
+			(012) ldh      [20]
+			(013) jset     #0x1fff          jt 22	jf 14
+			(014) ldxb     4*([14]&0xf)
+			(015) ldh      [x + 14]
+			(016) jge      #0x19            jt 17	jf 18
+			(017) jgt      #0x19            jt 18	jf 21
+			(018) ldh      [x + 16]
+			(019) jge      #0x19            jt 20	jf 22
+			(020) jgt      #0x19            jt 22	jf 21
+			(021) ret      #262144
+			(022) ret      #0
+			',
+	}, # tcp_portrange_degenerate
+	tcp_src_portrange_degenerate => {
+		DLT=> 'EN10MB',
+		expr => 'tcp src portrange 25-25',
+		aliases => [
+			'tcp src portrange 25-smtp',
+			'tcp src portrange smtp-25',
+			'tcp src portrange smtp-smtp',
+			'tcp src portrange 25',
+		],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 6
+			(002) ldb      [20]
+			(003) jeq      #0x6             jt 4	jf 16
+			(004) ldh      [54]
+			(005) jge      #0x19            jt 14	jf 16
+			(006) jeq      #0x800           jt 7	jf 16
+			(007) ldb      [23]
+			(008) jeq      #0x6             jt 9	jf 16
+			(009) ldh      [20]
+			(010) jset     #0x1fff          jt 16	jf 11
+			(011) ldxb     4*([14]&0xf)
+			(012) ldh      [x + 14]
+			(013) jge      #0x19            jt 14	jf 16
+			(014) jgt      #0x19            jt 16	jf 15
+			(015) ret      #262144
+			(016) ret      #0
+			',
+	}, # tcp_src_portrange_degenerate
+	tcp_dst_portrange_degenerate => {
+		DLT=> 'EN10MB',
+		expr => 'tcp dst portrange 25-25',
+		aliases => [
+			'tcp dst portrange 25-smtp',
+			'tcp dst portrange smtp-25',
+			'tcp dst portrange smtp-smtp',
+			'tcp dst portrange 25',
+		],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 6
+			(002) ldb      [20]
+			(003) jeq      #0x6             jt 4	jf 16
+			(004) ldh      [56]
+			(005) jge      #0x19            jt 14	jf 16
+			(006) jeq      #0x800           jt 7	jf 16
+			(007) ldb      [23]
+			(008) jeq      #0x6             jt 9	jf 16
+			(009) ldh      [20]
+			(010) jset     #0x1fff          jt 16	jf 11
+			(011) ldxb     4*([14]&0xf)
+			(012) ldh      [x + 16]
+			(013) jge      #0x19            jt 14	jf 16
+			(014) jgt      #0x19            jt 16	jf 15
+			(015) ret      #262144
+			(016) ret      #0
+			',
+	}, # tcp_dst_portrange_degenerate
+	# In the tests below "domain" depends on getaddrinfo().
+	udp_port => {
+		DLT=> 'EN10MB',
+		expr => 'udp port 53',
+		aliases => [
+			'udp port domain',
+			'udp src or dst port 53',
+			'udp src or dst port domain',
+		],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 8
+			(002) ldb      [20]
+			(003) jeq      #0x11            jt 4	jf 19
+			(004) ldh      [54]
+			(005) jeq      #0x35            jt 18	jf 6
+			(006) ldh      [56]
+			(007) jeq      #0x35            jt 18	jf 19
+			(008) jeq      #0x800           jt 9	jf 19
+			(009) ldb      [23]
+			(010) jeq      #0x11            jt 11	jf 19
+			(011) ldh      [20]
+			(012) jset     #0x1fff          jt 19	jf 13
+			(013) ldxb     4*([14]&0xf)
+			(014) ldh      [x + 14]
+			(015) jeq      #0x35            jt 18	jf 16
+			(016) ldh      [x + 16]
+			(017) jeq      #0x35            jt 18	jf 19
+			(018) ret      #262144
+			(019) ret      #0
+			',
+	}, # udp_port
+	udp_src_port => {
+		DLT=> 'EN10MB',
+		expr => 'udp src port 53',
+		aliases => ['udp src port domain'],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 6
+			(002) ldb      [20]
+			(003) jeq      #0x11            jt 4	jf 15
+			(004) ldh      [54]
+			(005) jeq      #0x35            jt 14	jf 15
+			(006) jeq      #0x800           jt 7	jf 15
+			(007) ldb      [23]
+			(008) jeq      #0x11            jt 9	jf 15
+			(009) ldh      [20]
+			(010) jset     #0x1fff          jt 15	jf 11
+			(011) ldxb     4*([14]&0xf)
+			(012) ldh      [x + 14]
+			(013) jeq      #0x35            jt 14	jf 15
+			(014) ret      #262144
+			(015) ret      #0
+			',
+	}, # udp_src_port
+	udp_dst_port => {
+		DLT=> 'EN10MB',
+		expr => 'udp dst port 53',
+		aliases => ['udp dst port domain'],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 6
+			(002) ldb      [20]
+			(003) jeq      #0x11            jt 4	jf 15
+			(004) ldh      [56]
+			(005) jeq      #0x35            jt 14	jf 15
+			(006) jeq      #0x800           jt 7	jf 15
+			(007) ldb      [23]
+			(008) jeq      #0x11            jt 9	jf 15
+			(009) ldh      [20]
+			(010) jset     #0x1fff          jt 15	jf 11
+			(011) ldxb     4*([14]&0xf)
+			(012) ldh      [x + 16]
+			(013) jeq      #0x35            jt 14	jf 15
+			(014) ret      #262144
+			(015) ret      #0
+			',
+	}, # udp_dst_port
+	udp_portrange => {
+		DLT=> 'EN10MB',
+		expr => 'udp portrange 67-68',
+		aliases => [
+			'udp portrange 67-bootpc',
+			'udp portrange bootps-68',
+			'udp portrange bootps-bootpc',
+			'udp portrange 68-67',
+			'udp portrange bootpc-67',
+			'udp portrange 68-bootps',
+			'udp portrange bootpc-bootps',
+			'udp src or dst portrange 67-68',
+			'udp src or dst portrange 67-bootpc',
+			'udp src or dst portrange bootps-68',
+			'udp src or dst portrange bootps-bootpc',
+			'udp src or dst portrange 68-67',
+			'udp src or dst portrange bootpc-67',
+			'udp src or dst portrange 68-bootps',
+			'udp src or dst portrange bootpc-bootps',
+		],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 9
+			(002) ldb      [20]
+			(003) jeq      #0x11            jt 4	jf 22
+			(004) ldh      [54]
+			(005) jge      #0x43            jt 6	jf 7
+			(006) jgt      #0x44            jt 7	jf 21
+			(007) ldh      [56]
+			(008) jge      #0x43            jt 20	jf 22
+			(009) jeq      #0x800           jt 10	jf 22
+			(010) ldb      [23]
+			(011) jeq      #0x11            jt 12	jf 22
+			(012) ldh      [20]
+			(013) jset     #0x1fff          jt 22	jf 14
+			(014) ldxb     4*([14]&0xf)
+			(015) ldh      [x + 14]
+			(016) jge      #0x43            jt 17	jf 18
+			(017) jgt      #0x44            jt 18	jf 21
+			(018) ldh      [x + 16]
+			(019) jge      #0x43            jt 20	jf 22
+			(020) jgt      #0x44            jt 22	jf 21
+			(021) ret      #262144
+			(022) ret      #0
+			',
+	}, # udp_portrange
+	udp_src_portrange => {
+		DLT=> 'EN10MB',
+		expr => 'udp src portrange 67-68',
+		aliases => [
+			'udp src portrange 67-bootpc',
+			'udp src portrange bootps-68',
+			'udp src portrange bootps-bootpc',
+			'udp src portrange 68-67',
+			'udp src portrange bootpc-67',
+			'udp src portrange 68-bootps',
+			'udp src portrange bootpc-bootps',
+		],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 6
+			(002) ldb      [20]
+			(003) jeq      #0x11            jt 4	jf 16
+			(004) ldh      [54]
+			(005) jge      #0x43            jt 14	jf 16
+			(006) jeq      #0x800           jt 7	jf 16
+			(007) ldb      [23]
+			(008) jeq      #0x11            jt 9	jf 16
+			(009) ldh      [20]
+			(010) jset     #0x1fff          jt 16	jf 11
+			(011) ldxb     4*([14]&0xf)
+			(012) ldh      [x + 14]
+			(013) jge      #0x43            jt 14	jf 16
+			(014) jgt      #0x44            jt 16	jf 15
+			(015) ret      #262144
+			(016) ret      #0
+			',
+	}, # udp_src_portrange
+	udp_dst_portrange => {
+		DLT=> 'EN10MB',
+		expr => 'udp dst portrange 67-68',
+		aliases => [
+			'udp dst portrange 67-bootpc',
+			'udp dst portrange bootps-68',
+			'udp dst portrange bootps-bootpc',
+			'udp dst portrange 68-67',
+			'udp dst portrange bootpc-67',
+			'udp dst portrange 68-bootps',
+			'udp dst portrange bootpc-bootps',
+		],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 6
+			(002) ldb      [20]
+			(003) jeq      #0x11            jt 4	jf 16
+			(004) ldh      [56]
+			(005) jge      #0x43            jt 14	jf 16
+			(006) jeq      #0x800           jt 7	jf 16
+			(007) ldb      [23]
+			(008) jeq      #0x11            jt 9	jf 16
+			(009) ldh      [20]
+			(010) jset     #0x1fff          jt 16	jf 11
+			(011) ldxb     4*([14]&0xf)
+			(012) ldh      [x + 16]
+			(013) jge      #0x43            jt 14	jf 16
+			(014) jgt      #0x44            jt 16	jf 15
+			(015) ret      #262144
+			(016) ret      #0
+			',
+	}, # udp_dst_portrange
+	udp_portrange_degenerate => {
+		DLT=> 'EN10MB',
+		expr => 'udp portrange 53-53',
+		# "53" is a valid port range, but "domain" is not.
+		aliases => [
+			'udp portrange 53-domain',
+			'udp portrange domain-53',
+			'udp portrange domain-domain',
+			'udp portrange 53',
+			'udp src or dst portrange 53-53',
+			'udp src or dst portrange 53-domain',
+			'udp src or dst portrange domain-53',
+			'udp src or dst portrange domain-domain',
+			'udp src or dst portrange 53',
+		],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 9
+			(002) ldb      [20]
+			(003) jeq      #0x11            jt 4	jf 22
+			(004) ldh      [54]
+			(005) jge      #0x35            jt 6	jf 7
+			(006) jgt      #0x35            jt 7	jf 21
+			(007) ldh      [56]
+			(008) jge      #0x35            jt 20	jf 22
+			(009) jeq      #0x800           jt 10	jf 22
+			(010) ldb      [23]
+			(011) jeq      #0x11            jt 12	jf 22
+			(012) ldh      [20]
+			(013) jset     #0x1fff          jt 22	jf 14
+			(014) ldxb     4*([14]&0xf)
+			(015) ldh      [x + 14]
+			(016) jge      #0x35            jt 17	jf 18
+			(017) jgt      #0x35            jt 18	jf 21
+			(018) ldh      [x + 16]
+			(019) jge      #0x35            jt 20	jf 22
+			(020) jgt      #0x35            jt 22	jf 21
+			(021) ret      #262144
+			(022) ret      #0
+			',
+	}, # udp_portrange_degenerate
+	udp_src_portrange_degenerate => {
+		DLT=> 'EN10MB',
+		expr => 'udp src portrange 53-53',
+		aliases => [
+			'udp src portrange 53-domain',
+			'udp src portrange domain-53',
+			'udp src portrange domain-domain',
+			'udp src portrange 53',
+		],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 6
+			(002) ldb      [20]
+			(003) jeq      #0x11            jt 4	jf 16
+			(004) ldh      [54]
+			(005) jge      #0x35            jt 14	jf 16
+			(006) jeq      #0x800           jt 7	jf 16
+			(007) ldb      [23]
+			(008) jeq      #0x11            jt 9	jf 16
+			(009) ldh      [20]
+			(010) jset     #0x1fff          jt 16	jf 11
+			(011) ldxb     4*([14]&0xf)
+			(012) ldh      [x + 14]
+			(013) jge      #0x35            jt 14	jf 16
+			(014) jgt      #0x35            jt 16	jf 15
+			(015) ret      #262144
+			(016) ret      #0
+			',
+	}, # udp_src_portrange_degenerate
+	udp_dst_portrange_degenerate => {
+		DLT=> 'EN10MB',
+		expr => 'udp dst portrange 53-53',
+		aliases => [
+			'udp dst portrange 53-domain',
+			'udp dst portrange domain-53',
+			'udp dst portrange domain-domain',
+			'udp dst portrange 53',
+		],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 6
+			(002) ldb      [20]
+			(003) jeq      #0x11            jt 4	jf 16
+			(004) ldh      [56]
+			(005) jge      #0x35            jt 14	jf 16
+			(006) jeq      #0x800           jt 7	jf 16
+			(007) ldb      [23]
+			(008) jeq      #0x11            jt 9	jf 16
+			(009) ldh      [20]
+			(010) jset     #0x1fff          jt 16	jf 11
+			(011) ldxb     4*([14]&0xf)
+			(012) ldh      [x + 16]
+			(013) jge      #0x35            jt 14	jf 16
+			(014) jgt      #0x35            jt 16	jf 15
+			(015) ret      #262144
+			(016) ret      #0
+			',
+	}, # udp_dst_portrange_degenerate
+	# SCTP tests below do not use service names because the translation is
+	# currently broken and may not have a suitable /etc/services contents
+	# in all supported environments after the bug fix.
+	sctp_port => {
+		DLT=> 'EN10MB',
+		expr => 'sctp port 5672',
+		aliases => ['sctp src or dst port 5672'],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 8
+			(002) ldb      [20]
+			(003) jeq      #0x84            jt 4	jf 19
+			(004) ldh      [54]
+			(005) jeq      #0x1628          jt 18	jf 6
+			(006) ldh      [56]
+			(007) jeq      #0x1628          jt 18	jf 19
+			(008) jeq      #0x800           jt 9	jf 19
+			(009) ldb      [23]
+			(010) jeq      #0x84            jt 11	jf 19
+			(011) ldh      [20]
+			(012) jset     #0x1fff          jt 19	jf 13
+			(013) ldxb     4*([14]&0xf)
+			(014) ldh      [x + 14]
+			(015) jeq      #0x1628          jt 18	jf 16
+			(016) ldh      [x + 16]
+			(017) jeq      #0x1628          jt 18	jf 19
+			(018) ret      #262144
+			(019) ret      #0
+			',
+	}, # sctp_port
+	sctp_src_port => {
+		DLT=> 'EN10MB',
+		expr => 'sctp src port 5672',
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 6
+			(002) ldb      [20]
+			(003) jeq      #0x84            jt 4	jf 15
+			(004) ldh      [54]
+			(005) jeq      #0x1628          jt 14	jf 15
+			(006) jeq      #0x800           jt 7	jf 15
+			(007) ldb      [23]
+			(008) jeq      #0x84            jt 9	jf 15
+			(009) ldh      [20]
+			(010) jset     #0x1fff          jt 15	jf 11
+			(011) ldxb     4*([14]&0xf)
+			(012) ldh      [x + 14]
+			(013) jeq      #0x1628          jt 14	jf 15
+			(014) ret      #262144
+			(015) ret      #0
+			',
+	}, # sctp_src_port
+	sctp_dst_port => {
+		DLT=> 'EN10MB',
+		expr => 'sctp dst port 5672',
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 6
+			(002) ldb      [20]
+			(003) jeq      #0x84            jt 4	jf 15
+			(004) ldh      [56]
+			(005) jeq      #0x1628          jt 14	jf 15
+			(006) jeq      #0x800           jt 7	jf 15
+			(007) ldb      [23]
+			(008) jeq      #0x84            jt 9	jf 15
+			(009) ldh      [20]
+			(010) jset     #0x1fff          jt 15	jf 11
+			(011) ldxb     4*([14]&0xf)
+			(012) ldh      [x + 16]
+			(013) jeq      #0x1628          jt 14	jf 15
+			(014) ret      #262144
+			(015) ret      #0
+			',
+	}, # sctp_dst_port
+	sctp_portrange => {
+		DLT=> 'EN10MB',
+		expr => 'sctp portrange 1-1023',
+		aliases => [
+			'sctp portrange 1023-1',
+			'sctp src or dst portrange 1-1023',
+			'sctp src or dst portrange 1023-1',
+		],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 9
+			(002) ldb      [20]
+			(003) jeq      #0x84            jt 4	jf 22
+			(004) ldh      [54]
+			(005) jge      #0x1             jt 6	jf 7
+			(006) jgt      #0x3ff           jt 7	jf 21
+			(007) ldh      [56]
+			(008) jge      #0x1             jt 20	jf 22
+			(009) jeq      #0x800           jt 10	jf 22
+			(010) ldb      [23]
+			(011) jeq      #0x84            jt 12	jf 22
+			(012) ldh      [20]
+			(013) jset     #0x1fff          jt 22	jf 14
+			(014) ldxb     4*([14]&0xf)
+			(015) ldh      [x + 14]
+			(016) jge      #0x1             jt 17	jf 18
+			(017) jgt      #0x3ff           jt 18	jf 21
+			(018) ldh      [x + 16]
+			(019) jge      #0x1             jt 20	jf 22
+			(020) jgt      #0x3ff           jt 22	jf 21
+			(021) ret      #262144
+			(022) ret      #0
+			',
+	}, # sctp_portrange
+	sctp_src_portrange => {
+		DLT=> 'EN10MB',
+		expr => 'sctp src portrange 1-1023',
+		aliases => ['sctp src portrange 1023-1'],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 6
+			(002) ldb      [20]
+			(003) jeq      #0x84            jt 4	jf 16
+			(004) ldh      [54]
+			(005) jge      #0x1             jt 14	jf 16
+			(006) jeq      #0x800           jt 7	jf 16
+			(007) ldb      [23]
+			(008) jeq      #0x84            jt 9	jf 16
+			(009) ldh      [20]
+			(010) jset     #0x1fff          jt 16	jf 11
+			(011) ldxb     4*([14]&0xf)
+			(012) ldh      [x + 14]
+			(013) jge      #0x1             jt 14	jf 16
+			(014) jgt      #0x3ff           jt 16	jf 15
+			(015) ret      #262144
+			(016) ret      #0
+			',
+	}, # sctp_src_portrange
+	sctp_dst_portrange => {
+		DLT=> 'EN10MB',
+		expr => 'sctp dst portrange 1-1023',
+		aliases => ['sctp dst portrange 1023-1'],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 6
+			(002) ldb      [20]
+			(003) jeq      #0x84            jt 4	jf 16
+			(004) ldh      [56]
+			(005) jge      #0x1             jt 14	jf 16
+			(006) jeq      #0x800           jt 7	jf 16
+			(007) ldb      [23]
+			(008) jeq      #0x84            jt 9	jf 16
+			(009) ldh      [20]
+			(010) jset     #0x1fff          jt 16	jf 11
+			(011) ldxb     4*([14]&0xf)
+			(012) ldh      [x + 16]
+			(013) jge      #0x1             jt 14	jf 16
+			(014) jgt      #0x3ff           jt 16	jf 15
+			(015) ret      #262144
+			(016) ret      #0
+			',
+	}, # sctp_dst_portrange
+	sctp_portrange_degenerate => {
+		DLT=> 'EN10MB',
+		expr => 'sctp portrange 5672-5672',
+		aliases => [
+			'sctp portrange 5672',
+			'sctp src or dst portrange 5672-5672',
+			'sctp src or dst portrange 5672',
+		],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 9
+			(002) ldb      [20]
+			(003) jeq      #0x84            jt 4	jf 22
+			(004) ldh      [54]
+			(005) jge      #0x1628          jt 6	jf 7
+			(006) jgt      #0x1628          jt 7	jf 21
+			(007) ldh      [56]
+			(008) jge      #0x1628          jt 20	jf 22
+			(009) jeq      #0x800           jt 10	jf 22
+			(010) ldb      [23]
+			(011) jeq      #0x84            jt 12	jf 22
+			(012) ldh      [20]
+			(013) jset     #0x1fff          jt 22	jf 14
+			(014) ldxb     4*([14]&0xf)
+			(015) ldh      [x + 14]
+			(016) jge      #0x1628          jt 17	jf 18
+			(017) jgt      #0x1628          jt 18	jf 21
+			(018) ldh      [x + 16]
+			(019) jge      #0x1628          jt 20	jf 22
+			(020) jgt      #0x1628          jt 22	jf 21
+			(021) ret      #262144
+			(022) ret      #0
+			',
+	}, # sctp_portrange_degenerate
+	sctp_src_portrange_degenerate => {
+		DLT=> 'EN10MB',
+		expr => 'sctp src portrange 5672-5672',
+		aliases => ['sctp src portrange 5672'],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 6
+			(002) ldb      [20]
+			(003) jeq      #0x84            jt 4	jf 16
+			(004) ldh      [54]
+			(005) jge      #0x1628          jt 14	jf 16
+			(006) jeq      #0x800           jt 7	jf 16
+			(007) ldb      [23]
+			(008) jeq      #0x84            jt 9	jf 16
+			(009) ldh      [20]
+			(010) jset     #0x1fff          jt 16	jf 11
+			(011) ldxb     4*([14]&0xf)
+			(012) ldh      [x + 14]
+			(013) jge      #0x1628          jt 14	jf 16
+			(014) jgt      #0x1628          jt 16	jf 15
+			(015) ret      #262144
+			(016) ret      #0
+			',
+	}, # sctp_src_portrange_degenerate
+	sctp_dst_portrange_degenerate => {
+		DLT=> 'EN10MB',
+		expr => 'sctp dst portrange 5672-5672',
+		aliases => ['sctp dst portrange 5672'],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 6
+			(002) ldb      [20]
+			(003) jeq      #0x84            jt 4	jf 16
+			(004) ldh      [56]
+			(005) jge      #0x1628          jt 14	jf 16
+			(006) jeq      #0x800           jt 7	jf 16
+			(007) ldb      [23]
+			(008) jeq      #0x84            jt 9	jf 16
+			(009) ldh      [20]
+			(010) jset     #0x1fff          jt 16	jf 11
+			(011) ldxb     4*([14]&0xf)
+			(012) ldh      [x + 16]
+			(013) jge      #0x1628          jt 14	jf 16
+			(014) jgt      #0x1628          jt 16	jf 15
+			(015) ret      #262144
+			(016) ret      #0
+			',
+	}, # sctp_dst_portrange_degenerate
+	port => {
+		DLT=> 'EN10MB',
+		expr => 'port 7',
+		# Do not try a service name due to SCTP.
+		alias => ['src or dst port 7'],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 10
+			(002) ldb      [20]
+			(003) jeq      #0x84            jt 6	jf 4
+			(004) jeq      #0x6             jt 6	jf 5
+			(005) jeq      #0x11            jt 6	jf 23
+			(006) ldh      [54]
+			(007) jeq      #0x7             jt 22	jf 8
+			(008) ldh      [56]
+			(009) jeq      #0x7             jt 22	jf 23
+			(010) jeq      #0x800           jt 11	jf 23
+			(011) ldb      [23]
+			(012) jeq      #0x84            jt 15	jf 13
+			(013) jeq      #0x6             jt 15	jf 14
+			(014) jeq      #0x11            jt 15	jf 23
+			(015) ldh      [20]
+			(016) jset     #0x1fff          jt 23	jf 17
+			(017) ldxb     4*([14]&0xf)
+			(018) ldh      [x + 14]
+			(019) jeq      #0x7             jt 22	jf 20
+			(020) ldh      [x + 16]
+			(021) jeq      #0x7             jt 22	jf 23
+			(022) ret      #262144
+			(023) ret      #0
+			',
+	}, # port
+	src_port => {
+		DLT=> 'EN10MB',
+		expr => 'src port 7',
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 8
+			(002) ldb      [20]
+			(003) jeq      #0x84            jt 6	jf 4
+			(004) jeq      #0x6             jt 6	jf 5
+			(005) jeq      #0x11            jt 6	jf 19
+			(006) ldh      [54]
+			(007) jeq      #0x7             jt 18	jf 19
+			(008) jeq      #0x800           jt 9	jf 19
+			(009) ldb      [23]
+			(010) jeq      #0x84            jt 13	jf 11
+			(011) jeq      #0x6             jt 13	jf 12
+			(012) jeq      #0x11            jt 13	jf 19
+			(013) ldh      [20]
+			(014) jset     #0x1fff          jt 19	jf 15
+			(015) ldxb     4*([14]&0xf)
+			(016) ldh      [x + 14]
+			(017) jeq      #0x7             jt 18	jf 19
+			(018) ret      #262144
+			(019) ret      #0
+			',
+	}, # src_port
+	dst_port => {
+		DLT=> 'EN10MB',
+		expr => 'dst port 7',
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 8
+			(002) ldb      [20]
+			(003) jeq      #0x84            jt 6	jf 4
+			(004) jeq      #0x6             jt 6	jf 5
+			(005) jeq      #0x11            jt 6	jf 19
+			(006) ldh      [56]
+			(007) jeq      #0x7             jt 18	jf 19
+			(008) jeq      #0x800           jt 9	jf 19
+			(009) ldb      [23]
+			(010) jeq      #0x84            jt 13	jf 11
+			(011) jeq      #0x6             jt 13	jf 12
+			(012) jeq      #0x11            jt 13	jf 19
+			(013) ldh      [20]
+			(014) jset     #0x1fff          jt 19	jf 15
+			(015) ldxb     4*([14]&0xf)
+			(016) ldh      [x + 16]
+			(017) jeq      #0x7             jt 18	jf 19
+			(018) ret      #262144
+			(019) ret      #0
+			',
+	}, # dst_port
+	portrange => {
+		DLT=> 'EN10MB',
+		expr => 'portrange 1-1023',
+		aliases => ['portrange 1023-1'],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 11
+			(002) ldb      [20]
+			(003) jeq      #0x84            jt 6	jf 4
+			(004) jeq      #0x6             jt 6	jf 5
+			(005) jeq      #0x11            jt 6	jf 26
+			(006) ldh      [54]
+			(007) jge      #0x1             jt 8	jf 9
+			(008) jgt      #0x3ff           jt 9	jf 25
+			(009) ldh      [56]
+			(010) jge      #0x1             jt 24	jf 26
+			(011) jeq      #0x800           jt 12	jf 26
+			(012) ldb      [23]
+			(013) jeq      #0x84            jt 16	jf 14
+			(014) jeq      #0x6             jt 16	jf 15
+			(015) jeq      #0x11            jt 16	jf 26
+			(016) ldh      [20]
+			(017) jset     #0x1fff          jt 26	jf 18
+			(018) ldxb     4*([14]&0xf)
+			(019) ldh      [x + 14]
+			(020) jge      #0x1             jt 21	jf 22
+			(021) jgt      #0x3ff           jt 22	jf 25
+			(022) ldh      [x + 16]
+			(023) jge      #0x1             jt 24	jf 26
+			(024) jgt      #0x3ff           jt 26	jf 25
+			(025) ret      #262144
+			(026) ret      #0
+			',
+	}, # portrange
+	src_portrange => {
+		DLT=> 'EN10MB',
+		expr => 'src portrange 1-1023',
+		aliases => ['src portrange 1023-1'],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 8
+			(002) ldb      [20]
+			(003) jeq      #0x84            jt 6	jf 4
+			(004) jeq      #0x6             jt 6	jf 5
+			(005) jeq      #0x11            jt 6	jf 20
+			(006) ldh      [54]
+			(007) jge      #0x1             jt 18	jf 20
+			(008) jeq      #0x800           jt 9	jf 20
+			(009) ldb      [23]
+			(010) jeq      #0x84            jt 13	jf 11
+			(011) jeq      #0x6             jt 13	jf 12
+			(012) jeq      #0x11            jt 13	jf 20
+			(013) ldh      [20]
+			(014) jset     #0x1fff          jt 20	jf 15
+			(015) ldxb     4*([14]&0xf)
+			(016) ldh      [x + 14]
+			(017) jge      #0x1             jt 18	jf 20
+			(018) jgt      #0x3ff           jt 20	jf 19
+			(019) ret      #262144
+			(020) ret      #0
+			',
+	}, # src_portrange
+	dst_portrange => {
+		DLT=> 'EN10MB',
+		expr => 'dst portrange 1-1023',
+		aliases => ['dst portrange 1023-1'],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 8
+			(002) ldb      [20]
+			(003) jeq      #0x84            jt 6	jf 4
+			(004) jeq      #0x6             jt 6	jf 5
+			(005) jeq      #0x11            jt 6	jf 20
+			(006) ldh      [56]
+			(007) jge      #0x1             jt 18	jf 20
+			(008) jeq      #0x800           jt 9	jf 20
+			(009) ldb      [23]
+			(010) jeq      #0x84            jt 13	jf 11
+			(011) jeq      #0x6             jt 13	jf 12
+			(012) jeq      #0x11            jt 13	jf 20
+			(013) ldh      [20]
+			(014) jset     #0x1fff          jt 20	jf 15
+			(015) ldxb     4*([14]&0xf)
+			(016) ldh      [x + 16]
+			(017) jge      #0x1             jt 18	jf 20
+			(018) jgt      #0x3ff           jt 20	jf 19
+			(019) ret      #262144
+			(020) ret      #0
+			',
+	}, # dst_portrange
+	portrange_degenerate => {
+		DLT=> 'EN10MB',
+		expr => 'portrange 1812-1812',
+		aliases => ['portrange 1812'],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 11
+			(002) ldb      [20]
+			(003) jeq      #0x84            jt 6	jf 4
+			(004) jeq      #0x6             jt 6	jf 5
+			(005) jeq      #0x11            jt 6	jf 26
+			(006) ldh      [54]
+			(007) jge      #0x714           jt 8	jf 9
+			(008) jgt      #0x714           jt 9	jf 25
+			(009) ldh      [56]
+			(010) jge      #0x714           jt 24	jf 26
+			(011) jeq      #0x800           jt 12	jf 26
+			(012) ldb      [23]
+			(013) jeq      #0x84            jt 16	jf 14
+			(014) jeq      #0x6             jt 16	jf 15
+			(015) jeq      #0x11            jt 16	jf 26
+			(016) ldh      [20]
+			(017) jset     #0x1fff          jt 26	jf 18
+			(018) ldxb     4*([14]&0xf)
+			(019) ldh      [x + 14]
+			(020) jge      #0x714           jt 21	jf 22
+			(021) jgt      #0x714           jt 22	jf 25
+			(022) ldh      [x + 16]
+			(023) jge      #0x714           jt 24	jf 26
+			(024) jgt      #0x714           jt 26	jf 25
+			(025) ret      #262144
+			(026) ret      #0
+			',
+	}, # portrange_degenerate
+	src_portrange_degenerate => {
+		DLT=> 'EN10MB',
+		expr => 'src portrange 1812-1812',
+		aliases => ['src portrange 1812'],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 8
+			(002) ldb      [20]
+			(003) jeq      #0x84            jt 6	jf 4
+			(004) jeq      #0x6             jt 6	jf 5
+			(005) jeq      #0x11            jt 6	jf 20
+			(006) ldh      [54]
+			(007) jge      #0x714           jt 18	jf 20
+			(008) jeq      #0x800           jt 9	jf 20
+			(009) ldb      [23]
+			(010) jeq      #0x84            jt 13	jf 11
+			(011) jeq      #0x6             jt 13	jf 12
+			(012) jeq      #0x11            jt 13	jf 20
+			(013) ldh      [20]
+			(014) jset     #0x1fff          jt 20	jf 15
+			(015) ldxb     4*([14]&0xf)
+			(016) ldh      [x + 14]
+			(017) jge      #0x714           jt 18	jf 20
+			(018) jgt      #0x714           jt 20	jf 19
+			(019) ret      #262144
+			(020) ret      #0
+			',
+	}, # src_portrange_degenerate
+	dst_portrange_degenerate => {
+		DLT=> 'EN10MB',
+		expr => 'dst portrange 1812-1812',
+		aliases => ['dst portrange 1812'],
+		opt => '
+			(000) ldh      [12]
+			(001) jeq      #0x86dd          jt 2	jf 8
+			(002) ldb      [20]
+			(003) jeq      #0x84            jt 6	jf 4
+			(004) jeq      #0x6             jt 6	jf 5
+			(005) jeq      #0x11            jt 6	jf 20
+			(006) ldh      [56]
+			(007) jge      #0x714           jt 18	jf 20
+			(008) jeq      #0x800           jt 9	jf 20
+			(009) ldb      [23]
+			(010) jeq      #0x84            jt 13	jf 11
+			(011) jeq      #0x6             jt 13	jf 12
+			(012) jeq      #0x11            jt 13	jf 20
+			(013) ldh      [20]
+			(014) jset     #0x1fff          jt 20	jf 15
+			(015) ldxb     4*([14]&0xf)
+			(016) ldh      [x + 16]
+			(017) jge      #0x714           jt 18	jf 20
+			(018) jgt      #0x714           jt 20	jf 19
+			(019) ret      #262144
+			(020) ret      #0
+			',
+	}, # dst_portrange_degenerate
+);
+
+# In apply_blocks the top-level keys are test block names.  Each test block
+# always generates two tests: optimized and unoptimized.  (Small tests often
+# produce short bytecode that is already optimal, in which case testing the
+# "optimized" version again is a duplicate work.  However, it is not clear yet
+# what would be the right way to avoid the duplicate work without creating
+# gaps in the test coverage.)  The top-level values are in turn hashes, where
+# the keys have the following meaning:
+#
+# * expr and netmask: same as in accept_blocks above
+# * savefile (mandatory, string): the file in tests/filter/ to use with
+#   "filtertest -r", this should not have too many packets
+# * results (mandatory, array): the list of program filter results to expect
+my %apply_blocks = (
+	pppoed_nullary_on_ctp => {
+		savefile => 'loopback.pcap',
+		expr => 'pppoed',
+		results => [0, 0, 0, 0, 0, 0],
+	},
+	pppoed_nullary_on_pppoed => {
+		savefile => 'pppoe.pcap',
+		expr => 'pppoed',
+		results => [1508],
+	},
+	pppoed_nullary_on_pppoes => {
+		savefile => 'pppoes.pcap',
+		expr => 'pppoed',
+		results => [0, 0],
+	},
+	pppoes_nullary_on_ctp => {
+		savefile => 'loopback.pcap',
+		expr => 'pppoes',
+		results => [0, 0, 0, 0, 0, 0],
+	},
+	pppoes_nullary_on_pppoed => {
+		savefile => 'pppoe.pcap',
+		expr => 'pppoes',
+		results => [0],
+	},
+	pppoes_nullary_on_pppoes => {
+		savefile => 'pppoes.pcap',
+		expr => 'pppoes',
+		results => [2000, 2000],
+	},
+	pppoes_unary_on_ctp => {
+		savefile => 'loopback.pcap',
+		expr => 'pppoes 0x3b',
+		results => [0, 0, 0, 0, 0, 0],
+	},
+	pppoes_unary_on_pppoed => {
+		savefile => 'pppoe.pcap',
+		expr => 'pppoes 0x3b',
+		results => [0],
+	},
+	pppoes_unary_on_pppoes => {
+		savefile => 'pppoes.pcap',
+		expr => 'pppoes 0x3b',
+		results => [0, 2000],
+	},
+	decnet_on_pppoed => {
+		savefile => 'pppoe.pcap',
+		expr => 'decnet',
+		results => [0],
+	},
+	decnet_on_decnet => {
+		savefile => 'decnet.pcap',
+		expr => 'decnet',
+		# This tests EtherType, so every packet matches.
+		results => [65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535],
+	},
+	decnet_src_1_1_on_pppoed => {
+		savefile => 'pppoe.pcap',
+		expr => 'decnet src 1.1',
+		results => [0],
+	},
+	decnet_dst_1_1_on_pppoed => {
+		savefile => 'pppoe.pcap',
+		expr => 'decnet dst 1.1',
+		results => [0],
+	},
+
+	# This tests a DECnet address, which in the current implementation works
+	# for data packets only.  The first packet is an Ethernet Endnode Hello
+	# message, so it does not match even though the packet is from node 1.1.
+	decnet_src_1_1_on_decnet => {
+		savefile => 'decnet.pcap',
+		expr => 'decnet src 1.1',
+		results => [0, 65535, 65535, 65535, 65535, 65535, 65535, 65535],
+	},
+	decnet_dst_1_1_on_decnet => {
+		savefile => 'decnet.pcap',
+		expr => 'decnet dst 1.1',
+		results => [0, 65535, 65535, 65535, 65535, 65535, 65535, 65535],
+	},
+	decnet_src_not_1_1_on_decnet => {
+		savefile => 'decnet.pcap',
+		expr => 'decnet src not 1.1',
+		results => [65535, 0, 0, 0, 0, 0, 0, 0],
+	},
+	decnet_dst_not_1_1_on_decnet => {
+		savefile => 'decnet.pcap',
+		expr => 'decnet dst not 1.1',
+		results => [65535, 0, 0, 0, 0, 0, 0, 0],
+	},
+
+	# The first result is correct from a formal point of view, but the actual
+	# reason is the same as above.
+	decnet_src_63_1023_on_decnet => {
+		savefile => 'decnet.pcap',
+		expr => 'decnet src 63.1023',
+		results => [0, 0, 0, 0, 0, 0, 0, 0],
+	},
+	decnet_dst_63_1023_on_decnet => {
+		savefile => 'decnet.pcap',
+		expr => 'decnet dst 63.1023',
+		results => [0, 0, 0, 0, 0, 0, 0, 0],
+	},
+	decnet_src_not_63_1023_on_decnet => {
+		savefile => 'decnet.pcap',
+		expr => 'decnet src not 63.1023',
+		results => [65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535],
+	},
+	decnet_dst_not_63_1023_on_decnet => {
+		savefile => 'decnet.pcap',
+		expr => 'decnet dst not 63.1023',
+		results => [65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535],
+	},
+
+	# The meaning of this expression is NOT the intuitive "any DECnet packets
+	# that do not have the source address set to 1.1", but this is not
+	# specific to DECnet.  Let's test it anyway.
+	decnet_src_not_1_1_on_pppoed => {
+		savefile => 'pppoe.pcap',
+		expr => 'decnet src not 1.1',
+		results => [1508],
+	},
+	decnet_dst_not_1_1_on_pppoed => {
+		savefile => 'pppoe.pcap',
+		expr => 'decnet dst not 1.1',
+		results => [1508],
+	},
+	decnet_src_not_63_1023_on_pppoed => {
+		savefile => 'pppoe.pcap',
+		expr => 'decnet src not 63.1023',
+		results => [1508],
+	},
+	decnet_dst_not_63_1023_on_pppoed => {
+		savefile => 'pppoe.pcap',
+		expr => 'decnet dst not 63.1023',
+		results => [1508],
+	},
+
+	decnet_src_63_1023_on_pppoed => {
+		savefile => 'pppoe.pcap',
+		expr => 'decnet src 63.1023',
+		results => [0],
+	},
+	decnet_dst_63_1023_on_pppoed => {
+		savefile => 'pppoe.pcap',
+		expr => 'decnet src 63.1023',
+		results => [0],
+	},
+
+	dpc_eq_1 => {
+		savefile => 'isup_load_generator.pcap',
+		expr => 'dpc == 1',
+		results => [0, 279, 0, 279, 279, 0, 279, 0, 279, 0],
+	},
+	dpc_lt_2 => {
+		savefile => 'isup_load_generator.pcap',
+		expr => 'dpc < 2',
+		results => [0, 279, 0, 279, 279, 0, 279, 0, 279, 0],
+	},
+	dpc_eq_2 => {
+		savefile => 'isup_load_generator.pcap',
+		expr => 'dpc == 2',
+		results => [279, 0, 279, 0, 0, 279, 0, 279, 0, 279],
+	},
+	dpc_gt_2 => {
+		savefile => 'isup_load_generator.pcap',
+		expr => 'dpc > 2',
+		results => [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	},
+	dpc_le_2 => {
+		savefile => 'isup_load_generator.pcap',
+		expr => 'dpc <= 2',
+		results => [279, 279, 279, 279, 279, 279, 279, 279, 279, 279],
+	},
+	dpc_ne_0 => {
+		savefile => 'isup_load_generator.pcap',
+		expr => 'dpc != 0',
+		results => [279, 279, 279, 279, 279, 279, 279, 279, 279, 279],
+	},
+	opc_eq_2 => {
+		savefile => 'isup_load_generator.pcap',
+		expr => 'opc == 2',
+		results => [0, 279, 0, 279, 279, 0, 279, 0, 279, 0],
+	},
+	opc_ge_2 => {
+		savefile => 'isup_load_generator.pcap',
+		expr => 'opc >= 2',
+		results => [0, 279, 0, 279, 279, 0, 279, 0, 279, 0],
+	},
+	opc_gt_2 => {
+		savefile => 'isup_load_generator.pcap',
+		expr => 'opc > 2',
+		results => [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	},
+	opc_le_2 => {
+		savefile => 'isup_load_generator.pcap',
+		expr => 'opc <= 2',
+		results => [279, 279, 279, 279, 279, 279, 279, 279, 279, 279],
+	},
+	opc_ne_0 => {
+		savefile => 'isup_load_generator.pcap',
+		expr => 'opc != 0',
+		results => [279, 279, 279, 279, 279, 279, 279, 279, 279, 279],
+	},
+	sls_eq_9 => {
+		savefile => 'isup_load_generator.pcap',
+		expr => 'sls == 9',
+		results => [279, 279, 279, 279, 279, 279, 279, 279, 279, 279],
+	},
+	sls_ne_9 => {
+		savefile => 'isup_load_generator.pcap',
+		expr => 'sls != 9',
+		results => [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	},
+	link_host_c0_on_arcnet => {
+		savefile => 'bacnet-arcnet-linux.pcap',
+		expr => 'link host $c0',
+		results => [65535, 65535, 0, 65535, 65535, 65535, 65535, 65535, 65535, 0],
+	},
+	link_src_host_c0_on_arcnet => {
+		savefile => 'bacnet-arcnet-linux.pcap',
+		expr => 'link src host $c0',
+		results => [65535, 65535, 0, 65535, 0, 65535, 0, 65535, 0, 0],
+	},
+	link_dst_host_c0_on_arcnet => {
+		savefile => 'bacnet-arcnet-linux.pcap',
+		expr => 'link dst host $c0',
+		results => [0, 0, 0, 0, 65535, 0, 65535, 0, 65535, 0],
+	},
+	link_host_not_c0_on_arcnet => {
+		savefile => 'bacnet-arcnet-linux.pcap',
+		expr => 'link host not $c0',
+		results => [0, 0, 65535, 0, 0, 0, 0, 0, 0, 65535],
+	},
+	ip_broadcast => {
+		savefile => 'dhcp-rfc3004.pcap',
+		netmask => '255.255.255.0',
+		expr => 'ip broadcast',
+		results => [262144, 0, 262144, 0],
+	},
+);
+
+# * DLT, expr, netmask and skip: same as in accept_blocks above
+# * errstr (mandatory, string): a substring that must appear in standard error
+#   from filtertest (this verifies that the reason for rejecting the expression
+#   is what the test expects, rather than some unrelated cause).
+my %reject_tests = (
+	ether_host => {
+		DLT => 'EN10MB',
+		expr => 'ether ab:cd:ef:0g:00:00',
+		errstr => 'bogus ethernet address',
+	},
+	pppoes_value => {
+		DLT => 'EN10MB',
+		expr => 'pppoes 65536',
+		errstr => 'greater than maximum',
+	},
+	mtp2_on_mtp3 => {
+		DLT => 'MTP3',
+		expr => 'fisu',
+		errstr => 'supported only on MTP2',
+	},
+	mtp2_sio => {
+		DLT => 'MTP2',
+		expr => 'sio 256',
+		errstr => 'too big',
+	},
+	mtp3_dpc => {
+		DLT => 'MTP2',
+		expr => 'dpc 16384',
+		errstr => 'too big',
+	},
+	mtp3_opc => {
+		DLT => 'MTP2',
+		expr => 'opc 16384',
+		errstr => 'too big',
+	},
+	mtp3_sls => {
+		DLT => 'MTP2',
+		expr => 'sls 16',
+		errstr => 'too big',
+	},
+	mtp2_hsio => {
+		DLT => 'MTP2',
+		expr => 'hsio 256',
+		errstr => 'too big',
+	},
+	mtp3_hdpc => {
+		DLT => 'MTP2',
+		expr => 'hdpc 16384',
+		errstr => 'too big',
+	},
+	mtp3_hopc => {
+		DLT => 'MTP2',
+		expr => 'hopc 16384',
+		errstr => 'too big',
+	},
+	mtp3_hsls => {
+		DLT => 'MTP2',
+		expr => 'hsls 16',
+		errstr => 'too big',
+	},
+	atm_vpi => {
+		DLT => 'SUNATM',
+		expr => 'vpi 256',
+		errstr => 'VPI value',
+	},
+	atm_vci => {
+		DLT => 'SUNATM',
+		expr => 'vci 65536',
+		errstr => 'VCI value',
+	},
+	wlan_on_eth => {
+		DLT => 'EN10MB',
+		expr => 'type data',
+		errstr => '802.11 link-layer types supported only on 802.11',
+	},
+	wlan_type => {
+		DLT => 'IEEE802_11',
+		# Type value out of range.
+		expr => 'wlan type 16',
+		errstr => 'invalid 802.11 type value',
+	},
+	wlan_subtype => {
+		DLT => 'IEEE802_11',
+		# Invalid syntax (numeric subtype is ambiguous and requires a type).
+		expr => 'wlan subtype 0',
+		errstr => 'syntax error',
+	},
+	wlan_type_subtype => {
+		DLT => 'IEEE802_11',
+		# Subtype value out of range.
+		expr => 'wlan type 0 subtype 0xff',
+		errstr => 'invalid 802.11 subtype value',
+	},
+	wlan_dir_invalid1 => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan dir abc',
+		errstr => 'unknown 802.11 direction',
+	},
+	wlan_dir_invalid2 => {
+		DLT => 'IEEE802_11',
+		expr => 'wlan dir 4',
+		errstr => 'invalid 802.11 direction',
+	},
+	pppoed_unary => {
+		DLT => 'EN10MB',
+		expr => 'pppoed 1234',
+		errstr => 'syntax error',
+	},
+	llc_noneth => {
+		DLT => 'RAW',
+		expr => 'llc',
+		errstr => 'not supported',
+	},
+	decnet_area => {
+		DLT => 'EN10MB',
+		expr => 'decnet host 64.120',
+		errstr => 'invalid DECnet address',
+	},
+	decnet_node => {
+		DLT => 'EN10MB',
+		expr => 'decnet host 17.1024',
+		errstr => 'invalid DECnet address',
+	},
+	ip_host => {
+		DLT => 'RAW',
+		expr => 'ip host 256.256.256.256',
+		errstr => 'invalid IPv4 address',
+	},
+	ip6_host_toolong => {
+		skip => skip_config_undef ('INET6'),
+		DLT => 'RAW',
+		expr => 'ip6 host fe80:0:0:0:0:0:0:0:0',
+		errstr => 'syntax error',
+	},
+	broadcast_not_supported => {
+		DLT => 'SLIP',
+		expr => 'broadcast',
+		errstr => 'not a broadcast link',
+	},
+	multicast_not_supported => {
+		DLT => 'SLIP',
+		expr => 'multicast',
+		errstr => 'link-layer multicast filters supported only on',
+	},
+# This test has been flaky because it depends on an external effect (DNS
+# lookup), which sometimes times out.  Let's disable it until there is a good
+# way to address it.
+#	ip6_host_nonhex => {
+#		DLT => 'RAW',
+#		expr => 'ip6 host fe80:0:0:0:0:0:0:g',
+#		errstr => 'unknown host',
+#	},
+	ip6_host_disabled => {
+		skip => skip_config_def1 ('INET6'),
+		DLT => 'RAW',
+		expr => 'ip6 host fe80:0:0:0:0:0:0:0',
+		errstr => 'not supported',
+	},
+	ip6_net_prefix => {
+		skip => skip_config_undef ('INET6'),
+		DLT => 'RAW',
+		expr => 'ip6 net fe80:0:0:0:0:0:0:0:0/64',
+		errstr => 'syntax error',
+	},
+	ip6_net_masklen => {
+		skip => skip_config_undef ('INET6'),
+		DLT => 'RAW',
+		expr => 'ip6 net fe80:0:0:0:0:0:0:0/129',
+		errstr => 'mask length must be <= 128',
+	},
+	ip6_net_disabled => {
+		skip => skip_config_def1 ('INET6'),
+		DLT => 'RAW',
+		expr => 'ip6 net fe80:0:0:0:0:0:0:0/64',
+		errstr => 'not supported',
+	},
+	tcp_port => {
+		DLT => 'IPV4',
+		expr => 'tcp port 70000',
+		errstr => 'illegal port number',
+	},
+	udp_port => {
+		DLT => 'IPV4',
+		expr => 'udp port 70000',
+		errstr => 'illegal port number',
+	},
+	sctp_port => {
+		DLT => 'IPV4',
+		expr => 'sctp port 70000',
+		errstr => 'illegal port number',
+	},
+	tcp_portrange1 => {
+		DLT => 'IPV4',
+		expr => 'tcp portrange 1-70000',
+		errstr => 'illegal port number',
+	},
+	tcp_portrange2 => {
+		DLT => 'IPV4',
+		expr => 'tcp portrange 23-',
+		errstr => 'syntax error',
+	},
+	tcp_portrange3 => {
+		DLT => 'IPV4',
+		expr => 'tcp portrange -512',
+		errstr => 'syntax error',
+	},
+	tcp_portrange4 => {
+		DLT => 'IPV4',
+		expr => 'tcp portrange 70000',
+		errstr => 'illegal port number',
+	},
+	udp_portrange => {
+		DLT => 'IPV4',
+		expr => 'udp portrange 70000-1',
+		errstr => 'illegal port number',
+	},
+	sctp_portrange => {
+		DLT => 'IPV4',
+		expr => 'sctp portrange 70000-80000',
+		errstr => 'illegal port number',
+	},
+	vlan_not_supported => {
+		DLT => 'RAW',
+		expr => 'vlan',
+		errstr => 'no VLAN support',
+	},
+	vlan_invalid_id1 => {
+		DLT => 'EN10MB',
+		expr => 'vlan 4096',
+		errstr => 'greater than maximum',
+	},
+	vlan_invalid_id2 => {
+		DLT => 'EN10MB',
+		expr => 'vlan any',
+		errstr => 'syntax error',
+	},
+	mpls_not_supported => {
+		DLT => 'RAW',
+		expr => 'mpls',
+		errstr => 'no MPLS support',
+	},
+	mpls_invalid_id => {
+		DLT => 'EN10MB',
+		expr => 'mpls 1048576',
+		errstr => 'greater than maximum',
+	},
+	inbound_not_supported_linux => {
+		skip => skip_os_not ('linux'),
+		DLT => 'EN10MB',
+		expr => 'inbound',
+		errstr => 'not a live capture',
+	},
+	outbound_not_supported_linux => {
+		skip => skip_os_not ('linux'),
+		DLT => 'EN10MB',
+		expr => 'outbound',
+		errstr => 'not a live capture',
+	},
+	ifindex_not_supported_linux => {
+		skip => skip_os_not ('linux'),
+		DLT => 'LINUX_SLL',
+		expr => 'ifindex 1',
+		errstr => 'not a live capture',
+	},
+	inbound_not_supported_other => {
+		skip => skip_os ('linux'),
+		DLT => 'EN10MB',
+		expr => 'inbound',
+		errstr => 'not supported',
+	},
+	outbound_not_supported_other => {
+		skip => skip_os ('linux'),
+		DLT => 'EN10MB',
+		expr => 'outbound',
+		errstr => 'not supported',
+	},
+	ifindex_not_supported_other => {
+		skip => skip_os ('linux'),
+		DLT => 'EN10MB',
+		expr => 'ifindex 1',
+		errstr => 'not supported',
+	},
+	arcnet_address1 => {
+		DLT => 'ARCNET',
+		expr => 'link host $123',
+		errstr => 'syntax error',
+	},
+	arcnet_address2 => {
+		DLT => 'ARCNET',
+		expr => 'link host $x',
+		errstr => 'syntax error',
+	},
+	arcnet_address3 => {
+		DLT => 'ARCNET',
+		expr => 'link host $',
+		errstr => 'syntax error',
+	},
+	arcnet_address4 => {
+		DLT => 'ARCNET',
+		expr => 'link host 120',
+		errstr => 'illegal link layer address',
+	},
+	ip_broadcast_implicit => {
+		DLT => 'EN10MB',
+		expr => 'ip broadcast',
+		errstr => "netmask not known, so 'ip broadcast' not supported",
+	},
+	ip_broadcast_explicit => {
+		DLT => 'EN10MB',
+		netmask => '255.255.255.255',
+		expr => 'ip broadcast',
+		errstr => "netmask not known, so 'ip broadcast' not supported",
+	},
+	# In the tests below the hostname normally should not matter because the
+	# lookup would be made not in the IPv4/IPv6 space, or not at all.  Still
+	# use a hostname that does not exist on the Internet, just in case.
+	link_host_en10mb => {
+		DLT => 'EN10MB',
+		expr => "link host ${nonexistent}",
+		errstr => "unknown ether host '${nonexistent}'",
+	},
+	link_host_netanalyzer => {
+		DLT => 'NETANALYZER',
+		expr => "link host ${nonexistent}",
+		errstr => "unknown ether host '${nonexistent}'",
+	},
+	link_host_netanalyzer_transparent => {
+		DLT => 'NETANALYZER_TRANSPARENT',
+		expr => "link host ${nonexistent}",
+		errstr => "unknown ether host '${nonexistent}'",
+	},
+	link_host_fddi => {
+		DLT => 'FDDI',
+		expr => "link host ${nonexistent}",
+		errstr => "unknown FDDI host '${nonexistent}'",
+	},
+	link_host_ieee802 => {
+		DLT => 'IEEE802',
+		expr => "link host ${nonexistent}",
+		errstr => "unknown token ring host '${nonexistent}'",
+	},
+	link_host_802_11 => {
+		DLT => 'IEEE802_11',
+		expr => "link host ${nonexistent}",
+		errstr => "unknown 802.11 host '${nonexistent}'",
+	},
+	link_host_802_11_radio => {
+		DLT => 'IEEE802_11_RADIO_AVS',
+		expr => "link host ${nonexistent}",
+		errstr => "unknown 802.11 host '${nonexistent}'",
+	},
+	link_host_802_11_radio_avs => {
+		DLT => 'IEEE802_11_RADIO_AVS',
+		expr => "link host ${nonexistent}",
+		errstr => "unknown 802.11 host '${nonexistent}'",
+	},
+	link_host_prism_header => {
+		DLT => 'PRISM_HEADER',
+		expr => "link host ${nonexistent}",
+		errstr => "unknown 802.11 host '${nonexistent}'",
+	},
+	link_host_ip_over_fc => {
+		DLT => 'IP_OVER_FC',
+		expr => "link host ${nonexistent}",
+		errstr => "unknown Fibre Channel host '${nonexistent}'",
+	},
+	link_host_other => {
+		DLT => 'ARCNET',
+		expr => "link host ${nonexistent}",
+		errstr => 'supports link-level host name',
+	},
+	decnet_host => {
+		DLT => 'EN10MB',
+		expr => "decnet host ${nonexistent}",
+		errstr => "invalid DECnet address '${nonexistent}'",
+	},
+);
+
+# On all platforms where timeout(1) is available it exits with status 124
+# if the command timed out.
+use constant TIMED_OUT => 124;
+# In this libpcap version filtertest exits with EX_DATAERR if the user input
+# is invalid and with other status codes for other (memory/file/etc) error
+# conditions.
+use constant EX_DATAERR => 65;
+
+my $filename_expected = 'expected.txt';
+my $filename_stdout = 'stdout.txt';
+my $filename_filter = 'filter.txt';
+my $filename_diags = 'diags.txt';
+
+my $diff_flags = get_diff_flags;
+
+# Every test in this file uses an expression that under normal conditions takes
+# well under one second to process, so if a filtertest invocation is taking
+# longer, it is likely a regression.  Or an invocation via Valgrind, which
+# demands a sensible host-specific override of the timeout value.
+my $test_timeout = defined $ENV{FILTERTEST_TIMEOUT} ?
+	$ENV{FILTERTEST_TIMEOUT} : 1;
+
+my $timeout_bin = undef;
+if ($test_timeout eq '0') {
+	print "INFO: Not using a test timeout (FILTERTEST_TIMEOUT=0).\n";
+} elsif (defined $ENV{TIMEOUT_BIN}) {
+	$timeout_bin = $ENV{TIMEOUT_BIN};
+	if (system ($timeout_bin, '0.1', 'sleep', '10') >> 8 != TIMED_OUT) {
+		print STDERR "ERROR: TIMEOUT_BIN='$timeout_bin' is not usable.\n";
+		exit 1;
+	}
+	print "INFO: Using a test timeout of $test_timeout (TIMEOUT_BIN='$timeout_bin').\n";
+} elsif (system ('timeout', '0.1', 'sleep', '10') >> 8 != TIMED_OUT) {
+	print "WARNING: Not using a test timeout (the default 'timeout' is not usable).\n";
+} else {
+	$timeout_bin = 'timeout';
+	printf "INFO: Using a test timeout of %s.\n", $test_timeout;
+}
+
+my $filtertest = defined $ENV{FILTERTEST_BIN} ? $ENV{FILTERTEST_BIN} :
+	string_in_file ('/* cmakeconfig.h.in */', $config_h) ? 'run/filtertest' :
+	'testprogs/filtertest';
+my $only_one = @ARGV == 1 ? $ARGV[0] : undef;
+
+# In this libpcap version "filtertest -h" prints to stdout and exits normally.
+if (system ("$filtertest -h >/dev/null 2>&1") >> 8) {
+	# Make it easier to see what the problem is.
+	system $filtertest;
+	print STDERR "ERROR: $filtertest is not usable\n";
+	exit 2;
+}
+
+sub accept_test_label {
+	my ($name, $type) = @_;
+	return "accept_${name}_${type}";
+}
+
+sub accept_alias_label {
+	my ($label, $index) = @_;
+	return "${label} (alias ${index})";
+}
+
+sub apply_test_label {
+	my ($name, $type) = @_;
+	return "apply_${name}_${type}";
+}
+
+sub reject_test_label {
+	my $name = shift;
+	return "reject_${name}";
+}
+
+sub validate_stdout_test {
+	my $r = system (join ' ', @_) >> 8;
+	return result_timed_out 'filtertest timeout' if $r == TIMED_OUT;
+
+	return result_failed (
+		'filtertest error',
+		file_get_contents mytmpfile $filename_stdout
+	) if $r;
+
+	return result_failed (
+		'diff error',
+		file_get_contents mytmpfile $filename_diags
+	) if system sprintf "diff $diff_flags %s %s >%s 2>&1",
+		mytmpfile ($filename_expected),
+		mytmpfile ($filename_stdout),
+		mytmpfile ($filename_diags);
+
+	return result_passed;
+}
+
+sub common_filtertest_args {
+	my $test = shift;
+	# BSD timeout(1) does not implement --verbose.
+	my @args = defined $timeout_bin ? ($timeout_bin, $test_timeout) : ();
+	push @args, $filtertest;
+	push @args, ('-s', $test->{snaplen}) if defined $test->{snaplen};
+	push @args, ('-m', $test->{netmask}) if defined $test->{netmask};
+	push @args, '-O' unless $test->{optimize};
+	push @args, '-l' if $test->{linuxext};
+	return @args;
+}
+
+sub run_accept_test {
+	my $test = shift;
+	my @args = common_filtertest_args $test;
+	# Write the filter expression to a file because the version of
+	# system() that takes a list does not support redirecting stdout,
+	# and the version of system() that takes a string does not escape
+	# special characters in the filter expression, which becomes
+	# invalid shell syntax.
+	file_put_contents mytmpfile ($filename_filter), $test->{expr};
+	file_put_contents mytmpfile ($filename_expected), $test->{expected};
+	push @args, (
+		'-F',
+		mytmpfile ($filename_filter),
+		$test->{DLT},
+		'>' . mytmpfile ($filename_stdout),
+		"2>&1"
+	);
+	return validate_stdout_test @args;
+}
+
+sub run_apply_test {
+	my $test = shift;
+	my @args = common_filtertest_args $test;
+	file_put_contents mytmpfile ($filename_filter), $test->{expr};
+	file_put_contents mytmpfile ($filename_expected), $test->{expected};
+	push @args, (
+		'-F',
+		mytmpfile ($filename_filter),
+		'-r',
+		SAVEFILE_DIR . $test->{savefile},
+		'>' . mytmpfile ($filename_stdout),
+		"2>&1"
+	);
+	return validate_stdout_test @args;
+}
+
+sub run_reject_test {
+	my $test = shift;
+	my @args = common_filtertest_args $test;
+	file_put_contents mytmpfile ($filename_filter), $test->{expr};
+	push @args, (
+		'-F',
+		mytmpfile ($filename_filter),
+		$test->{DLT},
+		'>' . mytmpfile ($filename_stdout),
+		"2>&1",
+	);
+	my $r = system (join ' ', @args) >> 8;
+
+	return result_failed (
+		'no filtertest error',
+		file_get_contents mytmpfile $filename_stdout
+	) if $r == 0;
+
+	return result_timed_out 'filtertest timeout' if $r == TIMED_OUT;
+
+	return result_failed (
+		"filtertest status $r",
+		file_get_contents mytmpfile $filename_stdout
+	) if $r != EX_DATAERR;
+
+	return result_failed (
+		'error string mismatch',
+		file_get_contents mytmpfile $filename_stdout
+	) if ! string_in_file ($test->{expected}, mytmpfile $filename_stdout);
+
+	return result_passed;
+}
+
+# Sort all hash elements by key, otherwise the pseudo-random ordering in Perl
+# hashes will make it difficult to compare outputs of two invocations.
+# Validate all accept test blocks and all reject tests, decide if this is a
+# "run all tests" or a "run only this specific test or test block" invocation
+# and produce the required test(s) using appropriate permutations of the main
+# expression, any aliases and the bytecode version (optimized/unoptimized).
+#
+# The resulting flat ordered list of tests includes all skipped tests at their
+# original positions, this makes it simple to distribute the tests and to
+# collect the results preserving the ordering.
+my @ready_to_run;
+foreach my $testname (sort keys %accept_blocks) {
+	my $test = $accept_blocks{$testname};
+	foreach ('DLT', 'expr') {
+		if (! defined $test->{$_}) {
+			die "Internal error: accept test block '$testname' does not define key '$_'";
+		}
+	}
+	if (! defined $test->{unopt} && ! defined $test->{opt}) {
+		die "Internal error: accept test block '$testname' defines neither 'unopt' nor 'opt'";
+	}
+	foreach my $optunopt ('unopt', 'opt') {
+		defined $test->{$optunopt} || next;
+		my $label = accept_test_label $testname, $optunopt;
+		defined $only_one && $only_one ne $label && next;
+
+		if (defined $test->{skip} && $test->{skip} ne '') {
+			push @ready_to_run, {
+				label => $label,
+				func => \&run_skip_test,
+				skip => $test->{skip},
+			};
+			if (defined $test->{aliases}) {
+				my $i = 0;
+				foreach (@{$test->{aliases}}) {
+					push @ready_to_run, {
+						label => accept_alias_label ($label, $i++),
+						func => \&run_skip_test,
+						skip => $test->{skip},
+					};
+				}
+			}
+		} else {
+			# Dedent and trim to restore the format of bpf_dump().
+			my $multiline = '';
+			foreach (split /^/, $test->{$optunopt}) {
+				$multiline .= "$1\n" if /^[\t]*(\(.+)$/o;
+			}
+			my $main = {
+				label => $label,
+				func => \&run_accept_test,
+				snaplen => defined $test->{snaplen} ? $test->{snaplen} : undef,
+				netmask => defined $test->{netmask} ? $test->{netmask} : undef,
+				optimize => int ($optunopt eq 'opt'),
+				linuxext => defined $test->{linuxext} && $test->{linuxext} == 1,
+				expected => $multiline,
+			};
+			$main->{$_} = $test->{$_} foreach ('DLT', 'expr');
+			push @ready_to_run, $main;
+			if (defined $test->{aliases}) {
+				my $i = 0;
+				foreach (@{$test->{aliases}}) {
+					my $alias = {
+						label => accept_alias_label ($label, $i++),
+						expr => $_,
+					};
+					$alias->{$_} = $main->{$_} foreach ('DLT', 'func', 'optimize', 'expected', 'snaplen', 'linuxext');
+					push @ready_to_run, $alias;
+				}
+			}
+		}
+	}
+}
+foreach my $blockname (sort keys %apply_blocks) {
+	my $block = $apply_blocks{$blockname};
+	foreach ('savefile', 'expr', 'results') {
+		next if defined $block->{$_};
+		die "Internal error: apply test block '$blockname' does not define key '$_'";
+	}
+	foreach my $optunopt ('unopt', 'opt') {
+		my $label = apply_test_label ($blockname, $optunopt);
+		defined $only_one && $only_one ne $label && next;
+		# Convert the array to filtertest output format.
+		my $multiline = join ("\n", @{$block->{results}}) . "\n";
+		push @ready_to_run, {
+			label => $label,
+			func => \&run_apply_test,
+			netmask => defined $block->{netmask} ? $block->{netmask} : undef,
+			optimize => int ($optunopt eq 'opt'),
+			expr => $block->{expr},
+			expected => $multiline,
+			savefile => $block->{savefile},
+		};
+	}
+}
+foreach my $testname (sort keys %reject_tests) {
+	my $test = $reject_tests{$testname};
+	foreach ('DLT', 'expr', 'errstr') {
+		if (! defined $test->{$_}) {
+			die "Internal error: reject test '$testname' does not define key '$_'";
+		}
+	}
+	my $label = reject_test_label $testname;
+	defined $only_one && $only_one ne $label && next;
+
+	if (defined $test->{skip} && $test->{skip} ne '') {
+		push @ready_to_run, {
+			label => $label,
+			func => \&run_skip_test,
+			skip => $test->{skip},
+		};
+	} else {
+		push @ready_to_run, {
+			label => $label,
+			func => \&run_reject_test,
+			DLT => $test->{DLT},
+			netmask => defined $test->{netmask} ? $test->{netmask} : undef,
+			expr => $test->{expr},
+			expected => $test->{errstr},
+		};
+	}
+}
+
+if (! scalar @ready_to_run) {
+	die "ERROR: Unknown test case '${only_one}'" if defined $only_one;
+	die 'Internal error: no tests defined to run!'
+}
+init_tmpdir 'libpcap_TESTrun';
+exit test_and_report @ready_to_run;

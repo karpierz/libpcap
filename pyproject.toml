@@ -3,11 +3,11 @@
 
 [build-system]
 build-backend = 'setuptools.build_meta'
-requires = ['setuptools>=75.6.0', 'packaging>=24.2.0', 'tox>=4.23.2']
+requires = ['setuptools>=75.8.0', 'packaging>=24.2.0', 'tox>=4.24.1']
 
 [project]
 name        = 'libpcap'
-version     = '1.11.0b15'
+version     = '1.11.0b16'
 description = 'Python binding for the libpcap C library.'
 urls.Homepage      = 'https://pypi.org/project/libpcap/'
 urls.Documentation = 'https://libpcap.readthedocs.io/'
@@ -45,23 +45,24 @@ classifiers = [
 requires-python = '>=3.9.0,<4.0.0'
 dependencies = [
     # mandatory
-    'setuptools>=75.6.0',
-    'pkg-about>=1.2.6',
+    'setuptools>=75.8.0',
+    'pkg-about>=1.2.9',
     # others
 ]
 dynamic = ['readme']
 optional-dependencies.'doc' = [
     'Sphinx>=7.4.7',
-    'sphinx-toolbox>=3.8.1',
+    'sphinx-autodoc-typehints>=2.3.0',
+    'sphinx-toolbox>=3.8.2',
     'sphinx-tabs>=3.4.5', # don't touch! sphinx-toolbox requires <3.4.7
     'sphinx-copybutton>=0.5.2',
     'sphinxcontrib-spelling>=8.0.0',
     'sphinx-lint>=1.0.0',
     'restructuredtext-lint>=1.4.0',
-    'nbsphinx>=0.9.5',
+    'nbsphinx>=0.9.6',
 ]
 optional-dependencies.'test' = [
-    'deepdiff>=8.0.1',
+    'deepdiff>=8.2.0',
     'rich>=13.9.4',
 ]
 
@@ -170,13 +171,12 @@ count = true
 
 [tool.tox]  # 
 env_list = [{replace='ref',of=['tool','tox','labels','py'],extend=true}, 'lint', 'docs']
-min_version = '4.23.2'
+min_version = '4.24.1'
 skip_missing_interpreters = true
 requires = [
     {replace='ref',of=['tool','tox','_','base','deps'],extend=true},
-    'virtualenv>=20.28.0',
-    'tox-backtick>=0.5.5',
-    'tox-tags>=0.2.0',
+    'virtualenv>=20.29.2',
+    'tox-backtick>=0.5.8',
 ]
 [tool.tox.labels]
 py = ['py39','py310','py311','py312','py313', 'pypy39','pypy310']
@@ -190,8 +190,8 @@ deploy = [{replace='ref',of=['tool','tox','labels','build'],extend=true}, 'publi
 [tool.tox._.base]
 base_python = ['python3.12']
 deps = [
-    'pip>=24.3.1',
-    'setuptools>=75.6.0',
+    'pip>=25.0.1',
+    'setuptools>=75.8.0',
 ]
 package_subdir = 'libpcap'
 
@@ -233,9 +233,9 @@ commands = [
 ]
 deps = [
     {replace='ref',of=['tool','tox','env_run_base','deps'],extend=true},
-    'coverage>=7.6.9',
+    'coverage>=7.6.12',
     'covdefaults>=2.3.0',
-    'diff-cover>=9.2.1',
+    'diff-cover>=9.2.0',
 ]
 
 [tool.tox.env.'docs']
@@ -263,7 +263,7 @@ commands = [
 ]
 deps = [
     {replace='ref',of=['tool','tox','env_run_base','deps'],extend=true},
-    'twine>=6.0.1',
+    'twine>=6.1.0',
 ]
 
 [tool.tox.env.'publish']
@@ -276,7 +276,7 @@ commands = [
 ]
 extras = []
 deps = [
-    'twine>=6.0.1',
+    'twine>=6.1.0',
 ]
 
 [tool.tox.env.'lint']

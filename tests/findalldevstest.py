@@ -10,6 +10,7 @@ from getpass import getpass
 import ctypes as ct
 
 import libpcap as pcap
+from libpcap._platform import is_windows, is_linux, defined
 from libpcap._platform import sockaddr_in, sockaddr_in6
 from pcaptestutils import *  # noqa
 
@@ -25,7 +26,7 @@ if not is_windows:
     # Solaris 11 defines both AF_PACKET and AF_LINK, but uses neither.
     # GNU/Hurd defines neither AF_PACKET nor AF_LINK.
     #include <net/if.h>
-    if hasattr(socket, "AF_PACKET"):
+    if is_linux:
         #include <netpacket/packet.h> // struct sockaddr_ll  # !!!
         #include <net/if_arp.h>       // ARPHRD_ETHER        # !!!
         pass
@@ -109,7 +110,7 @@ def main(argv=sys.argv[1:]):
     return exit_status
 
 
-if not is_windows and (hasattr(socket, "AF_PACKET") or hasattr(socket, "AF_LINK")):
+if not is_windows and (is_linux or hasattr(socket, "AF_LINK")):
    #def ether_ntop(const u_char addr[], bool mask): # !!!
     def ether_ntop(addr, mask: bool):
         buffer = "00:00:00:00:00:00"
@@ -184,7 +185,7 @@ def ifprint(dev: pcap.pcap_if_t):
                     print("\t\tBroadcast Address: {}".format(socket.inet_ntop(socket.AF_INET, ct.cast(broadaddr, ct.POINTER(sockaddr_in)).contents.sin_addr)))
                 if dstaddr:
                     print("\t\tDestination Address: {}".format(socket.inet_ntop(socket.AF_INET, ct.cast(dstaddr, ct.POINTER(sockaddr_in)).contents.sin_addr)))
-            elif not is_windows and hasattr(socket, "AF_PACKET") and addr.contents.sa_family == socket.AF_PACKET:
+            elif not is_windows and is_linux and addr.contents.sa_family == socket.AF_PACKET:
                 print("\tAddress Family: AF_PACKET ({})".format(addr.contents.sa_family))
                 sll = ct.cast(addr, ct.POINTER(sockaddr_ll))
                 # !!!

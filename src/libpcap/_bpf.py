@@ -57,6 +57,8 @@ from ._dll      import dll
 #
 from ._dlt import *  # noqa
 
+PCAP_DEPRECATED = lambda func, msg: None
+
 # BSD style release date
 
 BPF_RELEASE = 199606
@@ -108,7 +110,7 @@ BPF_IND = 0x40
 BPF_MEM = 0x60
 BPF_LEN = 0x80
 BPF_MSH = 0xA0
-#         0xc0  # reserved; used by BSD/OS
+#         0xc0  # reserved; used by BSD/OS; also by OpenBSD for BPF_RND
 #         0xe0  # reserved; used by BSD/OS
 
 # alu/jmp fields
@@ -240,6 +242,8 @@ try:  # PCAP_AVAILABLE_0_4
         (1, "buffer"),
         (1, "wirelen"),
         (1, "buflen"),))
+    PCAP_DEPRECATED(bpf_filter,
+                    "use pcap_offline_filter()")
 except: pass  # noqa: E722
 
 try:  # PCAP_AVAILABLE_0_6

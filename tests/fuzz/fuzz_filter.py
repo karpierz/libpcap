@@ -3,50 +3,43 @@
 # Copyright (c) 2016 Adam Karpierz
 # SPDX-License-Identifier: BSD-3-Clause
 
+import sys
 import ctypes as ct
 
 import libpcap as pcap
+from _utils import *  # noqa
 
 
-def fuzz_openFile(name: str):
-    # do nothing
-    pass
-
-
-def LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) -> int:
+def LLVMFuzzerTestOneInput(data: bytes) -> int:
 
     bpf = pcap.bpf_program()
-    char * filter;
 
     # we need at least 1 byte for linktype
-    if Size < 1:
+    if len(data) < 1:
         return 0
 
     # initialize structure snaplen = 65535
-    pkts = pcap.open_dead(Data[Size - 1], 0xFFFF)
+    pkts = pcap.open_dead(data[-1], 0xFFFF)
     if not pkts:
         print("pcap_open_dead failed")
         return 0
 
-    filter = malloc(Size)
-    memcpy(filter, Data, Size)
-    # null terminate string
-    filter[Size - 1] = 0
+    filter = ct.c_char_p(data[:-1])
 
-    if pcap.compile(pkts, &bpf, filter, 1, pcap.PCAP_NETMASK_UNKNOWN) == 0:
-        if pcap.setfilter(pkts, &bpf) < 0:
+    if pcap.compile(pkts, ct.byref(bpf), filter, 1, pcap.PCAP_NETMASK_UNKNOWN) == 0:
+        if pcap.setfilter(pkts, ct.byref(bpf)) < 0:
             pcap.perror(pkts, b"pcap.setfilter")
         pcap.close(pkts)
-        pcap.freecode(&bpf)
+        pcap.freecode(ct.byref(bpf))
     else:
         pcap.close(pkts)
-
-    free(filter)
 
     return 0
 
 
-from onefile import main
-
 if __name__.rpartition(".")[-1] == "__main__":
+    import onefile
+    onefile.fuzz_openFile          = None  # do nothing
+    onefile.LLVMFuzzerTestOneInput = LLVMFuzzerTestOneInput
+    from onefile import main
     sys.exit(main())

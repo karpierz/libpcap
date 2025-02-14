@@ -26,6 +26,7 @@ import getopt
 import ctypes as ct
 
 import libpcap as pcap
+from libpcap._platform import is_windows
 from pcaptestutils import *  # noqa
 
 pd = ct.POINTER(pcap.pcap_t)()
@@ -131,7 +132,7 @@ def main(argv=sys.argv[1:]):
         try:
             ret = os.open(os.devnull,
                           (os.O_RDONLY | os.O_BINARY) if is_windows else os.O_RDONLY)
-        except:
+        except Exception:
             break
         if ret < 0:
             break

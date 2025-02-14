@@ -1,5 +1,5 @@
-# Copyright (c) 2016 Adam Karpierz
-# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 1994 Adam Karpierz
+# SPDX-License-Identifier: Zlib
 
 import sys
 import os

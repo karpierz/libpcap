@@ -5,7 +5,7 @@ import sys
 import os
 import ctypes as ct
 
-from ._platform import is_windows, is_linux, is_macos
+from ._platform import *  # noqa
 
 def defined(varname, __getframe=sys._getframe):
     frame = __getframe(1)
@@ -16,20 +16,23 @@ def from_oid(oid, __cast=ct.cast, __py_object=ct.py_object):
 
 del sys, os, ct
 
-if is_windows:
-    from ._windows import DLL_PATH, DLL, dlclose, CFUNC
-    from ._windows import time_t, timeval
-    from ._windows import (SOCKET, INVALID_SOCKET,
-                           sockaddr, in_addr, sockaddr_in, in6_addr, sockaddr_in6)
-elif is_linux:
-    from ._linux   import DLL_PATH, DLL, dlclose, CFUNC
-    from ._linux   import time_t, timeval
-    from ._linux   import (SOCKET, INVALID_SOCKET,
-                           sockaddr, in_addr, sockaddr_in, in6_addr, sockaddr_in6)
-elif is_macos:
-    from ._macos   import DLL_PATH, DLL, dlclose, CFUNC
-    from ._macos   import time_t, timeval
-    from ._macos   import (SOCKET, INVALID_SOCKET,
-                           sockaddr, in_addr, sockaddr_in, in6_addr, sockaddr_in6)
+if is_windows:  # noqa: F405
+    from ._windows import (DLL_PATH, DLL, dlclose, CFUNC,
+                           time_t, timeval,
+                           SOCKET, INVALID_SOCKET, sockaddr,
+                           in_addr, sockaddr_in,
+                           in6_addr, sockaddr_in6)  # noqa: F401
+elif is_linux:  # noqa: F405
+    from ._linux   import (DLL_PATH, DLL, dlclose, CFUNC,
+                           time_t, timeval,
+                           SOCKET, INVALID_SOCKET, sockaddr,
+                           in_addr, sockaddr_in,
+                           in6_addr, sockaddr_in6)  # noqa: F401
+elif is_macos:  # noqa: F405
+    from ._macos   import (DLL_PATH, DLL, dlclose, CFUNC,
+                           time_t, timeval,
+                           SOCKET, INVALID_SOCKET, sockaddr,
+                           in_addr, sockaddr_in,
+                           in6_addr, sockaddr_in6)  # noqa: F401
 else:
     raise ImportError("unsupported platform")

@@ -3,34 +3,27 @@
 # Copyright (c) 2016 Adam Karpierz
 # SPDX-License-Identifier: BSD-3-Clause
 
-#include <fcntl.h>
-#include <errno.h>
-#include <stdarg.h>
-
+import sys
+import os
+import enum
 import ctypes as ct
+import socket
 
 import libpcap as pcap
-void sock_initfuzz(const uint8_t *Data, size_t Size);
-int daemon_serviceloop(int sockctrl, int isactive, char *passiveClients, int nullAuthAllowed, int uses_ssl);
-
-typedef enum {
-    LOGPRIO_DEBUG,
-    LOGPRIO_INFO,
-    LOGPRIO_WARNING,
-    LOGPRIO_ERROR
-} log_priority;
+# int daemon_serviceloop(int sockctrl, int isactive, char *passiveClients, int nullAuthAllowed, int uses_ssl);
+# from ??? import daemon_serviceloop
+from _utils import sock_initfuzz
+from _utils import *  # noqa
 
 
-outfile = None
+class log_priority(enum.IntEnum):
+    LOGPRIO_DEBUG   = 0
+    LOGPRIO_INFO    = 1
+    LOGPRIO_WARNING = 2
+    LOGPRIO_ERROR   = 3
 
-def fuzz_openFile(name: str):
+def rpcapd_log(priority: log_priority, const char *message, ...):
     global outfile
-    if outfile is not None:
-        outfile.close()
-    outfile = open(name, "wt")
-
-
-def rpcapd_log(log_priority priority, const char *message, ...):
     va_list ap;
     va_start(ap, message);
     print("rpcapd[%d]:", priority, end="", file=outfile)
@@ -39,16 +32,29 @@ def rpcapd_log(log_priority priority, const char *message, ...):
     va_end(ap);
 
 
-def LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) -> int:
+outfile = None
+
+def fuzz_openFile(filename: str):
+    global outfile
+
+    if outfile is not None:
+        outfile.close()
+    outfile = open(filename, "wt")
+
+
+def LLVMFuzzerTestOneInput(data: bytes) -> int:
+
+    global outfile
 
     # initialization
     if outfile is None:
-        fuzz_openFile("/dev/null")
+        fuzz_openFile(os.devnull)
 
-    sock_initfuzz(Data, Size)
-    sock = socket(AF_INET, SOCK_STREAM, 0)
-    if sock == INVALID_SOCKET:
-        abort()
+    sock_initfuzz(ct.cast(ct.c_char_p(data), ct.POINTER(ct.c_uint8)), len(data))
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+    except OSError as exc:
+        os.abort()
 
     # dummy socket, active, null auth allowed, no ssl
     daemon_serviceloop(sock, 1, malloc(0), 1, 0)
@@ -56,8 +62,10 @@ def LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) -> int:
     return 0
 
 
-from onefile import main
-# ../../rpcapd/daemon.c
-
 if __name__.rpartition(".")[-1] == "__main__":
+    import onefile
+    onefile.fuzz_openFile          = fuzz_openFile
+    onefile.LLVMFuzzerTestOneInput = LLVMFuzzerTestOneInput
+    from onefile import main
+    # ../../rpcapd/daemon.c
     sys.exit(main())

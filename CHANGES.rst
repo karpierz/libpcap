@@ -1,6 +1,13 @@
 Changelog
 =========
 
+1.11.0b16 (2025-02-14)
+----------------------
+- Upgrade to the latest libpcap API 1.11.0-PRE
+- Preliminary addition of (some) fuzz tests.
+- Copyright year update.
+- Setup (dependencies) update.
+
 1.11.0b15 (2024-12-13)
 ----------------------
 - Source distribution (\*.tar.gz now) is compliant with PEP-0625.

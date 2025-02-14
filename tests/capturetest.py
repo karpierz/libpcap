@@ -28,6 +28,7 @@ import getopt
 import ctypes as ct
 
 import libpcap as pcap
+from libpcap._platform import is_windows
 from pcaptestutils import *  # noqa
 
 #ifndef lint
@@ -86,7 +87,7 @@ def main(argv=sys.argv[1:]):
         elif opt == '-t':
             try:
                 timeout = int(optarg)
-            except:
+            except Exception:
                 error('Timeout value "{}" is not a number', optarg)
             if timeout < 0:
                 error("Timeout value {:d} is negative", timeout)

@@ -41,7 +41,7 @@ copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
 #endif
 
 MAXIMUM_SNAPLEN = 262144
- 
+
 if is_linux:
     # include <linux/filter.h>  # SKF_AD_VLAN_TAG_PRESENT
     # pcap-int.h is a private header and should not be included by programs
@@ -169,7 +169,7 @@ def main(argv=sys.argv[1:]):
         pd = pcap.open_dead(dlt, snaplen)
         if not pd:
             error("Can't open fake pcap_t", status=EX_SOFTWARE)
-        
+
         if is_linux and lflag:
             if defined("SKF_AD_VLAN_TAG_PRESENT"):
                 # Generally speaking, the fact the header defines the

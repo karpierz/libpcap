@@ -7,8 +7,6 @@ include LICENSE
 include pyproject.toml
 include .readthedocs.yml
 
-prune arch
-
 graft docs
 
 graft examples

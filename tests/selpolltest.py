@@ -26,6 +26,7 @@ import sys
 import os
 import getopt
 import ctypes as ct
+import select
 
 import libpcap as pcap
 from pcaptestutils import *  # noqa
@@ -36,13 +37,6 @@ copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
             "The Regents of the University of California.  "\
             "All rights reserved.\n"
 #endif
-
-def select(rlist, wlist, xlist, timeout=None):
-    import select
-    if timeout is None:
-        return select.select(rlist, wlist, xlist)
-    else:
-        return select.select(rlist, wlist, xlist, timeout)
 
 
 # Tests how select() and poll() behave on the selectable file descriptor
@@ -188,9 +182,9 @@ def main(argv=sys.argv[1:]):
                                   required_timeout.tv_usec / 1000000.0)
                 else:
                     seltimeout = None
-                rfds, wfds, efds = select([selectable_fd], [],
-                                          [selectable_fd], seltimeout)
-            except select.error as exc:
+                rfds, wfds, efds = select.select([selectable_fd], [],
+                                                 [selectable_fd], seltimeout)
+            except OSError as exc:
                 print("Select returns error ({})".format(exc.strerror))
             else:
                 if not quiet:
@@ -235,7 +229,7 @@ def main(argv=sys.argv[1:]):
                 polltimeout = None
             try:
                 events = poller.poll(polltimeout)
-            except select.error as exc:
+            except OSError as exc:
                 print("Poll returns error ({})".format(exc.strerror))
             else:
                 if not quiet:

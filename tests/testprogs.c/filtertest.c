@@ -57,6 +57,7 @@ The Regents of the University of California.  All rights reserved.\n";
 #include "pcap/funcattrs.h"
 
 #define MAXIMUM_SNAPLEN		262144
+#define MAX_STDIN		(64 * 1024)
 
 #ifdef BDEBUG
 /*
@@ -98,10 +99,40 @@ static void warn(const char *, ...) PCAP_PRINTFLIKE(1, 2);
 #define O_BINARY	0
 #endif
 
-static char *
+static char *cmdbuf;
+static pcap_t *pd;
+static struct bpf_program fcode;
+
+/*
+ * atexit() is broken on Linux/ARMv7 with TinyCC, work around by calling this
+ * function explicitly just before exit() if there is a possibility any of
+ * these resources have been allocated.
+ */
+static void
+cleanup(void)
+{
+	if (cmdbuf)
+		free(cmdbuf);
+	pcap_freecode (&fcode);
+	if (pd)
+		pcap_close(pd);
+}
+
+// Replace "# comment" with spaces.
+static void
+blank_comments(char *cp, const size_t size)
+{
+	for (size_t i = 0; i < size; i++) {
+		if (cp[i] == '#')
+			while (i < size && cp[i] != '\n')
+				cp[i++] = ' ';
+	}
+}
+
+static void
 read_infile(char *fname)
 {
-	register int i, fd, cc;
+	int fd, cc;
 	register char *cp;
 	struct stat buf;
 
@@ -123,6 +154,7 @@ read_infile(char *fname)
 		error(EX_DATAERR, "%s is larger than %d bytes; that's too large", fname,
 		    INT_MAX - 1);
 	cp = malloc((u_int)buf.st_size + 1);
+	cmdbuf = cp;
 	if (cp == NULL)
 		error(EX_OSERR, "malloc(%d) for %s: %s", (u_int)buf.st_size + 1,
 			fname, pcap_strerror(errno));
@@ -133,14 +165,26 @@ read_infile(char *fname)
 		error(EX_IOERR, "short read %s (%d != %d)", fname, cc, (int)buf.st_size);
 
 	close(fd);
-	/* replace "# comment" with spaces */
-	for (i = 0; i < cc; i++) {
-		if (cp[i] == '#')
-			while (i < cc && cp[i] != '\n')
-				cp[i++] = ' ';
-	}
+	blank_comments(cp, (size_t)cc);
 	cp[cc] = '\0';
-	return (cp);
+}
+
+// Copy stdin into a size-limited buffer.
+static void
+read_stdin(void)
+{
+	char *buf = calloc(1, MAX_STDIN + 1);
+	cmdbuf = buf;
+	if (buf == NULL)
+		error(EX_OSERR, "%s: calloc", __func__);
+	size_t readsize = fread(buf, 1, MAX_STDIN, stdin);
+	if (! feof(stdin))
+		error(EX_DATAERR, "received more than %u bytes on stdin", MAX_STDIN);
+	if (ferror(stdin))
+		error(EX_IOERR, "failed reading from stdin after %zd bytes", readsize);
+	fclose(stdin);
+	// No error, all data is within the buffer and NUL-terminated.
+	blank_comments(buf, readsize);
 }
 
 /* VARARGS */
@@ -158,6 +202,7 @@ error(const int status, const char *fmt, ...)
 		if (fmt[-1] != '\n')
 			(void)fputc('\n', stderr);
 	}
+	cleanup();
 	exit(status);
 	/* NOTREACHED */
 }
@@ -182,7 +227,7 @@ warn(const char *fmt, ...)
 /*
  * Copy arg vector into a new buffer, concatenating arguments with spaces.
  */
-static char *
+static void
 copy_argv(register char **argv)
 {
 	register char **p;
@@ -192,12 +237,13 @@ copy_argv(register char **argv)
 
 	p = argv;
 	if (*p == 0)
-		return 0;
+		return;
 
 	while (*p)
 		len += strlen(*p++) + 1;
 
 	buf = (char *)malloc(len);
+	cmdbuf = buf;
 	if (buf == NULL)
 		error(EX_OSERR, "%s: malloc", __func__);
 
@@ -209,8 +255,6 @@ copy_argv(register char **argv)
 		dst[-1] = ' ';
 	}
 	dst[-1] = '\0';
-
-	return buf;
 }
 
 int
@@ -231,9 +275,6 @@ main(int argc, char **argv)
 	int snaplen = MAXIMUM_SNAPLEN;
 	char *p;
 	bpf_u_int32 netmask = PCAP_NETMASK_UNKNOWN;
-	char *cmdbuf;
-	pcap_t *pd;
-	struct bpf_program fcode;
 
 #ifdef _WIN32
 	WSADATA wsaData;
@@ -384,10 +425,12 @@ main(int argc, char **argv)
 #endif
 	}
 
-	if (infile)
-		cmdbuf = read_infile(infile);
+	if (! infile)
+		copy_argv(&argv[optind]);
+	else if (strcmp(infile, "-"))
+		read_infile(infile);
 	else
-		cmdbuf = copy_argv(&argv[optind]);
+		read_stdin();
 
 	if (pcap_compile(pd, &fcode, cmdbuf, Oflag, netmask) < 0)
 		error(EX_DATAERR, "%s", pcap_geterr(pd));
@@ -420,9 +463,7 @@ main(int argc, char **argv)
 				error(EX_IOERR, "pcap_next_ex() failed: %d", ret);
 		}
 	}
-	free(cmdbuf);
-	pcap_freecode (&fcode);
-	pcap_close(pd);
+	cleanup();
 #ifdef _WIN32
 	WSACleanup();
 #endif
@@ -452,27 +493,28 @@ usage(FILE *f)
 	(void)fprintf(f, "       (print the filter program result for each packet)\n");
 	(void)fprintf(f, "  or:  %s -h\n", program_name);
 	(void)fprintf(f, "       (print the detailed help screen)\n");
-	if (f == stdout) {
-		(void)fprintf(f, "\nOptions specific to %s:\n", program_name);
-		(void)fprintf(f, "  <dlt>           a valid DLT name, e.g. 'EN10MB'\n");
-		(void)fprintf(f, "  <expr>          a valid filter expression, e.g. 'tcp port 80'\n");
+	if (f != stdout)
+		exit(EX_USAGE);
+	(void)fprintf(f, "\nOptions specific to %s:\n", program_name);
+	(void)fprintf(f, "  <dlt>           a valid DLT name, e.g. 'EN10MB'\n");
+	(void)fprintf(f, "  <expr>          a valid filter expression, e.g. 'tcp port 80'\n");
 #ifdef __linux__
-		(void)fprintf(f, "  -l              allow the use of Linux BPF extensions\n");
+	(void)fprintf(f, "  -l              allow the use of Linux BPF extensions\n");
 #endif
 #ifdef BDEBUG
-		(void)fprintf(f, "  -g              print Graphviz dot graphs for the optimizer steps\n");
+	(void)fprintf(f, "  -g              print Graphviz dot graphs for the optimizer steps\n");
 #endif
-		(void)fprintf(f, "  -m <netmask>    use this netmask for pcap_compile(), e.g. 255.255.255.0\n");
-		(void)fprintf(f, "\n");
-		(void)fprintf(f, "Options common with tcpdump:\n");
-		(void)fprintf(f, "  -d              change output format (accumulates, one -d is implicit)\n");
-		(void)fprintf(f, "  -O              do not optimize the filter program\n");
-		(void)fprintf(f, "  -F <file>       read the filter expression from the specified file\n");
-		(void)fprintf(f, "  -s <snaplen>    set the snapshot length\n");
-		(void)fprintf(f, "  -r <file>       read the packets from this savefile\n");
-		(void)fprintf(f, "\nIf no filter expression is specified, it defaults to an empty string, which\n");
-		(void)fprintf(f, "accepts all packets.  If the -F option is in use, it replaces any filter\n");
-		(void)fprintf(f, "expression specified as a command-line argument.\n");
-	}
-	exit(f == stdout ? EX_OK : EX_USAGE);
+	(void)fprintf(f, "  -m <netmask>    use this netmask for pcap_compile(), e.g. 255.255.255.0\n");
+	(void)fprintf(f, "\n");
+	(void)fprintf(f, "Options common with tcpdump:\n");
+	(void)fprintf(f, "  -d              change output format (accumulates, one -d is implicit)\n");
+	(void)fprintf(f, "  -O              do not optimize the filter program\n");
+	(void)fprintf(f, "  -F <file>       read the filter expression from the specified file\n");
+	(void)fprintf(f, "                  (\"-\" means stdin and allows at most %u characters)\n", MAX_STDIN);
+	(void)fprintf(f, "  -s <snaplen>    set the snapshot length\n");
+	(void)fprintf(f, "  -r <file>       read the packets from this savefile\n");
+	(void)fprintf(f, "\nIf no filter expression is specified, it defaults to an empty string, which\n");
+	(void)fprintf(f, "accepts all packets.  If the -F option is in use, it replaces any filter\n");
+	(void)fprintf(f, "expression specified as a command-line argument.\n");
+	exit(EX_OK);
 }

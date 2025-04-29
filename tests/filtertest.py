@@ -31,6 +31,7 @@ import ctypes as ct
 import libpcap as pcap
 from libpcap._platform import is_windows, is_linux, defined
 from pcaptestutils import *  # noqa
+from pcaptestutils import error as _error
 from unix import *  # noqa
 
 #ifndef lint
@@ -41,6 +42,7 @@ copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
 #endif
 
 MAXIMUM_SNAPLEN = 262144
+MAX_STDIN = 64 * 1024
 
 if is_linux:
     # include <linux/filter.h>  # SKF_AD_VLAN_TAG_PRESENT
@@ -61,10 +63,16 @@ if is_linux:
     BPF_SPECIAL_BASIC_HANDLING = 0x00000002
 # endif
 
+cmdbuf: bytes = None
+fcode:  pcap.bpf_program = None
+pd:     ct.POINTER(pcap.pcap_t) = ct.POINTER(pcap.pcap_t)()
+
 def main(argv=sys.argv[1:]):
 
     global program_name
     program_name = os.path.basename(sys.argv[0])
+
+    global cmdbuf, fcode, pd
 
     try:
         opts, args = getopt.getopt(argv, "hdF:gm:Os:lr:")
@@ -185,11 +193,13 @@ def main(argv=sys.argv[1:]):
             pcap_set_optimizer_debug(dflag)
             pcap_set_print_dot_graph(gflag)
 
-    if infile:
-        cmdbuf = read_infile(infile)
-    else:
+    if not infile:
         # concatenating arguments with spaces.
         cmdbuf = " ".join(expression).encode("utf-8")
+    elif infile != "-":
+        read_infile(infile)
+    else:
+        read_stdin()
 
     fcode = pcap.bpf_program()
     if pcap.compile(pd, ct.byref(fcode), cmdbuf, Oflag, netmask) < 0:
@@ -220,10 +230,7 @@ def main(argv=sys.argv[1:]):
             else:
                 error("pcap_next_ex() failed: {}", ret, status=EX_IOERR)
 
-    del cmdbuf
-
-    pcap.freecode(ct.byref(fcode))
-    pcap.close(pd)
+    cleanup()
     if is_windows:
         # win32.WSACleanup( )  # !!!
         pass
@@ -231,7 +238,40 @@ def main(argv=sys.argv[1:]):
     return EX_OK
 
 
-def read_infile(fname: str) -> bytes:
+def error(*args, **kwargs):
+    cleanup()
+    _error(*args, **kwargs)
+
+
+def cleanup():
+    # atexit() is broken on Linux/ARMv7 with TinyCC, work around by calling this
+    # function explicitly just before exit() if there is a possibility any of
+    # these resources have been allocated.
+
+    global cmdbuf, fcode, pd
+
+    cmdbuf = None
+    pcap.freecode(ct.byref(fcode))
+    if pd: pcap.close(pd)
+    pd = ct.POINTER(pcap.pcap_t)()
+
+
+def blank_comments(cp: bytes) -> bytes:
+    # Replace "# comment" with spaces.
+    cp  = bytearray(cp)
+    i = 0 ; lcp = len(cp)
+    while i < lcp:
+        if cp[i] == ord('#'):
+            while i < lcp and cp[i] != ord('\n'):
+                cp[i] = ord(' ')
+                i += 1
+        i += 1
+    return bytes(cp)
+
+
+def read_infile(fname: str):
+
+    global cmdbuf
 
     try:
         fd = open(fname, "rb")
@@ -263,23 +303,34 @@ def read_infile(fname: str) -> bytes:
             error("read {}: {}",
                   fname, pcap.strerror(exc.errno).decode("utf-8", "ignore"),
                   status=EX_IOERR)
+    cmdbuf = cp
 
     lcp = len(cp)
     if lcp != stat.st_size:
         error("short read {} ({:d} != {:d})", fname, lcp, stat.st_size,
               status=EX_IOERR)
 
-    cp = bytearray(cp)
-    # replace "# comment" with spaces
-    i = 0
-    while i < lcp:
-        if cp[i] == ord('#'):
-            while i < lcp and cp[i] != ord('\n'):
-                cp[i] = ord(' ')
-                i += 1
-        i += 1
+    cmdbuf = blank_comments(cp)
 
-    return bytes(cp)
+
+def read_stdin():
+    # Copy stdin into a size-limited buffer.
+
+    global cmdbuf
+
+    try:
+        cp = fd.read()
+    except IOError as exc:
+        error("failed reading from stdin", status=EX_IOERR)
+
+    cmdbuf = cp
+
+    if len(cp) > MAX_STDIN:
+        error("received more than {:d} bytes on stdin", MAX_STDIN,
+              status=EX_DATAERR)
+
+    # No error, all data is within the buffer and NUL-terminated.
+    cmdbuf = blank_comments(cp)
 
 
 def usage(file):
@@ -296,35 +347,38 @@ def usage(file):
           file=file)
     print("  or:  {} -h".format(program_name), file=file)
     print("       (print the detailed help screen)", file=file)
-    if file is sys.stdout:
-        print("\nOptions specific to {}:".format(program_name), file=file)
-        print("  <dlt>           a valid DLT name, e.g. 'EN10MB'", file=file)
-        print("  <expr>          a valid filter expression, e.g. "
-              "'tcp port 80'", file=file)
-        if is_linux:
-            print("  -l              allow the use of Linux BPF extensions",
-                  file=file)
-        if defined("BDEBUG"):
-            print("  -g              print Graphviz dot graphs for the "
-                  "optimizer steps", file=file)
-        print("  -m <netmask>    use this netmask for pcap_compile(), "
-              "e.g. 255.255.255.0", file=file)
-        print("\nOptions common with tcpdump:", file=file)
-        print("  -d              change output format (accumulates, one -d "
-              "is implicit)", file=file)
-        print("  -O              do not optimize the filter program",
+    if file is not sys.stdout:
+        sys.exit(EX_USAGE)
+    print("\nOptions specific to {}:".format(program_name), file=file)
+    print("  <dlt>           a valid DLT name, e.g. 'EN10MB'", file=file)
+    print("  <expr>          a valid filter expression, e.g. "
+          "'tcp port 80'", file=file)
+    if is_linux:
+        print("  -l              allow the use of Linux BPF extensions",
               file=file)
-        print("  -F <file>       read the filter expression from the "
-              "specified file", file=file)
-        print("  -s <snaplen>    set the snapshot length", file=file)
-        print("  -r <file>       read the packets from this savefile",
-              file=file)
-        print("\nIf no filter expression is specified, it defaults to an "
-              "empty string, which", file=file)
-        print("accepts all packets.  If the -F option is in use, it replaces "
-              "any filter", file=file)
-        print("expression specified as a command-line argument.", file=file)
-    sys.exit(EX_OK if file is sys.stdout else EX_USAGE)
+    if defined("BDEBUG"):
+        print("  -g              print Graphviz dot graphs for the "
+              "optimizer steps", file=file)
+    print("  -m <netmask>    use this netmask for pcap_compile(), "
+          "e.g. 255.255.255.0", file=file)
+    print("\nOptions common with tcpdump:", file=file)
+    print("  -d              change output format (accumulates, one -d "
+          "is implicit)", file=file)
+    print("  -O              do not optimize the filter program",
+          file=file)
+    print("  -F <file>       read the filter expression from the "
+          "specified file", file=file)
+    print("                  (\"-\" means stdin and allows at most %u "
+          "characters)".format(MAX_STDIN), file=file)
+    print("  -s <snaplen>    set the snapshot length", file=file)
+    print("  -r <file>       read the packets from this savefile",
+          file=file)
+    print("\nIf no filter expression is specified, it defaults to an "
+          "empty string, which", file=file)
+    print("accepts all packets.  If the -F option is in use, it replaces "
+          "any filter", file=file)
+    print("expression specified as a command-line argument.", file=file)
+    sys.exit(EX_OK)
 
 
 if __name__.rpartition(".")[-1] == "__main__":

@@ -23,8 +23,8 @@ def setup(app):
 # -- Project information -----------------------------------------------------
 
 project   = about.__title__
-copyright = about.__copyright__
 author    = about.__author__
+copyright = about.__copyright__
 
 # The full version, including alpha/beta/rc tags
 release = about.__version__

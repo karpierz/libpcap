@@ -1,7 +1,7 @@
 Changelog
 =========
 
-1.11.0b21 (2025-04-28)
+1.11.0b22 (2025-04-28)
 ----------------------
 - Add support for Python 3.14
 - Drop support for Python 3.9 (due to compatibility issues).

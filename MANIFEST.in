@@ -10,6 +10,7 @@ include .readthedocs.yml
 graft docs
 
 graft examples
+prune examples/examples.c
 
 graft src
 prune src/libpcap/pcap.h

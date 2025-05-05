@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.11.0b23 (2025-05-04)
+----------------------
+- Minor fixes of tests.
+- Setup (dependencies) update.
+
 1.11.0b22 (2025-04-28)
 ----------------------
 - Add support for Python 3.14

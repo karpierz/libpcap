@@ -190,8 +190,8 @@ def main(argv=sys.argv[1:]):
             pd.contents.bpf_codegen_flags |= BPF_SPECIAL_BASIC_HANDLING
 
         if defined("BDEBUG"):
-            pcap_set_optimizer_debug(dflag)
-            pcap_set_print_dot_graph(gflag)
+            pcap.set_optimizer_debug(dflag)
+            pcap.set_print_dot_graph(gflag)
 
     if not infile:
         # concatenating arguments with spaces.

@@ -334,7 +334,7 @@ def main(argv=sys.argv[1:]):
             error("Can't catch SIGINT: {}", strerror(errno))
 
     print("Listening on {}, link-type ".format(device2str(device)), end="")
-    dlt = pcap_datalink(pd)
+    dlt = pcap.datalink(pd)
     dlt_name = pcap.datalink_val_to_name(dlt)
     if dlt_name is None:
         print("DLT {}".formt(dlt), end="")

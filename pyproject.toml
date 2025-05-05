@@ -101,6 +101,7 @@ libpcap = [
     '*/*/*/*.dylib',
     '*/*/*/*/*.dylib',
     '*/*/*/.keep',
+    '*/*/*/*/.keep',
 ]
 
 [tool.setuptools.exclude-package-data]

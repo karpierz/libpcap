@@ -1,5 +1,5 @@
 # Copyright (c) 2016 Adam Karpierz
-# SPDX-License-Identifier: BSD-3-Clause
+# SPDX-License-Identifier: Zlib
 
 __all__ = ('make_config',)
 
@@ -46,6 +46,6 @@ def set_config(fglobals, **cfg_dict):
     # Reload
     for mod_name in tuple(sys.modules):
         if (mod_name.startswith(package_name + ".")
-            and mod_name != config_name):  # noqa: E129
+           and mod_name != config_name):
             del sys.modules[mod_name]
     importlib.reload(sys.modules[package_name])

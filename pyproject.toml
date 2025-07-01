@@ -3,11 +3,11 @@
 
 [build-system]
 build-backend = 'setuptools.build_meta'
-requires = ['setuptools>=80.7.1', 'packaging>=25.0.0', 'tox>=4.26.0']
+requires = ['setuptools>=80.9.0', 'packaging>=25.0.0', 'tox>=4.27.0']
 
 [project]
 name        = 'libpcap'
-version     = '1.11.0b24'
+version     = '1.11.0b25'
 description = 'Python binding for the libpcap C library.'
 authors = [
     { name  = 'Adam Karpierz' },
@@ -45,8 +45,8 @@ classifiers = [
 requires-python = '>=3.10.0,<4.0.0'
 dependencies = [
     # mandatory
-    'setuptools>=80.7.1',
-    'pkg-about>=1.3.5',
+    'setuptools>=80.9.0',
+    'pkg-about>=1.3.6',
     # others
 ]
 dynamic = ['readme']
@@ -147,17 +147,10 @@ ignore = ['E126','E203','E221','E251','E302','E701','E702','E731',
           'E122','E127','E128','E222','E272','E241','E266','E226','E704',
           'D100','D101','D102','D103','D104','D400','D401','D202',
           'N806','N802','N803','N801',
-          'I100','W503','F401']
+          'I100','W503']
 # (e.g. 'E4','W') default: 'E121','E123','126','226','E24','704'
 #select =
 #select = ['E','W','F','N','I']
-per-file-ignores = [
-    '*/libpcap/_pcap.py: E305',
-    '*/libpcap/_platform/__init__.py: E305',
-    '*/libpcap/_platform/_windows/__init__.py: E305',
-    '*/libpcap/_platform/_macos/__init__.py: E305',
-    '*/libpcap/_platform/_linux/__init__.py: E305',
-]
 output-file = '.tox/lint/flake8out.txt'
 count = true
 #show-pep8,
@@ -171,12 +164,12 @@ count = true
 
 [tool.tox]
 env_list = [{replace='ref',of=['tool','tox','labels','py'],extend=true}, 'lint', 'docs']
-min_version = '4.26.0'
+min_version = '4.27.0'
 skip_missing_interpreters = true
 requires = [
     {replace='ref',of=['tool','tox','_','base','deps'],extend=true},
     'virtualenv>=20.31.2',
-    'tox-backtick>=0.6.3',
+    'tox-backtick>=0.6.4',
 ]
 [tool.tox.labels]
 py = ['py310','py311','py312','py313','py314', 'pypy310','pypy311']
@@ -191,13 +184,14 @@ deploy = [{replace='ref',of=['tool','tox','labels','build'],extend=true}, 'publi
 base_python = ['python3.13']
 deps = [
     'pip>=25.1.1',
-    'setuptools>=80.7.1',
+    'setuptools>=80.9.0',
 ]
 package_subdir = 'libpcap'
 
 [tool.tox.env_run_base]
 description = "Run tests under {base_python}"
 set_env.PYTHONDONTWRITEBYTECODE = '1'
+set_env.PKG_IMPL = "`python -W ignore -c \"import platform ; pimpl = platform.python_implementation() ; print('cp' if pimpl == 'CPython' else 'pp' if pimpl == 'PyPy' else '', end='')\" 2> nul`"
 set_env.PKG_PVER = "`python -W ignore -c \"import platform ; print(''.join(platform.python_version_tuple()[:2]), end='')\" 2> nul`"
 set_env.PKG_NAME = "`python -W ignore -c \"import setuptools ; setuptools._distutils.core._setup_stop_after='config' ; print(setuptools.setup().metadata.get_name(),     end='')\" 2> nul`"
 set_env.PKG_DIST = "`python -W ignore -c \"import setuptools ; setuptools._distutils.core._setup_stop_after='config' ; print(setuptools.setup().metadata.get_fullname(), end='')\" 2> nul`"
@@ -233,16 +227,16 @@ commands = [
 ]
 deps = [
     {replace='ref',of=['tool','tox','env_run_base','deps'],extend=true},
-    'coverage>=7.8.0',
+    'coverage>=7.9.1',
     'covdefaults>=2.3.0',
-    'diff-cover>=9.2.4',
+    'diff-cover>=9.4.1',
 ]
 
 [tool.tox.env.'docs']
 base_python = {replace='ref',of=['tool','tox','_','base','base_python']}
 commands = [
     ['{env_python}','-m','sphinxlint','--ignore','.tox','--ignore','build','--ignore','dist'],
-   #['{env_python}','-m','sphinx.apidoc','-f','{envsitepackagesdir}/{[tool.tox._.base]package_subdir}'],
+   #['{env_python}','-m','sphinx.apidoc','-f','{env_site_packages_dir}/{[tool.tox._.base]package_subdir}'],
     ['{env_python}','-m','sphinx.cmd.build','-W','-a','-b','html','-E','./docs','./build/docs/html'],
     ['{env_python}','-m','sphinx.cmd.build','-W','-a','-b','linkcheck','./docs','./build/docs/html'],
     ['{env_python}','-m','sphinx.cmd.build','-W','-a','-b','doctest',  './docs','./build/docs/html'],
@@ -282,12 +276,13 @@ deps = [
 [tool.tox.env.'lint']
 base_python = {replace='ref',of=['tool','tox','_','base','base_python']}
 commands = [
-    ['{env_python}','-m','flake8','{envsitepackagesdir}/{[tool.tox._.base]package_subdir}/'],
+    ['{env_python}','-m','flake8','{env_site_packages_dir}/{[tool.tox._.base]package_subdir}/'],
 ]
 extras = []
 deps = [
     {replace='ref',of=['tool','tox','env_run_base','deps'],extend=true},
-    'flake8>=7.2.0',
+    'flake8>=7.3.0',
+    'flake8-in-file-ignores>=0.3.0',
     'flake8-pyproject>=1.2.3',
     'flake8-docstrings>=1.7.0',
     'pep8-naming>=0.15.1',

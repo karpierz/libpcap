@@ -10,8 +10,9 @@ import ctypes as ct
 import socket
 
 import libpcap as pcap
-# int daemon_serviceloop(int sockctrl, int isactive, char *passiveClients, int nullAuthAllowed, int uses_ssl);
-# from ??? import daemon_serviceloop
+# int daemon_serviceloop(pcap.PCAP_SOCKET sockctrl, int isactive, char *passiveClients,
+#                        int nullAuthAllowed, char *data_port, int uses_ssl);
+# from !!! ??? import daemon_serviceloop
 from _utils import sock_initfuzz
 from _utils import *  # noqa
 
@@ -22,14 +23,9 @@ class log_priority(enum.IntEnum):
     LOGPRIO_WARNING = 2
     LOGPRIO_ERROR   = 3
 
-def rpcapd_log(priority: log_priority, const char *message, ...):
+def rpcapd_log(priority: log_priority, message: str, *args):
     global outfile
-    va_list ap;
-    va_start(ap, message);
-    print("rpcapd[%d]:", priority, end="", file=outfile)
-    vprint(message, ap, end="", file=outfile)
-    print(file=outfile)
-    va_end(ap);
+    print("rpcapd[%d]:%s" % (priority, message % args), file=outfile)
 
 
 outfile = None
@@ -57,7 +53,7 @@ def LLVMFuzzerTestOneInput(data: bytes) -> int:
         os.abort()
 
     # dummy socket, active, null auth allowed, no ssl
-    daemon_serviceloop(sock, 1, malloc(0), 1, 0)
+    daemon_serviceloop(sock, 1, libc.malloc(0), 1, b"\0", 0)
 
     return 0
 

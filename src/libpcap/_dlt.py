@@ -197,7 +197,7 @@ if defined("__NetBSD__"):
 # platforms.
 
 if (defined("__OpenBSD__") or defined("__NetBSD__")
-    or defined("__DragonFly__") or defined("__APPLE__")):  # noqa: E129
+   or defined("__DragonFly__") or defined("__APPLE__")):
     DLT_PFSYNC = 18
 
 DLT_ATM_CLIP = 19  # Linux Classical IP over ATM
@@ -1144,8 +1144,8 @@ DLT_NFC_LLCP = 245
 # don't already define it, define it as 246.
 
 if (not defined("__FreeBSD__") and not defined("__OpenBSD__")
-    and not defined("__NetBSD__") and not defined("__DragonFly__")
-    and not defined("__APPLE__")):  # noqa: E129
+   and not defined("__NetBSD__") and not defined("__DragonFly__")
+   and not defined("__APPLE__")):
     DLT_PFSYNC = 246
 
 # Raw InfiniBand packets, starting with the Local Routing Header.

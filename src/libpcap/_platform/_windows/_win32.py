@@ -1,3 +1,5 @@
+# flake8-in-file-ignores: noqa: E305,F401
+
 # Copyright (c) 2013 Adam Karpierz
 # SPDX-License-Identifier: Zlib
 
@@ -55,7 +57,7 @@ class SECURITY_ATTRIBUTES(ctypes.Structure):
     ("lpSecurityDescriptor", LPVOID),
     ("bInheritHandle",       BOOL),
 ]
-LPSECURITY_ATTRIBUTES = ctypes.POINTER(SECURITY_ATTRIBUTES)  # noqa: E305
+LPSECURITY_ATTRIBUTES = ctypes.POINTER(SECURITY_ATTRIBUTES)
 
 LPTHREAD_START_ROUTINE = WINFUNCTYPE(DWORD, LPVOID)
 CreateThread = windll.kernel32.CreateThread
@@ -128,7 +130,7 @@ class SYSTEMTIME(ctypes.Structure):
     ("wSecond",       WORD),
     ("wMilliseconds", WORD),
 ]
-LPSYSTEMTIME = ctypes.POINTER(SYSTEMTIME)  # noqa: E305
+LPSYSTEMTIME = ctypes.POINTER(SYSTEMTIME)
 
 GetLocalTime = windll.kernel32.GetLocalTime
 GetLocalTime.restype  = None
@@ -162,7 +164,7 @@ class WSADATA(ctypes.Structure):
     ("lpVendorInfo",   ctypes.c_char_p),
 ]
 
-LPWSADATA = ctypes.POINTER(WSADATA)  # noqa: E305
+LPWSADATA = ctypes.POINTER(WSADATA)
 
 WSAStartup = windll.Ws2_32.WSAStartup
 WSAStartup.restype  = ctypes.c_int
@@ -174,4 +176,4 @@ WSACleanup.argtypes = []
 
 def MAKEWORD(blow, bhigh): return (bhigh << 8) + blow
 
-del ctypes  # noqa: E305
+del ctypes

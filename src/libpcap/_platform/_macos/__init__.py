@@ -1,3 +1,5 @@
+# flake8-in-file-ignores: noqa: E305,E402,F401
+
 # Copyright (c) 2016 Adam Karpierz
 # SPDX-License-Identifier: BSD-3-Clause
 
@@ -39,9 +41,9 @@ elif LIBPCAP == "tcpdump":
 else:
     raise ValueError("Improper value of the LIBPCAP configuration variable: {}".format(LIBPCAP))
 
-from ctypes  import CDLL as DLL         # noqa: E402
-from _ctypes import dlclose             # noqa: E402
-from ctypes  import CFUNCTYPE as CFUNC  # noqa: E402
+from ctypes  import CDLL as DLL
+from _ctypes import dlclose
+from ctypes  import CFUNCTYPE as CFUNC
 
 DLL = partial(DLL, mode=ct.RTLD_GLOBAL)
 

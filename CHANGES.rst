@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.11.0b25 (2025-06-30)
+----------------------
+- Upgrade to the latest libpcap API 1.11.0-PRE
+- Setup (dependencies) update.
+
 1.11.0b24 (2025-05-15)
 ----------------------
 - The distribution is now created using 'build' instead of 'setuptools'.

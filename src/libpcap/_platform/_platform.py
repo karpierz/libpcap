@@ -1,3 +1,5 @@
+# flake8-in-file-ignores: noqa: A005
+
 # Copyright (c) 1994 Adam Karpierz
 # SPDX-License-Identifier: Zlib
 
@@ -24,5 +26,7 @@ is_32bit   = (sys.maxsize <= 2**32)
 is_ucs2    = (sys.maxunicode < 0x10FFFF)
 is_cpython = (platform.python_implementation().lower() == "cpython")
 is_pypy    = (platform.python_implementation().lower() == "pypy")
+is_ironpython = (platform.python_implementation().lower() == "ironpython"
+                 or "cli" in (platform.system().lower(), sys.platform))
 
 del sys, os, platform

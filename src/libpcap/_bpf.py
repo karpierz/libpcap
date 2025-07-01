@@ -1,3 +1,5 @@
+# flake8-in-file-ignores: noqa: E722
+
 # Copyright (c) 2016 Adam Karpierz
 # SPDX-License-Identifier: BSD-3-Clause
 
@@ -244,7 +246,7 @@ try:  # PCAP_AVAILABLE_0_4
         (1, "buflen"),))
     PCAP_DEPRECATED(bpf_filter,
                     "use pcap_offline_filter()")
-except: pass  # noqa: E722
+except: pass
 
 try:  # PCAP_AVAILABLE_0_6
     bpf_validate = CFUNC(ct.c_int,
@@ -253,7 +255,7 @@ try:  # PCAP_AVAILABLE_0_6
         ("bpf_validate", dll), (
         (1, "insn"),
         (1, "len"),))
-except: pass  # noqa: E722
+except: pass
 
 try:  # PCAP_AVAILABLE_0_4
     bpf_image = CFUNC(ct.c_char_p,
@@ -262,7 +264,7 @@ try:  # PCAP_AVAILABLE_0_4
         ("bpf_image", dll), (
         (1, "insn"),
         (1, "len"),))
-except: pass  # noqa: E722
+except: pass
 
 try:  # PCAP_AVAILABLE_0_6
     bpf_dump = CFUNC(None,
@@ -271,7 +273,7 @@ try:  # PCAP_AVAILABLE_0_6
         ("bpf_dump", dll), (
         (1, "prog"),
         (1, "option"),))
-except: pass  # noqa: E722
+except: pass
 
 #
 # Number of scratch memory words (for BPF_LD|BPF_MEM and BPF_ST).

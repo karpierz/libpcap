@@ -1,3 +1,5 @@
+# flake8-in-file-ignores: noqa: E305,E402,F401,N813,N814
+
 # Copyright (c) 2016 Adam Karpierz
 # SPDX-License-Identifier: BSD-3-Clause
 
@@ -12,12 +14,10 @@ arch     = "x86" if is_32bit else "x64"
 arch_dir = os.path.join(this_dir, arch)
 
 def _DLL(*args, **kwargs):
-    from ctypes import windll, WinDLL
-    windll.kernel32.SetDllDirectoryA(os.path.dirname(args[0]).encode("utf-8"))
-    try:
+    import os
+    from ctypes import WinDLL
+    with os.add_dll_directory(os.path.dirname(args[0])):
         return WinDLL(*args, **kwargs)
-    finally:
-        windll.kernel32.SetDllDirectoryA(None)
 
 found = False
 try:
@@ -34,7 +34,7 @@ except ImportError:
         if not LIBPCAP:
             raise OSError("Cannot find wpcap.dll library") from None
         found = True
-        from ctypes import WinDLL as DLL  # noqa: E402,N814
+        from ctypes import WinDLL as DLL
 else:
     DLL = _DLL
 
@@ -59,10 +59,10 @@ else:
     raise ValueError("Improper value of the LIBPCAP configuration variable: {}".format(LIBPCAP))
 
 try:
-    from _ctypes import FreeLibrary as dlclose  # noqa: E402,N813
+    from _ctypes import FreeLibrary as dlclose
 except ImportError:
     dlclose = lambda handle: 0
-from ctypes import CFUNCTYPE as CFUNC  # noqa: E402
+from ctypes import CFUNCTYPE as CFUNC
 
 time_t = ct.c_uint64
 

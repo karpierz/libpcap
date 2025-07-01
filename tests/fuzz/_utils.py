@@ -3,6 +3,12 @@
 
 import ctypes as ct
 
+from libpcap import is_windows
+
+if is_windows:
+    libc = ct.cdll.msvcrt
+else:
+    libc = ct.CDLL("libc.so.6")
 
 ebuf2str = lambda ebuf: ebuf.value.decode("utf-8", "ignore")
 

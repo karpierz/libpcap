@@ -1,5 +1,5 @@
-# Copyright (c) 2016 Adam Karpierz
-# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 1994 Adam Karpierz
+# SPDX-License-Identifier: Zlib
 
 from ._platform import DLL_PATH, DLL
 from ._platform import dlclose  # noqa: F401

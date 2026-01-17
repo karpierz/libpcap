@@ -3,8 +3,8 @@
 # Copyright (c) 2016 Adam Karpierz
 # SPDX-License-Identifier: BSD-3-Clause
 
-from .__about__ import * ; del __about__
+from .__about__ import * ; del __about__  # type: ignore[name-defined]
 from . import __config__ ; del __config__
-from .__config__ import set_config as config
+from .__config__ import set_config as config  # type: ignore[attr-defined]
 
-from ._pcap import * ; del _pcap
+from ._pcap import * ; del _pcap  # type: ignore[name-defined]

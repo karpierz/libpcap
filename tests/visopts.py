@@ -241,10 +241,10 @@ def write_html(expr, gcount, logs):
         return s.replace("'", "\'")
 
     mapping = {
-        'expr_html': html.escape(expr),
-        'expr_json': encode(expr),
-        'gcount': gcount,
-        'logs': encode(json.dumps([s.strip().replace("\n", "<br/>") for s in logs])),
+        "expr_html": html.escape(expr),
+        "expr_json": encode(expr),
+        "gcount": gcount,
+        "logs": encode(json.dumps([s.strip().replace("\n", "<br/>") for s in logs])),
     }
     with open("expr1.html", "wt") as f:
         f.write(html_template.safe_substitute(mapping))
@@ -276,7 +276,7 @@ def render_on_html(infile):
 
         if indot == 2:
             try:
-                svg = subprocess.check_output(['dot', '-Tsvg'], input=dot, universal_newlines=True)
+                svg = subprocess.check_output(["dot", "-Tsvg"], input=dot, universal_newlines=True)
             except OSError as ose:
                 print("Failed to run 'dot':", ose)
                 print("(Is Graphviz installed?)")
@@ -321,7 +321,7 @@ def main(argv=sys.argv[1:]):
     import atexit
     import shutil
 
-    if '-h' in argv or '--help' in argv:
+    if "-h" in argv or "--help" in argv:
         print(__doc__)
         return 0
 

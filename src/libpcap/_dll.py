@@ -5,8 +5,8 @@ from ._platform import DLL_PATH, DLL
 from ._platform import dlclose  # noqa: F401
 
 try:
-    dll = DLL(DLL_PATH)
+    dll = DLL(str(DLL_PATH))
 except OSError as exc:  # pragma: no cover
     raise exc
 except Exception as exc:  # pragma: no cover
-    raise OSError("{}".format(exc)) from None
+    raise OSError(f"{exc}") from None

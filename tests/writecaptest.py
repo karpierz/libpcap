@@ -22,7 +22,6 @@
 # WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 # MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-from typing import Optional
 import sys
 import os
 import getopt
@@ -42,8 +41,8 @@ copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
 pd = ct.POINTER(pcap.pcap_t)()
 
 if is_windows:
-    @win32.PHANDLER_ROUTINE
-    def stop_capture(ctrltype: win32.DWORD) -> win32.BOOL:
+    @winapi.PHANDLER_ROUTINE
+    def stop_capture(ctrltype: winapi.DWORD) -> winapi.BOOL:
         global pd
         pcap.breakloop(pd)
         return True
@@ -106,8 +105,8 @@ def find_interface_by_number(devnum: int) -> bytes:
     return device
 
 
-def open_interface(device: bytes, snaplen: Optional[int],
-                   ebuf: ct.POINTER(ct.c_char)) -> Optional[ct.POINTER(pcap.pcap_t)]:
+def open_interface(device: bytes, snaplen: int | None,
+                   ebuf: ct.POINTER(ct.c_char)) -> ct.POINTER(pcap.pcap_t) | None:
     """ """
     pc = pcap.create(device, ebuf)
     if not pc:
@@ -179,10 +178,10 @@ def main(argv=sys.argv[1:]):
 
     show_interfaces = False
     show_dlt_types  = False
-    device:   Optional[bytes] = None
-    snaplen:  Optional[int]   = None
-    savefile: Optional[bytes]   = None
-    dlt_name: Optional[bytes] = None
+    device:   bytes | None = None
+    snaplen:  int   | None = None
+    savefile: bytes | None = None
+    dlt_name: bytes | None = None
     for opt, optarg in opts:
         if opt == '-D':
             show_interfaces = True
@@ -200,7 +199,7 @@ def main(argv=sys.argv[1:]):
         elif opt == '-y':
             dlt_name = optarg.encode("utf-8")
         else:
-            usage();
+            usage()
 
     expression = args
 
@@ -324,7 +323,7 @@ def main(argv=sys.argv[1:]):
         error("{}", geterr2str(pd))
 
     if is_windows:
-        win32.SetConsoleCtrlHandler(stop_capture, True)
+        winapi.SetConsoleCtrlHandler(stop_capture, True)
     else:
         action = sigaction()
         action.sa_handler = stop_capture

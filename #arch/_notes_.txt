@@ -1,0 +1,16 @@
+https://anaconda.org/conda-forge/libpcap/files?channel=main&type=conda
+https://anaconda.org/conda-forge/libpcap/files?channel=main&type=conda&version=1.10.4
+
+https://packages.debian.org/search?keywords=libpcap
+https://packages.debian.org/buster-backports/libs/libpcap0.8    # Debian 10 (buster)
+https://packages.debian.org/bullseye-backports/libs/libpcap0.8  # Debian 11 (bullseye)
+
+https://github.com/nmap/npcap/
+
+https://www.voipmonitor.org/doc/Windows_rpcapd
+
+https://github.com/appneta/tcpreplay
+http://info.iet.unipi.it/~luigi/netmap/
+
+https://www.win10pcap.org/
+https://github.com/SoftEtherVPN/Win10Pcap

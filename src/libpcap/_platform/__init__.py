@@ -1,40 +1,32 @@
-# flake8-in-file-ignores: noqa: E305,F401,F403,F405
+# flake8-in-file-ignores: noqa: F403,F405
 
 # Copyright (c) 2016 Adam Karpierz
 # SPDX-License-Identifier: BSD-3-Clause
 
-import sys
-import os
-import ctypes as ct
+__all__ = (
+    'is_windows', 'is_linux', 'is_macos', 'defined',
+    'DLL_PATH', 'DLL', 'dlclose', 'CFUNC',
+    'limits', 'time_t', 'timeval',
+    'SOCKET', 'INVALID_SOCKET', 'sockaddr',
+    'in_addr', 'sockaddr_in', 'in6_addr', 'sockaddr_in6',
+)
 
-from ._platform import *
+from utlx import defined
+from utlx.platform import *
+from utlx.platform import limits
+if is_windows:  # pragma: no cover
+    from .windows import DLL_PATH, DLL, dlclose, CFUNC
+elif is_linux:  # pragma: no cover
+    from .linux   import DLL_PATH, DLL, dlclose, CFUNC
+elif is_macos:  # pragma: no cover
+    from .macos   import DLL_PATH, DLL, dlclose, CFUNC
+else:  # pragma: no cover
+    raise ImportError("Unsupported platform")
+if not DLL_PATH.exists():
+    raise ImportError(f"Shared library not found: {DLL_PATH}")
 
-def defined(varname, __getframe=sys._getframe):
-    frame = __getframe(1)
-    return varname in frame.f_locals or varname in frame.f_globals
-
-def from_oid(oid, __cast=ct.cast, __py_object=ct.py_object):
-    return __cast(oid, __py_object).value if oid else None
-
-del sys, os, ct
-
-if is_windows:
-    from ._windows import (DLL_PATH, DLL, dlclose, CFUNC,
-                           time_t, timeval,
-                           SOCKET, INVALID_SOCKET, sockaddr,
-                           in_addr, sockaddr_in,
-                           in6_addr, sockaddr_in6)
-elif is_linux:
-    from ._linux import (DLL_PATH, DLL, dlclose, CFUNC,
-                         time_t, timeval,
-                         SOCKET, INVALID_SOCKET, sockaddr,
-                         in_addr, sockaddr_in,
-                         in6_addr, sockaddr_in6)
-elif is_macos:
-    from ._macos import (DLL_PATH, DLL, dlclose, CFUNC,
-                         time_t, timeval,
-                         SOCKET, INVALID_SOCKET, sockaddr,
-                         in_addr, sockaddr_in,
-                         in6_addr, sockaddr_in6)
-else:
-    raise ImportError("unsupported platform")
+from utlx.platform.capi import (
+    time_t, timeval,
+    SOCKET, INVALID_SOCKET, sockaddr,
+    in_addr,  sockaddr_in, in6_addr, sockaddr_in6,
+)

@@ -192,11 +192,22 @@ Authors
 
 * Adam Karpierz <adam@karpierz.net>
 
+Sponsoring
+==========
+
+| If you would like to sponsor the development of this project, your contribution
+  is greatly appreciated.
+| As I am now retired, any support helps me dedicate more time to maintaining and
+  improving this work.
+
+`Donate`_
+
 .. |package| replace:: libpcap
 .. |package_bold| replace:: **libpcap**
-.. |copyright| replace:: Copyright (c) 2016-2025 Adam Karpierz
-.. |respository| replace:: https://github.com/karpierz/libpcap.git
+.. |copyright| replace:: Copyright (c) 2016-2026 Adam Karpierz
+.. |respository| replace:: https://github.com/karpierz/libpcap
 .. _Development page: https://github.com/karpierz/libpcap
 .. _PyPI record: https://pypi.org/project/libpcap/
-.. _Documentation: https://libpcap.readthedocs.io/
+.. _Documentation: https://karpierz.github.io/libpcap/
+.. _Donate: https://www.paypal.com/donate/?hosted_button_id=FX8L7CJUGLW7S
 .. _Libpcap File Format: https://wiki.wireshark.org/Development/LibpcapFileFormat

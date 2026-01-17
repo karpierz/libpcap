@@ -49,6 +49,8 @@
 # so moving that stuff to <pcap/pcap.h> would break the build for some
 # programs.
 
+from typing import Any
+from collections.abc import Callable
 import ctypes as ct
 
 from ._platform import defined
@@ -59,7 +61,9 @@ from ._dll      import dll
 #
 from ._dlt import *  # noqa
 
-PCAP_DEPRECATED = lambda func, msg: None
+def PCAP_DEPRECATED(func: Callable[..., Any], msg: str) -> None:
+    return None
+
 
 # BSD style release date
 

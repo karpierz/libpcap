@@ -22,8 +22,6 @@ elif is_macos:  # pragma: no cover
     from .macos   import DLL_PATH, DLL, dlclose, CFUNC
 else:  # pragma: no cover
     raise ImportError("Unsupported platform")
-if not DLL_PATH.exists():
-    raise ImportError(f"Shared library not found: {DLL_PATH}")
 
 from utlx.platform.capi import (
     time_t, timeval,

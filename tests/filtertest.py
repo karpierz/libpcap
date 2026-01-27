@@ -30,9 +30,12 @@ import ctypes as ct
 
 import libpcap as pcap
 from libpcap._platform import is_windows, is_linux, defined
+from libpcap._platform import limits
 from pcaptestutils import *  # noqa
 from pcaptestutils import error as _error
 from unix import *  # noqa
+
+UINT16_MAX = limits.USHRT_MAX
 
 #ifndef lint
 copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
@@ -41,8 +44,10 @@ copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
             "All rights reserved.\n"
 #endif
 
-MAXIMUM_SNAPLEN = 262144
-MAX_STDIN = 64 * 1024
+MAXIMUM_SNAPLEN  = 262144
+MAX_STDIN        = 64 * 1024
+BPF_IMAGE_UNIMPL = b"(000) unimp"
+BPF_IMAGE_ARGV   = b"_enumerate_bpf_image"
 
 if is_linux:
     # include <linux/filter.h>  # SKF_AD_VLAN_TAG_PRESENT
@@ -80,8 +85,8 @@ def main(argv=sys.argv[1:]):
         usage(sys.stderr)
 
     if is_windows:
-        wsa_data = win32.WSADATA()
-        if win32.WSAStartup(win32.MAKEWORD(2, 2), ct.byref(wsa_data)) != 0:
+        wsa_data = winapi.WSADATA()
+        if winapi.WSAStartup(winapi.MAKEWORD(2, 2), ct.byref(wsa_data)) != 0:
         #if hasattr(pcap, "wsockinit") and pcap.wsockinit() != 0:
             return 1
 
@@ -200,8 +205,15 @@ def main(argv=sys.argv[1:]):
         read_infile(infile)
     else:
         read_stdin()
+    # cmdbuf may still be None.
+
+    if cmdbuf is not None and cmdbuf == BPF_IMAGE_ARGV:
+        enumerate_bpf_image()
+        cleanup()
+        return EX_OK
 
     fcode = pcap.bpf_program()
+    # cmdbuf == None is valid.
     if pcap.compile(pd, ct.byref(fcode), cmdbuf, Oflag, netmask) < 0:
         error("{}", geterr2str(pd), status=EX_DATAERR)
 
@@ -210,11 +222,15 @@ def main(argv=sys.argv[1:]):
 
     if not insavefile:
         if defined("BDEBUG"):
-            # replace line feed with space
-            mcodes = cmdbuf.decode("utf-8", "ignore")
-            mcodes = mcodes.replace('\r', ' ').replace('\n', ' ')
             # only show machine code if BDEBUG defined, since dflag > 3
-            print("machine codes for filter: {}".format(mcodes))
+            print("machine codes for filter: ", end="")
+            if cmdbuf is None:
+                print("NULL")
+            else:
+                # replace line feed with space
+                mcodes = cmdbuf.decode("utf-8", "ignore")
+                mcodes = mcodes.replace("\r", " ").replace("\n", " ")
+                print("'%s'" % mcodes)
         pcap.bpf_dump(ct.byref(fcode), dflag)
     else:
         h = ct.POINTER(pcap.pkthdr)()
@@ -232,7 +248,7 @@ def main(argv=sys.argv[1:]):
 
     cleanup()
     if is_windows:
-        # win32.WSACleanup( )  # !!!
+        # winapi.WSACleanup( )  # !!!
         pass
 
     return EX_OK
@@ -294,9 +310,9 @@ def read_infile(fname: str):
         # big will take forever to compile).  (The -1 is for the '\0' at
         # the end of the string.)
         #
-        if stat.st_size > INT_MAX - 1:
+        if stat.st_size > limits.INT_MAX - 1:
             error("{} is larger than {} bytes; that's too large",
-                  fname, INT_MAX - 1, status=EX_DATAERR)
+                  fname, limits.INT_MAX - 1, status=EX_DATAERR)
         try:
             cp = fd.read()
         except IOError as exc:
@@ -331,6 +347,15 @@ def read_stdin():
 
     # No error, all data is within the buffer and NUL-terminated.
     cmdbuf = blank_comments(cp)
+
+
+def enumerate_bpf_image():
+    insn = pcap.bpf_insn(code=0x0000, jt=0xab, jf=0xcd, k =0xabcd)
+    while insn.code != UINT16_MAX:
+        image = pcap.bpf_image(ct.byref(insn), 0)
+        if image != BPF_IMAGE_UNIMPL: #, sizeof(BPF_IMAGE_UNIMPL) - 1
+            print("%-50s; 0x%04x" % (image.decode("utf-8", "ignore"), insn.code))
+        insn.code += 1
 
 
 def usage(file):

@@ -2,28 +2,28 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 [build-system]
+requires = ['setuptools>=80.10.2', 'packaging>=26.0.0']
 build-backend = 'setuptools.build_meta'
-requires = ['setuptools>=80.9.0', 'packaging>=25.0.0', 'tox>=4.27.0']
 
 [project]
 name        = 'libpcap'
-version     = '1.11.0b25'
+version     = '1.11.0b28'
 description = 'Python binding for the libpcap C library.'
 authors = [
-    { name  = 'Adam Karpierz' },
-    { email = 'adam@karpierz.net' },
+    { name  = 'Adam Karpierz', email = 'adam@karpierz.net' },
 ]
 maintainers = [
-    { name  = 'Adam Karpierz' },
-    { email = 'adam@karpierz.net' },
+    { name  = 'Adam Karpierz', email = 'adam@karpierz.net' },
 ]
 license = 'BSD-3-Clause'
 license-files = ['LICENSE']
 urls.Homepage      = 'https://pypi.org/project/libpcap/'
-urls.Documentation = 'https://libpcap.readthedocs.io/'
+urls.Documentation = 'https://karpierz.github.io/libpcap/'
+urls.History       = 'https://karpierz.github.io/libpcap/CHANGES.html'
 urls.Download      = 'https://pypi.org/project/libpcap/'
-urls.Source        = 'https://github.com/karpierz/libpcap'
-urls.Issues        = 'https://github.com/karpierz/libpcap/issues'
+urls.Repository    = 'https://github.com/karpierz/libpcap'
+urls.Tracker       = 'https://github.com/karpierz/libpcap/issues'
+urls.Sponsoring    = 'https://www.paypal.com/donate/?hosted_button_id=FX8L7CJUGLW7S'
 keywords = ['pcap', 'libpcap', 'wpcap', 'npcap']
 classifiers = [
     'Development Status :: 4 - Beta',
@@ -41,42 +41,79 @@ classifiers = [
     'Programming Language :: Python :: Implementation :: CPython',
     'Programming Language :: Python :: Implementation :: PyPy',
     'Topic :: Software Development :: Libraries :: Python Modules',
+    'Typing :: Typed',
 ]
 requires-python = '>=3.10.0,<4.0.0'
 dependencies = [
     # mandatory
-    'setuptools>=80.9.0',
-    'pkg-about>=1.3.6',
+    'typing-extensions>=4.15.0',
+    'pkg-about>=2.1.0',
     # others
+    'py-utlx>=2.1.0',
 ]
 dynamic = ['readme']
-optional-dependencies.'doc' = [
-    'Sphinx>=8.1.3',
+#scripts.'libpcap' = 'libpcap.__main__:main'
+#gui-scripts.'libpcap-gui' = 'libpcap:main_gui'
+#entry-points.'libpcap.magical'.epoint = 'libpcap:main_epoint'
+
+[dependency-groups]
+base = [
+    'pip>=25.3',
+    'setuptools>=80.10.2',
+]
+test = [
+    { include-group = 'base' },
+    'deepdiff>=8.6.1',
+    'rich>=14.3.1',
+]
+coverage = [
+    { include-group = 'test' },
+    'coverage>=7.13.2',
+    'covdefaults>=2.3.0',
+    'diff-cover>=10.2.0',
+]
+docs = [
+    { include-group = 'base' },
+    'sphinx>=8.1.3',
+    'pygments_ansi_color>=0.3.0', # fix sphinx load error
+    'roman_numerals>=4.1.0',      #         -||-
     'sphinx-autodoc-typehints>=3.0.1',
-    'sphinx-toolbox>=4.0.0',
-    'sphinx-tabs>=3.4.5', # don't touch! sphinx-toolbox requires <3.4.7
+    'sphinx-toolbox>=4.1.2',
+    'sphinx-tabs>=3.4.5', # Do not change - sphinx-toolbox requires <3.4.7
     'sphinx-copybutton>=0.5.2',
-    'sphinxcontrib-spelling>=8.0.1',
-    'sphinx-lint>=1.0.0',
-    'restructuredtext-lint>=1.4.0',
-    'nbsphinx>=0.9.7',
+    'sphinxcontrib-spelling>=8.0.2',
+    'sphinx-lint>=1.0.2',
+    'restructuredtext-lint>=2.0.2',
+    'nbsphinx>=0.9.8',
 ]
-optional-dependencies.'test' = [
-    'deepdiff>=8.5.0',
-    'rich>=14.0.0',
+build = [
+    { include-group = 'test' },
+    'check-manifest>=0.51',
+    'build>=1.4.0',
+    'twine>=6.2.0',
 ]
-
-[project.scripts]
-#'libpcap' = 'libpcap.__main__:main'
-
-[project.gui-scripts]
-#'libpcap-gui' = 'libpcap:main_gui'
-
-#[project.entry-points.'libpcap.magical']
-#epoint = 'libpcap:main_epoint'
+publish = [
+    'twine>=6.2.0',
+]
+typing = [
+    { include-group = 'base' },
+    'mypy>=1.19.1',
+    'mypy_extensions>=1.1.0',
+    'types-setuptools>=80.10.0.20260124',
+]
+lint = [
+    { include-group = 'test' },
+    'flake8>=7.3.0',
+    'flake8-in-file-ignores>=0.3.0',
+    'flake8-pyproject>=1.2.4',
+    'flake8-docstrings>=1.7.0',
+    'pep8-naming>=0.15.1',
+    'flake8-builtins>=3.1.0',
+    'flake8-deprecated>=2.3.0',
+]
 
 [tool.setuptools.dynamic]
-readme = { file = ['README.rst', 'CHANGES.rst'], content-type = 'text/x-rst; charset=UTF-8' }
+readme = { file = ['README.rst'], content-type = 'text/x-rst; charset=UTF-8' }
 
 [tool.setuptools]
 include-package-data = true
@@ -116,12 +153,15 @@ run.source = [
     'tests',
 ]
 run.omit = [
+    '**/_platform/linux/__init__.py',
+    '**/_platform/macos/__init__.py',
+    '**/tests/tman_*.py',
 ]
 run.branch = true
-run.data_file = '.tox/coverage/.coverage'
+run.data_file = '.nox/coverage/.coverage'
 run.plugins = ['covdefaults']
 # report
-report.exclude_lines = [
+report.exclude_also = [
     # Regexes
     # Have to re-enable the standard pragma
     '^\s*if\s+self\.debug\s*:',
@@ -130,162 +170,48 @@ report.exclude_lines = [
     '''if\s+__name__.*\s*==\s*['"]__main__['"]\s*:''',
     '^\s*@unittest\.skip\(',
     '^\s*@unittest\.skipIf\(sys\.platform\.startswith\("win"\)',
+    '^\s*@unittest\.skipIf\(is_windows,',
+    '^\s*@unittest\.skipIf\(is_cpython,',
+    'if typing.TYPE_CHECKING:',
 ]
 report.omit = [
     'tests/run.py',
 ]
 report.skip_covered = false
 # html report
-html.directory = '.tox/coverage/.coverage.html'
+html.directory = '.nox/coverage/.coverage.html'
 
 [tool.flake8]
 filename = ['*.py','*.pyx']
 #include = ['tests']
-#exclude = ['.tox','*.egg','.git','__pycache__','build','_build','docs/_build','dist']
+#exclude = ['.nox','.tox','*.egg','.git','__pycache__','build','_build','docs/_build','dist']
+exclude = ['_vendor']
 max-line-length = 99
 ignore = ['E126','E203','E221','E251','E302','E701','E702','E731',
-          'E122','E127','E128','E222','E272','E241','E266','E226','E704',
+          'E122','E127','E128','E222','E272','E241','E266','E226',
           'D100','D101','D102','D103','D104','D400','D401','D202',
           'N806','N802','N803','N801',
           'I100','W503']
 # (e.g. 'E4','W') default: 'E121','E123','126','226','E24','704'
 #select =
 #select = ['E','W','F','N','I']
-output-file = '.tox/lint/flake8out.txt'
+output-file = '.nox/lint/flake8out.txt'
 count = true
 #show-pep8,
 #show-source
 #verbose
 #quiet
 
-#
-# Configuration(s) for tox
-#
-
-[tool.tox]
-env_list = [{replace='ref',of=['tool','tox','labels','py'],extend=true}, 'lint', 'docs']
-min_version = '4.27.0'
-skip_missing_interpreters = true
-requires = [
-    {replace='ref',of=['tool','tox','_','base','deps'],extend=true},
-    'virtualenv>=20.31.2',
-    'tox-backtick>=0.6.4',
-]
-[tool.tox.labels]
-py = ['py310','py311','py312','py313','py314', 'pypy310','pypy311']
-prepare  = ['prepare']
-coverage = ['coverage']
-lint = ['lint']
-docs = ['docs']
-build  = [{replace='ref',of=['tool','tox','labels','py'],extend=true}, 'docs', 'build']
-deploy = [{replace='ref',of=['tool','tox','labels','build'],extend=true}, 'publish']
-
-[tool.tox._.base]
-base_python = ['python3.13']
-deps = [
-    'pip>=25.1.1',
-    'setuptools>=80.9.0',
-]
-package_subdir = 'libpcap'
-
-[tool.tox.env_run_base]
-description = "Run tests under {base_python}"
-set_env.PYTHONDONTWRITEBYTECODE = '1'
-set_env.PKG_IMPL = "`python -W ignore -c \"import platform ; pimpl = platform.python_implementation() ; print('cp' if pimpl == 'CPython' else 'pp' if pimpl == 'PyPy' else '', end='')\" 2> nul`"
-set_env.PKG_PVER = "`python -W ignore -c \"import platform ; print(''.join(platform.python_version_tuple()[:2]), end='')\" 2> nul`"
-set_env.PKG_NAME = "`python -W ignore -c \"import setuptools ; setuptools._distutils.core._setup_stop_after='config' ; print(setuptools.setup().metadata.get_name(),     end='')\" 2> nul`"
-set_env.PKG_DIST = "`python -W ignore -c \"import setuptools ; setuptools._distutils.core._setup_stop_after='config' ; print(setuptools.setup().metadata.get_fullname(), end='')\" 2> nul`"
-commands = [
-    ['{env_python}','--version'],
-    ['{env_python}','-m','tests',{replace='posargs',extend=true}],
-]
-extras = ['test']
-deps = [
-    {replace='ref',of=['tool','tox','_','base','deps'],extend=true},
-]
-
-[tool.tox.env.'prepare']
-base_python = {replace='ref',of=['tool','tox','_','base','base_python']}
-skip_install = true
-allowlist_externals = [
-    'cmd',
-    '.build',
-]
-commands = [
-    ['cmd','/C','if','exist','.build.cmd','.build.cmd'],
-]
-extras = []
-deps = []
-
-[tool.tox.env.'coverage']
-base_python = {replace='ref',of=['tool','tox','_','base','base_python']}
-commands = [
-    ['{env_python}','-m','coverage','erase'],
-    ['-','{env_python}','-m','coverage','run','-m','tests',{replace="posargs",extend=true}],
-    ['-','{env_python}','-m','coverage','html'],
-    ['{env_python}','-m','coverage','report'],
-]
-deps = [
-    {replace='ref',of=['tool','tox','env_run_base','deps'],extend=true},
-    'coverage>=7.9.1',
-    'covdefaults>=2.3.0',
-    'diff-cover>=9.4.1',
-]
-
-[tool.tox.env.'docs']
-base_python = {replace='ref',of=['tool','tox','_','base','base_python']}
-commands = [
-    ['{env_python}','-m','sphinxlint','--ignore','.tox','--ignore','build','--ignore','dist'],
-   #['{env_python}','-m','sphinx.apidoc','-f','{env_site_packages_dir}/{[tool.tox._.base]package_subdir}'],
-    ['{env_python}','-m','sphinx.cmd.build','-W','-a','-b','html','-E','./docs','./build/docs/html'],
-    ['{env_python}','-m','sphinx.cmd.build','-W','-a','-b','linkcheck','./docs','./build/docs/html'],
-    ['{env_python}','-m','sphinx.cmd.build','-W','-a','-b','doctest',  './docs','./build/docs/html'],
-]
-extras = ['doc']
-deps = [
-    {replace='ref',of=['tool','tox','_','base','deps'],extend=true},
-]
-
-[tool.tox.env.'build']
-depends = [{replace='ref',of=['tool','tox','labels','py'],extend=true}, 'docs']
-base_python = {replace='ref',of=['tool','tox','_','base','base_python']}
-commands = [
-    ['{env_python}','-m','build'],
-    # check out for PyPi
-    ['{env_python}','-m','twine','check','dist/*'],
-]
-deps = [
-    {replace='ref',of=['tool','tox','env_run_base','deps'],extend=true},
-    'build>=1.2.2.post1',
-    'twine>=6.1.0',
-]
-
-[tool.tox.env.'publish']
-depends = ['build']
-base_python = {replace='ref',of=['tool','tox','_','base','base_python']}
-skip_install = true
-commands = [
-    # publish on PyPi
-    ['{env_python}','-m','twine','upload','dist/*'],
-]
-extras = []
-deps = [
-    'twine>=6.1.0',
-]
-
-[tool.tox.env.'lint']
-base_python = {replace='ref',of=['tool','tox','_','base','base_python']}
-commands = [
-    ['{env_python}','-m','flake8','{env_site_packages_dir}/{[tool.tox._.base]package_subdir}/'],
-]
-extras = []
-deps = [
-    {replace='ref',of=['tool','tox','env_run_base','deps'],extend=true},
-    'flake8>=7.3.0',
-    'flake8-in-file-ignores>=0.3.0',
-    'flake8-pyproject>=1.2.3',
-    'flake8-docstrings>=1.7.0',
-    'pep8-naming>=0.15.1',
-    'flake8-builtins>=2.5.0',
-    'flake8-deprecated>=2.2.1',
-]
+[tool.mypy]
+python_version = '3.10'
+strict = true
+sqlite_cache = true
+warn_unused_configs = true
+exclude_gitignore = true
+install_types = true
+non_interactive = true
+pretty = true
+check_untyped_defs = true
+#ignore_missing_imports = true
+files = ['src']
+#exclude = ['docs/', 'tests/']

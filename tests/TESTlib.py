@@ -168,19 +168,8 @@ def skip_config_def1(symbol):
     return f"{symbol}==1" if symbol in config and config[symbol] == "1" else ""
 
 
-def skip_config_undef(symbol):
+def skip_config_not_def1(symbol):
     return f"{symbol}!=1" if symbol not in config or config[symbol] != "1" else ""
-
-
-def skip_config_have_decl(name, value):
-    name = "HAVE_DECL_" + name
-    # "Unlike the other ‘AC_CHECK_*S’ macros, when a symbol is not declared,
-    # HAVE_DECL_symbol is defined to ‘0’ instead of leaving HAVE_DECL_symbol
-    # undeclared." -- GNU Autoconf manual.
-    #
-    # (This requires the CMake leg to do the same for the same symbol.)
-    if name not in config: die(f"no {name} in config.h")
-    return f"{name}=={value}" if int(config[name]) == value else ""
 
 
 def result_skipped(skip):

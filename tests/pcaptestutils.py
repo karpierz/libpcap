@@ -25,9 +25,8 @@ import os
 import ctypes as ct
 
 import libpcap as pcap
-from libpcap._platform._limits import *  # noqa
 from libpcap._platform import is_windows
-if is_windows: from libpcap._platform._windows import _win32 as win32
+if is_windows: from libpcap._platform.windows import winapi
 
 #ifndef lint
 copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
@@ -45,12 +44,12 @@ if is_windows:
     ERRBUF_SIZE = 1024
 
     def strerror(code) -> str:
-        error  = win32.DWORD(error)
+        error  = winapi.DWORD(error)
         errbuf = ct.create_string_buffer(ERRBUF_SIZE + 1)
         #static char errbuf[ERRBUF_SIZE+1];
-        win32.FormatMessageA(win32.FORMAT_MESSAGE_FROM_SYSTEM,
-                             None, error, 0, errbuf,
-                             ERRBUF_SIZE, None)
+        winapi.FormatMessageA(winapi.FORMAT_MESSAGE_FROM_SYSTEM,
+                              None, error, 0, errbuf,
+                              ERRBUF_SIZE, None)
         # "FormatMessage()" "helpfully" sticks CR/LF at the end of the
         # message.  Get rid of it.
         errlen = len(errbuf)
@@ -63,7 +62,7 @@ if is_windows:
        #return errbuf
 
     def sleep_secs(secs: int):
-        win32.Sleep(secs * 1000)
+        winapi.Sleep(secs * 1000)
 
 else:
 

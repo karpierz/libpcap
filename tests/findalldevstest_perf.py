@@ -16,21 +16,21 @@ def main(argv=sys.argv[1:]):
     exit_status = 0
 
     if is_windows:
-        start_ktime = win32.FILETIME()
-        start_utime = win32.FILETIME()
-        dummy1 = win32.FILETIME()
-        dummy2 = win32.FILETIME()
-        if not win32.GetProcessTimes(win32.GetCurrentProcess(),
-                                     ct.byref(dummy1), ct.byref(dummy2),
-                                     ct.byref(start_ktime), ct.byref(start_utime)):
+        start_ktime = winapi.FILETIME()
+        start_utime = winapi.FILETIME()
+        dummy1 = winapi.FILETIME()
+        dummy2 = winapi.FILETIME()
+        if not winapi.GetProcessTimes(winapi.GetCurrentProcess(),
+                                      ct.byref(dummy1), ct.byref(dummy2),
+                                      ct.byref(start_ktime), ct.byref(start_utime)):
           print("GetProcessTimes() fails at start", file=sys.stderr)
           return 1
-        start_kticks = win32.ULARGE_INTEGER(start_ktime.dwLowDateTime +
-                                            (start_ktime.dwHighDateTime >>
-                                             (ct.sizeof(win32.DWORD) * 8)))
-        start_uticks = win32.ULARGE_INTEGER(start_utime.dwLowDateTime +
-                                            (start_utime.dwHighDateTime >>
-                                             (ct.sizeof(win32.DWORD) * 8)))
+        start_kticks = winapi.ULARGE_INTEGER(start_ktime.dwLowDateTime +
+                                             (start_ktime.dwHighDateTime >>
+                                              (ct.sizeof(winapi.DWORD) * 8)))
+        start_uticks = winapi.ULARGE_INTEGER(start_utime.dwLowDateTime +
+                                             (start_utime.dwHighDateTime >>
+                                              (ct.sizeof(winapi.DWORD) * 8)))
     else:
         start_rusage = rusage()
         if getrusage(RUSAGE_SELF, ct.byref(start_rusage)) == -1:
@@ -48,21 +48,21 @@ def main(argv=sys.argv[1:]):
         pcap.freealldevs(alldevs)
 
     if is_windows:
-        end_ktime = win32.FILETIME()
-        end_utime = win32.FILETIME()
-        dummy1 = win32.FILETIME()
-        dummy2 = win32.FILETIME()
-        if not win32.GetProcessTimes(win32.GetCurrentProcess(),
-                                     ct.byref(dummy1), ct.byref(dummy2),
-                                     ct.byref(end_ktime), ct.byref(end_utime)):
+        end_ktime = winapi.FILETIME()
+        end_utime = winapi.FILETIME()
+        dummy1 = winapi.FILETIME()
+        dummy2 = winapi.FILETIME()
+        if not winapi.GetProcessTimes(winapi.GetCurrentProcess(),
+                                      ct.byref(dummy1), ct.byref(dummy2),
+                                      ct.byref(end_ktime), ct.byref(end_utime)):
             print("GetProcessTimes() fails at end", file=sys.stderr)
             return 1
-        end_kticks = win32.ULARGE_INTEGER(end_ktime.dwLowDateTime +
-                                          (end_ktime.dwHighDateTime >>
-                                           (ct.sizeof(win32.DWORD) * 8)))
-        end_uticks = win32.ULARGE_INTEGER(end_utime.dwLowDateTime +
-                                          (end_utime.dwHighDateTime >>
-                                           (ct.sizeof(win32.DWORD) * 8)))
+        end_kticks = winapi.ULARGE_INTEGER(end_ktime.dwLowDateTime +
+                                           (end_ktime.dwHighDateTime >>
+                                            (ct.sizeof(winapi.DWORD) * 8)))
+        end_uticks = winapi.ULARGE_INTEGER(end_utime.dwLowDateTime +
+                                           (end_utime.dwHighDateTime >>
+                                            (ct.sizeof(winapi.DWORD) * 8)))
     else:
         end_rusage = rusage()
         if getrusage(RUSAGE_SELF, ct.byref(end_rusage)) == -1:

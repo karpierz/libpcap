@@ -41,8 +41,8 @@ copyright = "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, "\
 pd = ct.POINTER(pcap.pcap_t)()
 
 if is_windows:
-    THREAD_FUNC_ARG_TYPE    = win32.LPVOID
-    THREAD_FUNC_RETURN_TYPE = win32.DWORD
+    THREAD_FUNC_ARG_TYPE    = winapi.LPVOID
+    THREAD_FUNC_RETURN_TYPE = winapi.DWORD
 else:
     THREAD_FUNC_ARG_TYPE    = ct.c_void_p
     THREAD_FUNC_RETURN_TYPE = ct.c_void_p
@@ -55,7 +55,7 @@ if not is_windows:
 
 
 #static
-@win32.LPTHREAD_START_ROUTINE
+@winapi.LPTHREAD_START_ROUTINE
 def capture_thread_func(arg: THREAD_FUNC_ARG_TYPE) -> THREAD_FUNC_RETURN_TYPE:
     """ """
     global pd
@@ -176,11 +176,11 @@ def main(argv=sys.argv[1:]):
         error("{}", geterr2str(pd))
 
     if is_windows:
-        capture_thread = win32.CreateThread(None, 0,
-                                            capture_thread_func, device,
-                                            0, None)
+        capture_thread = winapi.CreateThread(None, 0,
+                                             capture_thread_func, device,
+                                             0, None)
         if not capture_thread:
-            status = win32.GetLastError()
+            status = winapi.GetLastError()
             error("Can't create capture thread: {}", strerror(status))
     else:
         capture_thread = pthread_t()
@@ -200,8 +200,8 @@ def main(argv=sys.argv[1:]):
         # event handle; on UN*X, send a SIGUSR1 to the thread.
         if is_windows:
             print("Setting event")
-            if not win32.SetEvent(pcap.getevent(pd)):
-                status = win32.GetLastError()
+            if not winapi.SetEvent(pcap.getevent(pd)):
+                status = winapi.GetLastError()
                 error("Can't set event for pcap_t: {}", strerror(status))
         else:
             print("Sending SIGUSR1")
@@ -211,11 +211,11 @@ def main(argv=sys.argv[1:]):
 
     # Now wait for the capture thread to terminate.
     if is_windows:
-        if win32.WaitForSingleObject(capture_thread,
-                                     win32.INFINITE) == win32.WAIT_FAILED:
-            status = win32.GetLastError()
+        if winapi.WaitForSingleObject(capture_thread,
+                                      winapi.INFINITE) == winapi.WAIT_FAILED:
+            status = winapi.GetLastError()
             error("Wait for thread termination failed: {}", strerror(status))
-        win32.CloseHandle(capture_thread)
+        winapi.CloseHandle(capture_thread)
     else:
         retval = ct.c_void_p()
         status = pthread_join(capture_thread, ct.byref(retval))

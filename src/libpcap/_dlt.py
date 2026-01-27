@@ -533,7 +533,7 @@ DLT_IBM_SN = 146
 # Do *NOT* use these in capture files that you expect anybody not using
 # your private versions of capture-file-reading tools to read; in
 # particular, do *NOT* use them in products, otherwise you may find that
-# people won't be able to use tcpdump, or snort, or Ethereal, or... to
+# people won't be able to use tcpdump, or snort, or Wireshark, or... to
 # read capture files from your firewall/intrusion detection/traffic
 # monitoring/etc. appliance, or whatever product uses that DLT_ value,
 # and you may also find that the developers of those applications will
@@ -1390,7 +1390,7 @@ DLT_DSA_TAG_BRCM_PREPEND = 282
 
 DLT_IEEE802_15_4_TAP = 283
 
-# Marvell (Ethertype) Distributed Switch Architecture proprietary tagging format.
+# Marvell (EtherType) Distributed Switch Architecture proprietary tagging format.
 
 DLT_DSA_TAG_DSA  = 284
 DLT_DSA_TAG_EDSA = 285
@@ -1481,12 +1481,34 @@ DLT_MDB = 300
 
 DLT_DECT_NR = 301
 
+# Request serialization protocol used by edk2 firmware to communicate between
+# normal mode and management mode ('MM' for short).
+#
+# The qemu uefi variable store implementation reuses the request serialization
+# protocol for firmware <-> qemu communication.
+
+DLT_EDK2_MM = 302
+
+# Unstructured data for manual debugging only.  In other words, this DLT is
+# suitable for expert interpretation of hex dumps, and that's it.  Do not use
+# this DLT for any other purpose.  For any automated (identification, saving,
+# loading, filtering, decoding) processing please either use another existing
+# DLT that fits the use case or document, assign and implement a new, properly
+# structured DLT.
+#
+# In this DLT do not assume any specification, any structure, any format, any
+# version, any header, any payload, any byte order, any implementation, any
+# software/firmware/hardware particulars, any source, any destination, any
+# direction, any protocol or any data integrity/consistency whatsoever.
+
+DLT_DEBUG_ONLY = 303
+
 # In case the code that includes this file (directly or indirectly)
 # has also included OS files that happen to define DLT_HIGH_MATCHING_MAX,
 # with a different value (perhaps because that OS hasn't picked up
 # the latest version of our DLT definitions), we undefine the
 # previous value of DLT_HIGH_MATCHING_MAX.
 
-DLT_HIGH_MATCHING_MAX = 301  # highest value in the "matching" range # avail. from v.1.8.1
+DLT_HIGH_MATCHING_MAX = 303  # highest value in the "matching" range # avail. from v.1.8.1
 
 # eof

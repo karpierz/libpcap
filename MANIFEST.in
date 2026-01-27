@@ -5,7 +5,7 @@ include README.rst
 include CHANGES.rst
 include LICENSE
 include pyproject.toml
-include .readthedocs.yml
+include noxfile.py
 
 graft docs
 
@@ -22,4 +22,4 @@ prune tests/fuzz
 
 global-exclude \#* \#*/**
 global-exclude .build .build/** .build.* .build.*/**
-global-exclude *.py[cod] __pycache__
+global-exclude *.py[cod] __pycache__ .mypy_cache

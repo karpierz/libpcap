@@ -6,6 +6,7 @@ import sys
 import logging
 
 from . import test_dir
+sys.path.insert(0, str(test_dir))
 
 log = logging.getLogger(__name__)
 

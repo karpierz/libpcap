@@ -3,6 +3,8 @@
 # Copyright (c) 2016 Adam Karpierz
 # SPDX-License-Identifier: BSD-3-Clause
 
+from __future__ import annotations
+
 # Copyright (c) 1993, 1994, 1995, 1996, 1997
 #    The Regents of the University of California.  All rights reserved.
 #
@@ -65,7 +67,10 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from typing import Any
 import ctypes as ct
+
+from utlx import ctypes as ctx
 
 from ._platform import is_windows, is_linux, defined
 from ._platform import CFUNC
@@ -97,8 +102,8 @@ PCAP_ERRBUF_SIZE = 256
 # predates the bpf typedefs for 64-bit support.
 
 if not defined("BPF_RELEASE") or BPF_RELEASE < 199406:
-    bpf_int32   = ct.c_int
-    bpf_u_int32 = ct.c_uint
+    bpf_int32   = ct.c_int   # type: ignore[assignment,misc]
+    bpf_u_int32 = ct.c_uint  # type: ignore[assignment,misc]
 
 class pcap(ct.Structure): pass
 pcap_t = pcap
@@ -659,7 +664,7 @@ if is_windows:
         (1, "errbuf"),))
 
     # @CFUNC(ct.POINTER(pcap_t), ct.POINTER(FILE), ct.c_char_p)
-    def fopen_offline(fp, errbuf, libc=ct.cdll.msvcrt):
+    def fopen_offline(fp: Any, errbuf: Any, libc: Any = ct.cdll.msvcrt) -> Any:
         return hopen_offline(msvcrt.get_osfhandle(libc._fileno(fp)), errbuf)
 
     try:  # PCAP_AVAILABLE_1_5
@@ -673,7 +678,8 @@ if is_windows:
             (1, "errbuf"),))
 
         # @CFUNC(ct.POINTER(pcap_t), ct.POINTER(FILE), ct.c_uint, ct.c_char_p)
-        def fopen_offline_with_tstamp_precision(fp, precision, errbuf, libc=ct.cdll.msvcrt):
+        def fopen_offline_with_tstamp_precision(fp: Any, precision: Any, errbuf: Any,
+                                                libc: Any = ct.cdll.msvcrt) -> Any:
             return hopen_offline_with_tstamp_precision(msvcrt.get_osfhandle(libc._fileno(fp)),
                                                        precision, errbuf)
     except: pass
@@ -1075,7 +1081,7 @@ if is_windows:
         # rules the world, this will cease to be a problem.)
 
         # @CFUNC(ct.POINTER(pcap_dumper_t), ct.POINTER(pcap_t), ct.POINTER(FILE))
-        def dump_fopen(pcap, fp, libc=ct.cdll.msvcrt):
+        def dump_fopen(pcap: Any, fp: Any, libc: Any = ct.cdll.msvcrt) -> Any:
             return dump_hopen(pcap, msvcrt.get_osfhandle(libc._fileno(fp)))
     except: pass
 else:
@@ -1408,8 +1414,7 @@ PCAP_SRC_IFREMOTE = 4  # interface on a remote host, using RPCAP
 #   - port, if present, will specify a port for RPCAP rather than using the default
 # - adaptername [to open a local adapter; kept for compatibility, but it is
 #   strongly discouraged]
-# - (NULL) [to open the first local adapter; kept for compatibility, but it is
-#   strongly discouraged]
+# - (NULL) [equivalent to "any"; kept for compatibility, but it is strongly discouraged]
 #
 # The formats allowed by the pcap.findalldevs_ex() are the following (optional parts in []):
 # - file://folder/ [lists all the files in the given folder]

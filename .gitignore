@@ -1,9 +1,0 @@
-/#*
-/.nox/
-/.tox/
-/build/
-/dist/
-*.egg-info
-*.py[cod]
-__pycache__
-.mypy_cache

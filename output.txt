@@ -1,0 +1,2 @@
+README.rst:56: [redirected permanently] https://github.com/the-tcpdump-group/libpcap.git to https://github.com/the-tcpdump-group/libpcap
+CHANGES.rst:219: [redirected permanently] https://nmap.org/npcap/ to https://npcap.com/

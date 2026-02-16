@@ -1,8 +1,0 @@
-Url:       https://github.com/the-tcpdump-group/libpcap/archive/refs/tags/libpcap-1.10.6.zip
-Url redir: https://codeload.github.com/the-tcpdump-group/libpcap/zip/refs/tags/libpcap-1.10.6
-Completed: 2026-01-09 00:19:14
-File name: libpcap-libpcap-1.10.6.zip
-File date: 2026-01-09 00:19:14.274261
-File size: 1164913
-SHA256sum: C7CD6FC8F15FD327C606C4CDFF979BFF264AB1F8DB284E40BCA8FCEB6877DAF0
-SHA1sum:   32F25EC069127A7E087E89CBCD9C98158CACBB07

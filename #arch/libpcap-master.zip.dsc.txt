@@ -1,8 +1,0 @@
-Url:       https://github.com/the-tcpdump-group/libpcap/archive/refs/heads/master.zip
-Url redir: https://codeload.github.com/the-tcpdump-group/libpcap/zip/refs/heads/master
-Completed: 2026-02-16 08:03:57
-File name: libpcap-master.zip
-File date: 2026-02-16 08:03:57.651023
-File size: 1187969
-SHA256sum: 1B5C0CEF44047730B2B2B930FB2DF5BCC2583D4FF51359DC676827DF18C502E2
-SHA1sum:   3208C535CADF90034F5F1DC27B4A162D13D25845

@@ -1,0 +1,339 @@
+
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>libpcap documentation &#8212; libpcap 1.11.0b29 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/bizstyle.css?v=5283bb3d" />
+    <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="_static/tabs.css?v=a5c4661c" />
+    
+    <script src="_static/documentation_options.js?v=0137e060"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="_static/copybutton.js?v=f281be69"></script>
+    <script src="_static/tabs.js?v=3030b3cb"></script>
+    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="_static/bizstyle.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Changelog" href="CHANGES.html" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <!--[if lt IE 9]>
+    <script src="_static/css3-mediaqueries.js"></script>
+    <![endif]-->
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="CHANGES.html" title="Changelog"
+             accesskey="N">next</a> |</li>
+        <li class="nav-item nav-item-0"><a href="#">libpcap 1.11.0b29 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">libpcap documentation</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="libpcap-documentation">
+<h1>libpcap documentation<a class="headerlink" href="#libpcap-documentation" title="Link to this heading">¶</a></h1>
+</section>
+<section id="libpcap">
+<span id="readme"></span><h1>libpcap<a class="headerlink" href="#libpcap" title="Link to this heading">¶</a></h1>
+<p>Python binding for the <em>libpcap</em> C library.</p>
+</section>
+<section id="overview">
+<h1>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h1>
+<div class="line-block">
+<div class="line">Python <strong>libpcap</strong> module is a low-level binding for <em>libpcap</em> C library.</div>
+<div class="line">It is an effort to allow python programs full access to the API provided
+by the well known <em>libpcap</em> Unix C library and by its implementations
+provided under Win32 systems by such packet capture systems as:
+<a class="reference external" href="https://nmap.org/npcap/">Npcap</a>,
+<a class="reference external" href="https://www.winpcap.org/">WinPcap</a></div>
+</div>
+<p><a class="reference external" href="https://pypi.org/project/libpcap/">PyPI record</a>.</p>
+<p><a class="reference external" href="https://karpierz.github.io/libpcap/">Documentation</a>.</p>
+<div class="line-block">
+<div class="line"><strong>libpcap</strong> is a lightweight Python package, based on the <em>ctypes</em> library.</div>
+<div class="line">It is fully compliant implementation of the original C <em>libpcap</em> from
+1.0.0 up to 1.9.0 API and the <em>WinPcap</em>’s 4.1.3 libpcap (1.0.0rel0b) API
+by implementing whole its functionality in a clean Python instead of C.</div>
+<div class="line"><br /></div>
+<div class="line">Useful <em>libpcap</em> API documentation can be found at:</div>
+</div>
+<blockquote>
+<div><div class="line-block">
+<div class="line"><a class="reference external" href="https://www.tcpdump.org/manpages/pcap.3pcap.html">Main pcap man page</a>,</div>
+<div class="line"><a class="reference external" href="https://www.tcpdump.org/manpages/">(MORE pcap man pages)</a></div>
+</div>
+</div></blockquote>
+<p><strong>libpcap</strong> uses the underlying <em>libpcap</em> C shared library as specified in
+libpcap.cfg (system’s libpcap shared library is the default), but there is also
+ability to specify it programmatically by one of the following ways:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">libpcap</span>
+<span class="n">libpcap</span><span class="o">.</span><span class="n">config</span><span class="p">(</span><span class="n">LIBPCAP</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>       <span class="c1"># system&#39;s libpcap library will be used</span>
+<span class="c1"># or</span>
+<span class="n">libpcap</span><span class="o">.</span><span class="n">config</span><span class="p">(</span><span class="n">LIBPCAP</span><span class="o">=</span><span class="s2">&quot;npcap&quot;</span><span class="p">)</span>
+<span class="c1"># or</span>
+<span class="n">libpcap</span><span class="o">.</span><span class="n">config</span><span class="p">(</span><span class="n">LIBPCAP</span><span class="o">=</span><span class="s2">&quot;wpcap&quot;</span><span class="p">)</span>    <span class="c1"># included wpcap library will be used</span>
+<span class="c1"># or</span>
+<span class="n">libpcap</span><span class="o">.</span><span class="n">config</span><span class="p">(</span><span class="n">LIBPCAP</span><span class="o">=</span><span class="s2">&quot;tcpdump&quot;</span><span class="p">)</span>  <span class="c1"># included tcpdump library will be used</span>
+<span class="c1"># or                               # (currently works only for Linux x64)</span>
+<span class="n">libpcap</span><span class="o">.</span><span class="n">config</span><span class="p">(</span><span class="n">LIBPCAP</span><span class="o">=</span><span class="s2">&quot;libpcap shared library absolute path&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<section id="about-original-libpcap">
+<h2>About original libpcap:<a class="headerlink" href="#about-original-libpcap" title="Link to this heading">¶</a></h2>
+<p>LIBPCAP 1.x.y by “The Tcpdump Group”:</p>
+<blockquote>
+<div><p><a class="reference external" href="https://www.tcpdump.org">https://www.tcpdump.org</a></p>
+</div></blockquote>
+<p>Anonymous Git is available via:</p>
+<blockquote>
+<div><p>git clone <a class="reference external" href="https://github.com/the-tcpdump-group/libpcap.git">https://github.com/the-tcpdump-group/libpcap.git</a></p>
+</div></blockquote>
+<p>formerly from:</p>
+<blockquote>
+<div><div class="line-block">
+<div class="line">Lawrence Berkeley National Laboratory</div>
+<div class="line">Network Research Group &lt;<a class="reference external" href="mailto:libpcap&#37;&#52;&#48;ee&#46;lbl&#46;gov">libpcap<span>&#64;</span>ee<span>&#46;</span>lbl<span>&#46;</span>gov</a>&gt;</div>
+<div class="line"><a class="reference external" href="ftp://ftp.ee.lbl.gov/old/libpcap-0.4a7.tar.Z">ftp://ftp.ee.lbl.gov/old/libpcap-0.4a7.tar.Z</a></div>
+</div>
+</div></blockquote>
+<p>This directory contains source code for libpcap, a system-independent
+interface for user-level packet capture.  libpcap provides a portable
+framework for low-level network monitoring.  Applications include
+network statistics collection, security monitoring, network debugging,
+etc.  Since almost every system vendor provides a different interface
+for packet capture, and since we’ve developed several tools that
+require this functionality, we’ve created this system-independent API
+to ease in porting and to alleviate the need for several
+system-dependent packet capture modules in each application.</p>
+<p>Support for particular platforms and BPF:</p>
+<p>For some platforms there are README.{system} files that discuss issues
+with the OS’s interface for packet capture on those platforms, such as
+how to enable support for that interface in the OS, if it’s not built in
+by default.</p>
+<p>The libpcap interface supports a filtering mechanism based on the
+architecture in the BSD packet filter.  BPF is described in the 1993
+Winter Usenix paper “The BSD Packet Filter: A New Architecture for
+User-level Packet Capture” (<a class="reference external" href="https://www.tcpdump.org/papers/bpf-usenix93.ps.Z">compressed PostScript</a>, <a class="reference external" href="https://www.tcpdump.org/papers/bpf-usenix93.ps.gz">gzipped
+PostScript</a>,
+<a class="reference external" href="https://www.tcpdump.org/papers/bpf-usenix93.pdf">PDF</a>).</p>
+<p>Although most packet capture interfaces support in-kernel filtering,
+libpcap utilizes in-kernel filtering only for the BPF interface.
+On systems that don’t have BPF, all packets are read into user-space
+and the BPF filters are evaluated in the libpcap library, incurring
+added overhead (especially, for selective filters).  Ideally, libpcap
+would translate BPF filters into a filter program that is compatible
+with the underlying kernel subsystem, but this is not yet implemented.</p>
+<p>BPF is standard in 4.4BSD, BSD/OS, NetBSD, FreeBSD, OpenBSD, DragonFly
+BSD, and macOS; an older, modified and undocumented version is
+standard in AIX.  DEC OSF/1, Digital UNIX, Tru64 UNIX uses the
+packetfilter interface but has been extended to accept BPF filters
+(which libpcap utilizes).  Also, you can add BPF filter support to
+Ultrix using the kernel source and/or object patches.</p>
+<p>Linux has a number of BPF based systems, and libpcap does not support
+any of the eBPF mechanisms as yet, although it supports many of the
+memory mapped receive mechanisms. See the <a class="reference external" href="https://github.com/the-tcpdump-group/libpcap/blob/master/doc/README.linux">Linux-specific README</a>,
+for more information.</p>
+<p>Note to Linux distributions and *BSD systems that include libpcap:</p>
+<p>There’s now a rule to make a shared library, which should work on Linux
+and *BSD, among other platforms.</p>
+<p>It sets the soname of the library to “libpcap.so.1”; this is what it
+should be, <em>NOT</em> “libpcap.so.1.x” or “libpcap.so.1.x.y” or something
+such as that.</p>
+<p>We’ve been maintaining binary compatibility between libpcap releases for
+quite a while; there’s no reason to tie a binary linked with libpcap to
+a particular release of libpcap.</p>
+</section>
+</section>
+<section id="requirements">
+<h1>Requirements<a class="headerlink" href="#requirements" title="Link to this heading">¶</a></h1>
+<ul>
+<li><div class="line-block">
+<div class="line">It is a fully independent package.</div>
+<div class="line">All necessary things are installed during the normal installation process.</div>
+</div>
+</li>
+<li><p>ATTENTION: currently fully tested only for Windows.</p></li>
+</ul>
+</section>
+<section id="installation">
+<h1>Installation<a class="headerlink" href="#installation" title="Link to this heading">¶</a></h1>
+<p>Prerequisites:</p>
+<ul class="simple">
+<li><p>Python 3.10 or higher</p>
+<ul>
+<li><p><a class="reference external" href="https://www.python.org/">https://www.python.org/</a></p></li>
+<li><p>with C libpcap 1.10.6 is a primary test environment.</p></li>
+</ul>
+</li>
+<li><p>pip</p>
+<ul>
+<li><p><a class="reference external" href="https://pypi.org/project/pip/">https://pypi.org/project/pip/</a></p></li>
+</ul>
+</li>
+</ul>
+<p>To install run:</p>
+<blockquote>
+<div><pre class="literal-block">python -m pip install --upgrade libpcap</pre>
+</div></blockquote>
+</section>
+<section id="development">
+<h1>Development<a class="headerlink" href="#development" title="Link to this heading">¶</a></h1>
+<p>Prerequisites:</p>
+<ul>
+<li><p>Development is strictly based on <em>nox</em>. To install it run:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="o">-</span><span class="n">m</span> <span class="n">pip</span> <span class="n">install</span> <span class="o">--</span><span class="n">upgrade</span> <span class="n">nox</span>
+</pre></div>
+</div>
+</li>
+</ul>
+<p>Visit <a class="reference external" href="https://github.com/karpierz/libpcap">Development page</a>.</p>
+<p>Installation from sources:</p>
+<p>clone the sources:</p>
+<blockquote>
+<div><pre class="literal-block">git clone <a class="reference external" href="https://github.com/karpierz/libpcap">https://github.com/karpierz/libpcap</a> libpcap</pre>
+</div></blockquote>
+<p>and run:</p>
+<blockquote>
+<div><pre class="literal-block">python -m pip install ./libpcap</pre>
+</div></blockquote>
+<p>or on development mode:</p>
+<blockquote>
+<div><pre class="literal-block">python -m pip install --editable ./libpcap</pre>
+</div></blockquote>
+</section>
+<section id="license">
+<h1>License<a class="headerlink" href="#license" title="Link to this heading">¶</a></h1>
+<blockquote>
+<div><div class="line-block">
+<div class="line">Copyright (c) 2016-2026 Adam Karpierz</div>
+<div class="line">Licensed under the BSD license</div>
+<div class="line"><a class="reference external" href="https://opensource.org/license/bsd-3-clause">https://opensource.org/license/bsd-3-clause</a></div>
+<div class="line">Please refer to the accompanying LICENSE file.</div>
+</div>
+</div></blockquote>
+</section>
+<section id="authors">
+<h1>Authors<a class="headerlink" href="#authors" title="Link to this heading">¶</a></h1>
+<ul class="simple">
+<li><p>Adam Karpierz &lt;<a class="reference external" href="mailto:adam&#37;&#52;&#48;karpierz&#46;net">adam<span>&#64;</span>karpierz<span>&#46;</span>net</a>&gt;</p></li>
+</ul>
+</section>
+<section id="sponsoring">
+<h1>Sponsoring<a class="headerlink" href="#sponsoring" title="Link to this heading">¶</a></h1>
+<div class="line-block">
+<div class="line">If you would like to sponsor the development of this project, your contribution
+is greatly appreciated.</div>
+<div class="line">As I am now retired, any support helps me dedicate more time to maintaining and
+improving this work.</div>
+</div>
+<p><a class="reference external" href="https://www.paypal.com/donate/?hosted_button_id=FX8L7CJUGLW7S">Donate</a></p>
+</section>
+<section id="contents">
+<h1>Contents<a class="headerlink" href="#contents" title="Link to this heading">¶</a></h1>
+<div class="toctree-wrapper compound">
+</div>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="CHANGES.html">Changelog</a></li>
+</ul>
+</div>
+</section>
+<section id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Link to this heading">¶</a></h1>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
+</ul>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="#">Table of Contents</a></h3>
+    <ul>
+<li><a class="reference internal" href="#">libpcap documentation</a></li>
+<li><a class="reference internal" href="#libpcap">libpcap</a></li>
+<li><a class="reference internal" href="#overview">Overview</a><ul>
+<li><a class="reference internal" href="#about-original-libpcap">About original libpcap:</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#requirements">Requirements</a></li>
+<li><a class="reference internal" href="#installation">Installation</a></li>
+<li><a class="reference internal" href="#development">Development</a></li>
+<li><a class="reference internal" href="#license">License</a></li>
+<li><a class="reference internal" href="#authors">Authors</a></li>
+<li><a class="reference internal" href="#sponsoring">Sponsoring</a></li>
+<li><a class="reference internal" href="#contents">Contents</a><ul>
+</ul>
+</li>
+<li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="CHANGES.html"
+                          title="next chapter">Changelog</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/index.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="CHANGES.html" title="Changelog"
+             >next</a> |</li>
+        <li class="nav-item nav-item-0"><a href="#">libpcap 1.11.0b29 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">libpcap documentation</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright Adam Karpierz.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.1.0.
+    </div>
+  </body>
+</html>

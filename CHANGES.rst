@@ -1,6 +1,12 @@
 Changelog
 =========
 
+1.11.0b29 (2026-02-13)
+----------------------
+- Added support for Python 3.15
+- Upgrade to the latest libpcap API 1.11.0-PRE
+- Setup update (mainly dependencies).
+
 1.11.0b28 (2026-01-26)
 ----------------------
 - Upgrade to the latest libpcap API 1.11.0-PRE

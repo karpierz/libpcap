@@ -125,7 +125,7 @@ Requirements
 
 - | It is a fully independent package.
   | All necessary things are installed during the normal installation process.
-- ATTENTION: currently works and tested only for Windows.
+- ATTENTION: currently fully tested only for Windows.
 
 Installation
 ============

@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 [build-system]
-requires = ['setuptools>=80.10.2', 'packaging>=26.0.0']
+requires = ['setuptools>=81.0.0', 'packaging>=26.0.0']
 build-backend = 'setuptools.build_meta'
 
 [project]
 name        = 'libpcap'
-version     = '1.11.0b28'
+version     = '1.11.0b29'
 description = 'Python binding for the libpcap C library.'
 authors = [
     { name  = 'Adam Karpierz', email = 'adam@karpierz.net' },
@@ -37,6 +37,7 @@ classifiers = [
     'Programming Language :: Python :: 3.12',
     'Programming Language :: Python :: 3.13',
     'Programming Language :: Python :: 3.14',
+    'Programming Language :: Python :: 3.15',
     'Programming Language :: Python :: 3 :: Only',
     'Programming Language :: Python :: Implementation :: CPython',
     'Programming Language :: Python :: Implementation :: PyPy',
@@ -47,9 +48,9 @@ requires-python = '>=3.10.0,<4.0.0'
 dependencies = [
     # mandatory
     'typing-extensions>=4.15.0',
-    'pkg-about>=2.1.0',
+    'pkg-about>=2.2.0',
     # others
-    'py-utlx>=2.1.0',
+    'py-utlx>=2.2.0',
 ]
 dynamic = ['readme']
 #scripts.'libpcap' = 'libpcap.__main__:main'
@@ -58,17 +59,17 @@ dynamic = ['readme']
 
 [dependency-groups]
 base = [
-    'pip>=25.3',
-    'setuptools>=80.10.2',
+    'pip>=26.0.1',
+    'setuptools>=81.0.0',
 ]
 test = [
     { include-group = 'base' },
     'deepdiff>=8.6.1',
-    'rich>=14.3.1',
+    'rich>=14.3.2',
 ]
 coverage = [
     { include-group = 'test' },
-    'coverage>=7.13.2',
+    'coverage>=7.13.4',
     'covdefaults>=2.3.0',
     'diff-cover>=10.2.0',
 ]
@@ -99,7 +100,7 @@ typing = [
     { include-group = 'base' },
     'mypy>=1.19.1',
     'mypy_extensions>=1.1.0',
-    'types-setuptools>=80.10.0.20260124',
+    'types-setuptools>=81.0.0.20260209',
 ]
 lint = [
     { include-group = 'test' },

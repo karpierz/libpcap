@@ -1,8 +1,8 @@
-# Copyright (c) 2025 Adam Karpierz
+# Copyright (c) 2026 Adam Karpierz
 # SPDX-License-Identifier: Zlib
 
 # /// script
-# dependencies = ["nox>=2025.11.12", "nox_ext", "nox_lib"]
+# dependencies = ["nox>=2026.2.9", "nox_ext", "nox_lib"]
 # ///
 
 from __future__ import annotations
